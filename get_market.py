@@ -1,7 +1,7 @@
 import os
 import json
 import yfinance as yf
-import google.generativeai as genai
+from google import genai
 from fpdf import FPDF
 from datetime import datetime
 
