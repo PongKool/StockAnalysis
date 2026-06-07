@@ -27,7 +27,7 @@ class MorningReportPDF(FPDF):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(148, 163, 184)
-        self.cell(0, 10, "Automated Cloud Pipeline • Powered by yfinance & Gemini API", align="center")
+        self.cell(0, 10, "Automated Cloud Pipeline - Powered by yfinance & Gemini API", align="center")
 
 def run_pipeline():
     ticker = "^GSPC"
