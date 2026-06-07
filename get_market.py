@@ -109,7 +109,8 @@ with pdf.table(col_widths=(20, 25, 25, 25, 95), text_align="LEFT") as table:
     pdf.set_font("Helvetica", "", 9)
     pdf.set_text_color(51, 65, 85) # Slate 700
     
-for stock in analysis_data:
+# Render Data Rows dynamically
+    for stock in analysis_data:
         row = table.row()
         
         # 1. Grab the trend value and normalize it for matching
@@ -117,19 +118,19 @@ for stock in analysis_data:
         
         # 2. Assign text color dynamically based on the trend
         if "bullish" in trend_status:
-            row_color = (34, 197, 94)   # Vibrant Green (RGB)
+            pdf.set_text_color(34, 197, 94)   # Vibrant Green (RGB)
         elif "bearish" in trend_status:
-            row_color = (239, 68, 68)   # Vibrant Red (RGB)
+            pdf.set_text_color(239, 68, 68)   # Vibrant Red (RGB)
         else:
-            row_color = (51, 65, 85)    # Default Slate 700 (RGB) for Sideways/Errors
+            pdf.set_text_color(51, 65, 85)    # Default Slate 700 (RGB) for Sideways/Errors
             
-        # 3. Apply the dynamic color directly to each cell in the row
-        row.cell(str(stock.get("stock_name", "")), text_color=row_color)
-        row.cell(str(stock.get("resistance", "")), text_color=row_color)
-        row.cell(str(stock.get("support", "")), text_color=row_color)
-        row.cell(str(stock.get("trend", "")), text_color=row_color)
-        row.cell(str(stock.get("important_note", "")), text_color=row_color)
-    
+        # 3. Add the cells cleanly without the invalid argument
+        row.cell(str(stock.get("stock_name", "")))
+        row.cell(str(stock.get("resistance", "")))
+        row.cell(str(stock.get("support", "")))
+        row.cell(str(stock.get("trend", "")))
+        row.cell(str(stock.get("important_note", "")))
+        
 # Finalize the compiled PDF file
 filename = "morning_market_analysis.pdf"
 pdf.output(filename)
