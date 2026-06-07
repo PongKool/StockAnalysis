@@ -94,13 +94,13 @@ pdf = CorporatePDF()
 pdf.add_page()
 
 # Setup Table Columns matching your exact 6 columns
-# Adjusted widths to fit a 190mm workspace cleanly: Price(22), Name(22), Resistance(22), Support(22), Trend(22), Note(80)
+# Shifted widths slightly so Stock Name and Latest Price have clean structural room
 with pdf.table(col_widths=(22, 22, 22, 22, 22, 80), text_align="LEFT") as table:
     # Render the Table Header row
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_text_color(15, 23, 42) # Slate 900
     header_row = table.row()
-    headers = ["Latest Price", "Stock Name", "Resistance", "Support", "Trend", "Important Note"]
+    headers = ["Stock Name", "Latest Price", "Resistance", "Support", "Trend", "Important Note"]
     for header_title in headers:
         header_row.cell(header_title)
 
@@ -112,10 +112,10 @@ with pdf.table(col_widths=(22, 22, 22, 22, 22, 80), text_align="LEFT") as table:
         # 1. Grab the trend value and normalize it for matching
         trend_status = str(stock.get("trend", "")).strip().lower()
         
-        # 2. Add the normal black/slate cells first (including the new Latest Price column)
+        # 2. Add the normal black/slate cells first (Stock Name is now 1st, Latest Price is 2nd)
         pdf.set_text_color(51, 65, 85)    # Default Slate 700 (Black-ish)
-        row.cell(str(stock.get("latest_price", "")))
         row.cell(str(stock.get("stock_name", "")))
+        row.cell(str(stock.get("latest_price", "")))
         row.cell(str(stock.get("resistance", "")))
         row.cell(str(stock.get("support", "")))
         
