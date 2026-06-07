@@ -6,22 +6,22 @@ from datetime import datetime
 
 class MorningReportPDF(FPDF):
     def header(self):
-        # Draw a dark corporate header bar
-        self.set_fill_color(15, 23, 42) # Slate-900 (#0f172a)
+        # Dark corporate header bar
+        self.set_fill_color(15, 23, 42) # Slate-900
         self.rect(0, 0, 210, 35, 'F')
         
-        # Header text styling
+        # Header text
         self.set_text_color(255, 255, 255)
         self.set_font("Helvetica", "B", 16)
         self.set_y(10)
         self.cell(0, 6, "AUTOMATED MARKET ANALYSIS REPORT", ln=True, align="L")
         
-        # Meta timestamp alignment
+        # Metadata timestamp
         self.set_font("Helvetica", "", 10)
         self.set_text_color(148, 163, 184) # Slate-400
         current_time = datetime.now().strftime("%B %d, %Y | %I:%M %p UTC")
         self.cell(0, 6, f"Asset: ^GSPC (S&P 500 Index)   |   Generated: {current_time}", ln=True, align="L")
-        self.set_y(45) # Lower the cursor position past the banner boundary
+        self.set_y(45) # Drop cursor past the header bar
 
     def footer(self):
         self.set_y(-15)
@@ -47,12 +47,12 @@ def run_pipeline():
     Act as an institutional financial technical analyst. Analyze the following 14-day market data for {ticker}:
     {data_snapshot}
     
-    Provide your final analysis broken cleanly into these exact headers:
-    1. CURRENT MARKET TREND
-    2. KEY STRUCTURAL LEVELS
-    3. MORNING OPENING OUTLOOK
+    Format your response cleanly in Markdown using these exact headers:
+    **1. CURRENT MARKET TREND**
+    **2. KEY STRUCTURAL LEVELS**
+    **3. MORNING OPENING OUTLOOK**
     
-    Keep descriptions succinct and actionable. Do not use markdown bolding indicators (**) in the response body.
+    Keep descriptions succinct, actionable, and use normal line spacing.
     """
     
     response = client.models.generate_content(
@@ -61,37 +61,18 @@ def run_pipeline():
     )
     analysis_text = response.text
 
-    print("Compiling colorful PDF structure...")
+    print("Compiling markdown layout...")
     pdf = MorningReportPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     
-    # Base layout style configuration
+    # Configure document typography
     pdf.set_text_color(51, 65, 85) # Slate-700
     pdf.set_font("Helvetica", "", 11)
     
-    lines = analysis_text.split('\n')
-    for line in lines:
-        clean_line = line.strip()
-        if not clean_line:
-            continue
-            
-        # Intercept main layout blocks to inject colored headers
-        if "TREND" in clean_line.upper() or "LEVELS" in clean_line.upper() or "OUTLOOK" in clean_line.upper():
-            pdf.ln(4)
-            pdf.set_font("Helvetica", "B", 13)
-            pdf.set_text_color(30, 58, 138) # Corporate Navy (#1e3a8a)
-            pdf.cell(0, 8, clean_line, ln=True)
-            # Underline bar for header structural depth
-            pdf.set_fill_color(226, 232, 240)
-            pdf.rect(pdf.get_x(), pdf.get_y(), 180, 1, 'F')
-            pdf.ln(3)
-            # Reset text block defaults
-            pdf.set_font("Helvetica", "", 11)
-            pdf.set_text_color(51, 65, 85)
-        else:
-            pdf.multi_cell(0, 6, clean_line)
-            pdf.ln(1)
+    # Render everything using native markdown wrapping
+    # pdf.epw calculates effective page width (accounting for margins)
+    pdf.multi_cell(w=pdf.epw, h=6, txt=analysis_text, markdown=True)
 
     pdf.output("morning_market_analysis.pdf")
     print("PDF output finalized successfully.")
