@@ -1,0 +1,41 @@
+name: Generate Daily Market PDF
+
+on:
+  schedule:
+    # Runs Monday through Friday at 01:00 UTC (8:00 AM Indochina Time)
+    - cron: '0 1 * * 1-5'
+  workflow_dispatch: # This allows you to click a button to run it manually anytime
+
+permissions:
+  contents: write # Grants the cloud environment permission to save/push files back to your repo
+
+jobs:
+  run-analysis-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository files
+      uses: actions/checkout@v4
+
+    - name: Setup Python Runtime
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Generation Libraries
+      run: |
+        pip install yfinance google-genai fpdf2
+
+    - name: Execute Report Logic
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      run: python get_market.py
+
+    - name: Commit and Push PDF back to Repo
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add morning_market_analysis.pdf
+        
+        # Only execute commit if structural modifications are detected
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Automated Morning PDF Update [skip ci]" && git push)
