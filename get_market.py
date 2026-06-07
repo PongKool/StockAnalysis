@@ -31,7 +31,7 @@ for ticker in tickers:
 
 # 3. Request a clean, structured JSON format from Gemini to feed directly into the PDF table
 prompt = f"""
-You are an expert institutional technical analyst. Based on the 10-day market price history provided below, analyze each individual stock. Find or compute the key near-term resistance level, key support level, current primary trend (e.g., Bullish, Bearish, Sideways), and provide a concise, professional "Important Note" explaining the key price action catalyst or breakout level.
+You are an expert institutional technical analyst. Based on the 10-day market price history provided below, analyze each individual stock. Extract the latest closing price, find or compute the key near-term resistance level, key support level, current primary trend (e.g., Bullish, Bearish, Sideways), and provide a concise, professional "Important Note" explaining the key price action catalyst or breakout level.
 
 Stocks to analyze: {', '.join(tickers)}
 
@@ -42,6 +42,7 @@ CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of obje
 Each object in the JSON array must follow this exact schema:
 {{
   "stock_name": "TICKER",
+  "latest_price": "Latest close price value",
   "resistance": "Resistance level value",
   "support": "Support level value",
   "trend": "Bullish/Bearish/Sideways",
@@ -70,8 +71,7 @@ try:
     analysis_data = json.loads(raw_json)
 except Exception as e:
     print("Failed to parse JSON. Falling back to an empty template table structure.")
-    analysis_data = [{"stock_name": t, "resistance": "Error", "support": "Error", "trend": "Error", "important_note": "Failed to parse data."} for t in tickers]
-
+    analysis_data = [{"stock_name": t, "latest_price": "Error", "resistance": "Error", "support": "Error", "trend": "Error", "important_note": "Failed to parse data."} for t in tickers]
 
 # 4. Compile the Data into a Beautiful PDF Table Layout
 class CorporatePDF(FPDF):
@@ -93,31 +93,28 @@ class CorporatePDF(FPDF):
 pdf = CorporatePDF()
 pdf.add_page()
 
-# Setup Table Columns matching your exact 5 columns
-# Total printable width is roughly 190mm on standard A4 layout.
-# Width configuration: stock_name(20), resistance(25), support(25), trend(25), important_note(95)
-with pdf.table(col_widths=(20, 25, 25, 25, 95), text_align="LEFT") as table:
+# Setup Table Columns matching your exact 6 columns
+# Adjusted widths to fit a 190mm workspace cleanly: Price(22), Name(22), Resistance(22), Support(22), Trend(22), Note(80)
+with pdf.table(col_widths=(22, 22, 22, 22, 22, 80), text_align="LEFT") as table:
     # Render the Table Header row
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_text_color(15, 23, 42) # Slate 900
     header_row = table.row()
-    headers = ["Stock Name", "Resistance", "Support", "Trend", "Important Note"]
+    headers = ["Latest Price", "Stock Name", "Resistance", "Support", "Trend", "Important Note"]
     for header_title in headers:
         header_row.cell(header_title)
 
     # Render Data Rows dynamically
     pdf.set_font("Helvetica", "", 9)
-    pdf.set_text_color(51, 65, 85) # Slate 700
-    
-# Render Data Rows dynamically
     for stock in analysis_data:
         row = table.row()
         
         # 1. Grab the trend value and normalize it for matching
         trend_status = str(stock.get("trend", "")).strip().lower()
         
-        # 2. Add the normal black/slate cells first
+        # 2. Add the normal black/slate cells first (including the new Latest Price column)
         pdf.set_text_color(51, 65, 85)    # Default Slate 700 (Black-ish)
+        row.cell(str(stock.get("latest_price", "")))
         row.cell(str(stock.get("stock_name", "")))
         row.cell(str(stock.get("resistance", "")))
         row.cell(str(stock.get("support", "")))
@@ -135,7 +132,7 @@ with pdf.table(col_widths=(20, 25, 25, 25, 95), text_align="LEFT") as table:
         # 4. Reset back to default black/slate for the remaining column
         pdf.set_text_color(51, 65, 85)
         row.cell(str(stock.get("important_note", "")))
-        
+
 # Finalize the compiled PDF file
 filename = "morning_market_analysis.pdf"
 pdf.output(filename)
