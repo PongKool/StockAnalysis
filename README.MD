@@ -27,11 +27,13 @@ To maximize token efficiency and lower operational costs, this project splits ta
 
 ## ⏱️ Timeframes & Analysis Metrics
 
-Because this system tracks highly volatile, tech-heavy stocks (e.g., *NVDA, AMD, AVGO, TSM*), it analyzes market movements using two distinct timeframes to eliminate short-term market noise:
+Because this system tracks highly volatile, tech-heavy stocks (e.g., *NVDA, AMD, AVGO, TSM* ), it analyzes market movements using multiple distinct timeframes to eliminate short-term market noise and isolate clean technical setups:
 
-| Metric | Timeframe | How It Works |
-| :--- | :--- | :--- |
-| **Support & Resistance** | **1-Month Lookback** | Python evaluates a full month of daily data to find the absolute highest ceiling and lowest floor (`hist['Low'].min()`). This provides a robust, macro price floor where buyers historically step in. |
-| **Trend Analysis** | **14 Trading Days** | Gemini is supplied with a compressed list of the last 14 closing prices (~3 weeks of market action). This allows the AI to determine if the short-term momentum is **Bullish**, **Bearish**, or **Sideways** while smoothing out random single-day tech volatility. |
+| *Metric* | *Timeframe* | *How It Works* |
+| ----- | ----- | ----- |
+| *Support & Resistance* | *1-Month Lookback* | Python evaluates a full month of daily data (~21 trading days) to find the absolute highest ceiling and lowest floor (`hist['Low'].min()`). This provides a robust, macro price floor where buyers historically step in. |
+| *OBV Trend* | *5-Day Momentum* | Evaluates the running cumulative volume total over the trailing 5 trading days. A positive average slope flags the metric as *Rising*, providing short-term volume validation to support recent price activity. |
+| *MACD Status* | *3-Month Context* | Leverages a longer historical lookback to accurately calculate institutional-standard moving averages (12-day Fast EMA, 26-day Slow EMA, and a 9-day Signal EMA) to identify precise dynamic momentum crossovers. |
+| *Trend Analysis* | *14 Trading Days* | Gemini is supplied with a compressed list of the last 14 closing prices (~3 weeks of market action). This allows the AI to determine if the short-term direction is *Bullish*, *Bearish*, or *Sideways* while smoothing out random single-day tech volatility. |
 
 ---
