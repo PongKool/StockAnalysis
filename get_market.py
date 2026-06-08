@@ -11,8 +11,8 @@ client = genai.Client()
 # 2. Define your target tech and growth watchlist
 tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "VST", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
 print("Fetching technical data from Yahoo Finance...")
-data_summary = ""
 
+data_summary = ""
 for ticker in tickers:
     try:
         stock = yf.Ticker(ticker)
@@ -20,6 +20,7 @@ for ticker in tickers:
         hist = stock.history(period="1mo")
         if hist.empty:
             continue
+        
         # Pull the last 10 sessions to feed to Gemini
         recent = hist.tail(10)
         data_summary += f"\n--- {ticker} Historical Data (Last 10 Sessions) ---\n"
@@ -31,21 +32,24 @@ for ticker in tickers:
 
 # 3. Request a clean, structured JSON format from Gemini to feed directly into the PDF table
 prompt = f"""
-You are an expert institutional technical analyst. Based on the 10-day market price history provided below, analyze each individual stock. Extract the latest closing price, find or compute the key near-term resistance level, key support level, current primary trend (e.g., Bullish, Bearish, Sideways), and provide a concise, professional "Important Note" explaining the key price action catalyst or breakout level.
+You are an expert institutional technical analyst. Based on the 10-day market price history provided below, analyze each individual stock. 
+Extract the latest closing price, find or compute the key near-term resistance level, key support level, current primary trend (e.g., Bullish, Bearish, Sideways), 
+and provide a concise, professional "Important Note" explaining the key price action catalyst or breakout level. 
+Additionally, simulate or determine a logical entry "Cost" basis for reference, and provide an actionable "Recommendation" (Buy, Hold, or Sell) based on the trend and levels.
 
 Stocks to analyze: {', '.join(tickers)}
-
-Data Input:
-{data_summary}
+Data Input: {data_summary}
 
 CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. 
 Each object in the JSON array must follow this exact schema:
 {{
   "stock_name": "TICKER",
+  "cost": "Your entry cost price",
   "latest_price": "Latest close price value",
   "resistance": "Resistance level value",
   "support": "Support level value",
   "trend": "Bullish/Bearish/Sideways",
+  "recommendation": "Buy/Hold/Sell",
   "important_note": "Technical commentary note here"
 }}
 """
@@ -71,7 +75,16 @@ try:
     analysis_data = json.loads(raw_json)
 except Exception as e:
     print("Failed to parse JSON. Falling back to an empty template table structure.")
-    analysis_data = [{"stock_name": t, "latest_price": "Error", "resistance": "Error", "support": "Error", "trend": "Error", "important_note": "Failed to parse data."} for t in tickers]
+    analysis_data = [{
+        "stock_name": t, 
+        "cost": "Error",
+        "latest_price": "Error", 
+        "resistance": "Error", 
+        "support": "Error", 
+        "trend": "Error", 
+        "recommendation": "Error",
+        "important_note": "Failed to parse data."
+    } for t in tickers]
 
 # 4. Compile the Data into a Beautiful PDF Table Layout
 class CorporatePDF(FPDF):
@@ -93,14 +106,14 @@ class CorporatePDF(FPDF):
 pdf = CorporatePDF()
 pdf.add_page()
 
-# Setup Table Columns matching your exact 6 columns
-# Shifted widths slightly so Stock Name and Latest Price have clean structural room
-with pdf.table(col_widths=(22, 22, 22, 22, 22, 80), text_align="LEFT") as table:
+# Setup Table Columns matching your exact 8 columns now (Total width allocations adjusted)
+# Total width = 20 + 20 + 20 + 20 + 20 + 20 + 25 + 45 = 190 (Standard A4 printable area width)
+with pdf.table(col_widths=(20, 20, 20, 20, 20, 20, 25, 45), text_align="LEFT") as table:
     # Render the Table Header row
-    pdf.set_font("Helvetica", "B", 10)
+    pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(15, 23, 42) # Slate 900
     header_row = table.row()
-    headers = ["Stock Name", "Latest Price", "Resistance", "Support", "Trend", "Important Note"]
+    headers = ["Stock Name", "Cost", "Latest Price", "Resistance", "Support", "Trend", "Recommendation", "Important Note"]
     for header_title in headers:
         header_row.cell(header_title)
 
@@ -109,25 +122,35 @@ with pdf.table(col_widths=(22, 22, 22, 22, 22, 80), text_align="LEFT") as table:
     for stock in analysis_data:
         row = table.row()
         
-        # 1. Grab the trend value and normalize it for matching
+        # Grab status parameters for dynamic coloring logic
         trend_status = str(stock.get("trend", "")).strip().lower()
+        rec_status = str(stock.get("recommendation", "")).strip().lower()
         
-        # 2. Add the normal black/slate cells first (Stock Name is now 1st, Latest Price is 2nd)
-        pdf.set_text_color(51, 65, 85)    # Default Slate 700 (Black-ish)
+        # 1. Reset to default Slate 700 and add first 5 columns
+        pdf.set_text_color(51, 65, 85) 
         row.cell(str(stock.get("stock_name", "")))
+        row.cell(str(stock.get("cost", "")))
         row.cell(str(stock.get("latest_price", "")))
         row.cell(str(stock.get("resistance", "")))
         row.cell(str(stock.get("support", "")))
         
-        # 3. Change text color dynamically ONLY for the Trend cell
+        # 2. Change text color dynamically ONLY for the Trend cell
         if "bullish" in trend_status:
-            pdf.set_text_color(34, 197, 94)   # Vibrant Green (RGB)
+            pdf.set_text_color(34, 197, 94)   # Vibrant Green
         elif "bearish" in trend_status:
-            pdf.set_text_color(239, 68, 68)   # Vibrant Red (RGB)
+            pdf.set_text_color(239, 68, 68)   # Vibrant Red
         else:
             pdf.set_text_color(51, 65, 85)    # Default Slate 700
-            
         row.cell(str(stock.get("trend", "")))
+        
+        # 3. Change text color dynamically ONLY for the Recommendation cell
+        if "buy" in rec_status:
+            pdf.set_text_color(34, 197, 94)   # Vibrant Green
+        elif "sell" in rec_status:
+            pdf.set_text_color(239, 68, 68)   # Vibrant Red
+        else:
+            pdf.set_text_color(234, 179, 8)   # Vibrant Amber/Yellow for Hold
+        row.cell(str(stock.get("recommendation", "")))
         
         # 4. Reset back to default black/slate for the remaining column
         pdf.set_text_color(51, 65, 85)
