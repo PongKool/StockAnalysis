@@ -39,8 +39,8 @@ for ticker in tickers:
         resistance_level = hist['High'].max()
         latest_close = hist['Close'].iloc[-1]
         
-        # Compress the recent 5 days of closing prices into a minimal string layout
-        recent_closes = hist.tail(5)
+        # Compress the recent 14 days (for tech-centric trend) of closing prices into a minimal string layout
+        recent_closes = hist.tail(14)
         trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
         
         # Token-optimized data line representing the stock status
