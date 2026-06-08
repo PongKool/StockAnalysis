@@ -12,61 +12,61 @@ client = genai.Client()
 tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "VST", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
 
 # 2. YOUR ACTUAL COST BASIS DICTIONARY
-# Update these values with the exact prices you paid for each position
 my_costs = {
-    "MU": 424.6235,
-    "NVDA": 220.7975,
-    "ORCL": 183.7172,
-    "SNDK": 1418.1652,      # Use 0.00 or a placeholder if you don't own it yet
-    "MSFT": 455.3717,
-    "VST": 150.2069,
-    "TSM": 424.3020,
-    "LLY": 971.1165,
-    "LRCX": 305.4055,
-    "NOW": 107.6760,
-    "AMD": 448.3669,
-    "CACI": 524.5251,
-    "AVGO": 446.1270,
-    "ANET": 171.1143
+    "MU": 424.62, "NVDA": 220.80, "ORCL": 183.72, "SNDK": 1418.17,
+    "MSFT": 455.37, "VST": 150.21, "TSM": 424.30, "LLY": 971.12,
+    "LRCX": 305.41, "NOW": 107.68, "AMD": 448.37, "CACI": 524.53,
+    "AVGO": 446.13, "ANET": 171.11
 }
 
 print("Fetching technical data from Yahoo Finance...")
-
 data_summary = ""
+
 for ticker in tickers:
     try:
         stock = yf.Ticker(ticker)
-        # Fetching 1 month of price context to give accurate support/resistance evaluation
+        # Fetching 1 month of price context
         hist = stock.history(period="1mo")
         if hist.empty:
             continue
         
-        # Get your actual cost for this ticker (defaults to "N/A" if missing from dict)
-        actual_cost = my_costs.get(ticker, "N/A")
+        # Format actual cost to 2 decimal places to save tokens
+        cost_val = my_costs.get(ticker, 0.0)
+        actual_cost = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
         
-        # Pull the last 10 sessions to feed to Gemini alongside your cost
-        recent = hist.tail(10)
-        data_summary += f"\n--- {ticker} Historical Data (Last 10 Sessions) | My Entry Cost: {actual_cost} ---\n"
-        for index, row in recent.iterrows():
-            date_str = index.strftime('%Y-%m-%d')
-            data_summary += f"Date: {date_str} | Close: {row['Close']:.2f} | High: {row['High']:.2f} | Low: {row['Low']:.2f} | Vol: {int(row['Volume'])}\n"
+        # Calculate true Support and Resistance using Python instead of making the LLM guess
+        support_level = hist['Low'].min()
+        resistance_level = hist['High'].max()
+        latest_close = hist['Close'].iloc[-1]
+        
+        # Compress the recent 5 days of closing prices into a minimal string layout
+        recent_closes = hist.tail(5)
+        trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
+        
+        # Token-optimized data line representing the stock status
+        data_summary += (
+            f"Ticker: {ticker} | Entry Cost: {actual_cost} | Latest Close: {latest_close:.2f} | "
+            f"1Mo Support: {support_level:.2f} | 1Mo Resistance: {resistance_level:.2f} | "
+            f"Recent Close Trend: [{trend_string}]\n"
+        )
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
 
 # 3. Request structured JSON format from Gemini taking your real cost into account
 prompt = f"""
-You are an expert institutional technical analyst. Based on the 10-day market price history and the provided "My Entry Cost" below, analyze each individual stock. 
-Extract the latest closing price, find or compute the key near-term resistance level, key support level, and current primary trend (e.g., Bullish, Bearish, Sideways).
+You are an expert institutional technical analyst. Based on the market data summary and the provided "Entry Cost" below, analyze each individual stock. Identify or confirm the key near-term resistance level, key support level, and current primary trend (e.g., Bullish, Bearish, Sideways).
 
 CRITICAL ANALYSIS REQUIREMENT:
-- For "cost", map back the EXACT "My Entry Cost" value provided to you in the data input. Do not alter it.
-- For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals in relation to that Entry Cost. 
-  (e.g., If the stock is significantly below their cost but hitting strong support, it might be a 'Buy' to average down. If it's way above cost but hitting a heavy resistance ceiling, it might be a 'Sell' to lock in profits, otherwise 'Hold').
+- For "cost", map back the EXACT "Entry Cost" value provided to you in the data input. Do not alter it.
+- For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals in relation to that Entry Cost. (e.g., If the stock is significantly below their cost but hitting strong support, it might be a 'Buy' to average down. If it's way above cost but hitting a heavy resistance ceiling, it might be a 'Sell' to lock in profits, otherwise 'Hold').
 
 Stocks to analyze: {', '.join(tickers)}
-Data Input: {data_summary}
 
-CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. 
+Data Input:
+{data_summary}
+
+CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text.
+
 Each object in the JSON array must follow this exact schema:
 {{
   "stock_name": "TICKER",
@@ -101,12 +101,12 @@ try:
 except Exception as e:
     print("Failed to parse JSON. Falling back to an empty template table structure.")
     analysis_data = [{
-        "stock_name": t, 
-        "cost": str(my_costs.get(t, "N/A")),
-        "latest_price": "Error", 
-        "resistance": "Error", 
-        "support": "Error", 
-        "trend": "Error", 
+        "stock_name": t,
+        "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
+        "latest_price": "Error",
+        "resistance": "Error",
+        "support": "Error",
+        "trend": "Error",
         "recommendation": "Error",
         "important_note": "Failed to parse data."
     } for t in tickers]
@@ -152,7 +152,7 @@ with pdf.table(col_widths=(20, 20, 20, 20, 20, 20, 25, 45), text_align="LEFT") a
         rec_status = str(stock.get("recommendation", "")).strip().lower()
         
         # 1. Reset to default Slate 700 and add first 5 columns
-        pdf.set_text_color(51, 65, 85) 
+        pdf.set_text_color(51, 65, 85)
         row.cell(str(stock.get("stock_name", "")))
         row.cell(str(stock.get("cost", "")))
         row.cell(str(stock.get("latest_price", "")))
