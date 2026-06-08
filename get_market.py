@@ -71,14 +71,29 @@ for ticker in tickers:
         resistance_level = hist_1m['High'].max()
         latest_close = hist_1m['Close'].iloc[-1]
         
+        # --- CALCULATE RISK/REWARD RATIO ---
+        risk_distance = latest_close - support_level
+        reward_distance = resistance_level - latest_close
+        
+        # Handle edge case where price is exactly at or above resistance to prevent division by zero
+        if reward_distance <= 0:
+            rr_ratio_str = "Poor (At Resistance)"
+        elif risk_distance <= 0:
+            rr_ratio_str = "Excellent (At Support)"
+        else:
+            # Expressed as a single decimal ratio (e.g., Risking $1 to make $2.50 -> 1:2.50)
+            calculated_ratio = reward_distance / risk_distance
+            rr_ratio_str = f"1:{calculated_ratio:.2f}"
+            
         # Compress the recent 14 days of closing prices into a minimal string layout
         recent_closes = hist_1m.tail(14)
         trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
         
-        # Token-optimized data line representing the stock status including OBV and MACD
+        # Token-optimized data line representing the stock status including OBV, MACD, and Risk/Reward
         data_summary += (
             f"Ticker: {ticker} | Entry Cost: {actual_cost} | Latest Close: {latest_close:.2f} | "
             f"1Mo Support: {support_level:.2f} | 1Mo Resistance: {resistance_level:.2f} | "
+            f"Risk/Reward: {rr_ratio_str} | "
             f"OBV: {latest_obv:.0f} ({obv_trend}) | MACD: {latest_macd:.2f} (Signal: {latest_signal:.2f}, {macd_status}) | "
             f"Recent Close Trend: [{trend_string}]\n"
         )
@@ -87,10 +102,11 @@ for ticker in tickers:
 
 # 3. Request structured JSON format from Gemini taking your real cost into account
 prompt = f"""
-You are an expert institutional technical analyst. Based on the market data summary, volume metrics (OBV), momentum indicators (MACD), and the provided "Entry Cost" below, analyze each individual stock. 
+You are an expert institutional technical analyst. Based on the market data summary, volume metrics (OBV), momentum indicators (MACD), calculated Risk/Reward profiles, and the provided "Entry Cost" below, analyze each individual stock. 
 
 CRITICAL ANALYSIS REQUIREMENT:
 - For "cost", map back the EXACT "Entry Cost" value provided to you in the data input. Do not alter it.
+- Factor the **Risk/Reward** ratio heavily into your decisions. If a stock is trading immediately underneath its 1-Month Resistance ceiling (a poor ratio), protect capital and avoid issuing a "Buy" regardless of how bullish the MACD looks.
 - Factor the **OBV Trend** (Volume validation) and **MACD Status** (Momentum environment/extension/crossover) explicitly into your trend determination.
 - For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals (Price vs Support/Resistance, Volume, and Momentum) in relation to that Entry Cost. 
 
@@ -110,7 +126,7 @@ Each object in the JSON array must follow this exact schema:
   "macd_status": "e.g., Bullish Territory / Bullish Crossover / Bearish Territory",
   "trend": "Bullish/Bearish/Sideways",
   "recommendation": "Buy/Hold/Sell",
-  "important_note": "Technical commentary taking their entry cost, OBV validation, and MACD momentum state into consideration"
+  "important_note": "Technical commentary taking their entry cost, OBV validation, MACD momentum state, and structural Risk/Reward ratio into consideration"
 }}
 """
 
