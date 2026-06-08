@@ -5,11 +5,31 @@ from google import genai
 from fpdf import FPDF
 from datetime import datetime
 
-# 1. Initialize Gemini Client (Uses the API key stored in your GitHub secrets environment)
+# 1. Initialize Gemini Client (Uses the API key stored in your environment)
 client = genai.Client()
 
-# 2. Define your target tech and growth watchlist
+# Define your target tech and growth watchlist
 tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "VST", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
+
+# 2. YOUR ACTUAL COST BASIS DICTIONARY
+# Update these values with the exact prices you paid for each position
+my_costs = {
+    "MU": 424.6235,
+    "NVDA": 220.7975,
+    "ORCL": 183.7172,
+    "SNDK": 1418.1652,      # Use 0.00 or a placeholder if you don't own it yet
+    "MSFT": 455.3717,
+    "VST": 150.2069,
+    "TSM": 424.3020,
+    "LLY": 971.1165,
+    "LRCX": 305.4055,
+    "NOW": 107.6760,
+    "AMD": 448.3669,
+    "CACI": 524.5251,
+    "AVGO": 446.1270,
+    "ANET": 171.1143
+}
+
 print("Fetching technical data from Yahoo Finance...")
 
 data_summary = ""
@@ -21,21 +41,27 @@ for ticker in tickers:
         if hist.empty:
             continue
         
-        # Pull the last 10 sessions to feed to Gemini
+        # Get your actual cost for this ticker (defaults to "N/A" if missing from dict)
+        actual_cost = my_costs.get(ticker, "N/A")
+        
+        # Pull the last 10 sessions to feed to Gemini alongside your cost
         recent = hist.tail(10)
-        data_summary += f"\n--- {ticker} Historical Data (Last 10 Sessions) ---\n"
+        data_summary += f"\n--- {ticker} Historical Data (Last 10 Sessions) | My Entry Cost: {actual_cost} ---\n"
         for index, row in recent.iterrows():
             date_str = index.strftime('%Y-%m-%d')
             data_summary += f"Date: {date_str} | Close: {row['Close']:.2f} | High: {row['High']:.2f} | Low: {row['Low']:.2f} | Vol: {int(row['Volume'])}\n"
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
 
-# 3. Request a clean, structured JSON format from Gemini to feed directly into the PDF table
+# 3. Request structured JSON format from Gemini taking your real cost into account
 prompt = f"""
-You are an expert institutional technical analyst. Based on the 10-day market price history provided below, analyze each individual stock. 
-Extract the latest closing price, find or compute the key near-term resistance level, key support level, current primary trend (e.g., Bullish, Bearish, Sideways), 
-and provide a concise, professional "Important Note" explaining the key price action catalyst or breakout level. 
-Additionally, simulate or determine a logical entry "Cost" basis for reference, and provide an actionable "Recommendation" (Buy, Hold, or Sell) based on the trend and levels.
+You are an expert institutional technical analyst. Based on the 10-day market price history and the provided "My Entry Cost" below, analyze each individual stock. 
+Extract the latest closing price, find or compute the key near-term resistance level, key support level, and current primary trend (e.g., Bullish, Bearish, Sideways).
+
+CRITICAL ANALYSIS REQUIREMENT:
+- For "cost", map back the EXACT "My Entry Cost" value provided to you in the data input. Do not alter it.
+- For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals in relation to that Entry Cost. 
+  (e.g., If the stock is significantly below their cost but hitting strong support, it might be a 'Buy' to average down. If it's way above cost but hitting a heavy resistance ceiling, it might be a 'Sell' to lock in profits, otherwise 'Hold').
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
@@ -44,18 +70,17 @@ CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of obje
 Each object in the JSON array must follow this exact schema:
 {{
   "stock_name": "TICKER",
-  "cost": "Your entry cost price",
+  "cost": "The exact entry cost provided to you",
   "latest_price": "Latest close price value",
   "resistance": "Resistance level value",
   "support": "Support level value",
   "trend": "Bullish/Bearish/Sideways",
   "recommendation": "Buy/Hold/Sell",
-  "important_note": "Technical commentary note here"
+  "important_note": "Technical commentary taking their entry cost into consideration"
 }}
 """
 
 print("Generating structured technical analysis via Gemini API...")
-# Calling the correct client method using the gemini-3.5-flash model identifier
 response = client.models.generate_content(
     model='gemini-3.5-flash',
     contents=prompt,
@@ -77,7 +102,7 @@ except Exception as e:
     print("Failed to parse JSON. Falling back to an empty template table structure.")
     analysis_data = [{
         "stock_name": t, 
-        "cost": "Error",
+        "cost": str(my_costs.get(t, "N/A")),
         "latest_price": "Error", 
         "resistance": "Error", 
         "support": "Error", 
