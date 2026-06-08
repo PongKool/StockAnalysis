@@ -8,15 +8,14 @@ from datetime import datetime
 # 1. Initialize Gemini Client (Uses the API key stored in your environment)
 client = genai.Client()
 
-# Define your target tech and growth watchlist
+# Define your target tech and growth watchlist tickers
 tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "VST", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
 
 # 2. YOUR ACTUAL COST BASIS DICTIONARY
 my_costs = {
-    "MU": 424.62, "NVDA": 220.80, "ORCL": 183.72, "SNDK": 1418.17,
-    "MSFT": 455.37, "VST": 150.21, "TSM": 424.30, "LLY": 971.12,
-    "LRCX": 305.41, "NOW": 107.68, "AMD": 448.37, "CACI": 524.53,
-    "AVGO": 446.13, "ANET": 171.11
+    "MU": 424.62, "NVDA": 220.80, "ORCL": 183.72, "SNDK": 1418.17, "MSFT": 455.37,
+    "VST": 150.21, "TSM": 424.30, "LLY": 971.12, "LRCX": 305.41, "NOW": 107.68,
+    "AMD": 448.37, "CACI": 524.53, "AVGO": 446.13, "ANET": 171.11
 }
 
 print("Fetching technical data from Yahoo Finance...")
@@ -29,7 +28,7 @@ for ticker in tickers:
         hist = stock.history(period="1mo")
         if hist.empty:
             continue
-        
+            
         # Format actual cost to 2 decimal places to save tokens
         cost_val = my_costs.get(ticker, 0.0)
         actual_cost = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
@@ -65,15 +64,13 @@ Stocks to analyze: {', '.join(tickers)}
 Data Input:
 {data_summary}
 
-CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text.
-
-Each object in the JSON array must follow this exact schema:
+CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. Each object in the JSON array must follow this exact schema:
 {{
   "stock_name": "TICKER",
   "cost": "The exact entry cost provided to you",
   "latest_price": "Latest close price value",
-  "resistance": "Resistance level value",
   "support": "Support level value",
+  "resistance": "Resistance level value",
   "trend": "Bullish/Bearish/Sideways",
   "recommendation": "Buy/Hold/Sell",
   "important_note": "Technical commentary taking their entry cost into consideration"
@@ -100,16 +97,18 @@ try:
     analysis_data = json.loads(raw_json)
 except Exception as e:
     print("Failed to parse JSON. Falling back to an empty template table structure.")
-    analysis_data = [{
-        "stock_name": t,
-        "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
-        "latest_price": "Error",
-        "resistance": "Error",
-        "support": "Error",
-        "trend": "Error",
-        "recommendation": "Error",
-        "important_note": "Failed to parse data."
-    } for t in tickers]
+    analysis_data = [
+        {
+            "stock_name": t, 
+            "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A", 
+            "latest_price": "Error", 
+            "support": "Error", 
+            "resistance": "Error", 
+            "trend": "Error", 
+            "recommendation": "Error", 
+            "important_note": "Failed to parse data."
+        } for t in tickers
+    ]
 
 # 4. Compile the Data into a Beautiful PDF Table Layout
 class CorporatePDF(FPDF):
@@ -138,7 +137,9 @@ with pdf.table(col_widths=(20, 20, 20, 20, 20, 20, 25, 45), text_align="LEFT") a
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(15, 23, 42) # Slate 900
     header_row = table.row()
-    headers = ["Stock Name", "Cost", "Latest Price", "Resistance", "Support", "Trend", "Recommendation", "Important Note"]
+    
+    # Swapped "Resistance" and "Support" positions here
+    headers = ["Stock Name", "Cost", "Latest Price", "Support", "Resistance", "Trend", "Recommendation", "Important Note"]
     for header_title in headers:
         header_row.cell(header_title)
 
@@ -151,13 +152,13 @@ with pdf.table(col_widths=(20, 20, 20, 20, 20, 20, 25, 45), text_align="LEFT") a
         trend_status = str(stock.get("trend", "")).strip().lower()
         rec_status = str(stock.get("recommendation", "")).strip().lower()
         
-        # 1. Reset to default Slate 700 and add first 5 columns
+        # 1. Reset to default Slate 700 and add first 5 columns (Swapped support/resistance order)
         pdf.set_text_color(51, 65, 85)
         row.cell(str(stock.get("stock_name", "")))
         row.cell(str(stock.get("cost", "")))
         row.cell(str(stock.get("latest_price", "")))
-        row.cell(str(stock.get("resistance", "")))
         row.cell(str(stock.get("support", "")))
+        row.cell(str(stock.get("resistance", "")))
         
         # 2. Change text color dynamically ONLY for the Trend cell
         if "bullish" in trend_status:
