@@ -9,10 +9,10 @@ import pandas as pd
 # 1. Initialize Gemini Client (Uses the API key stored in your environment)
 client = genai.Client()
 
-# Define your target tech and growth watchlist tickers
+# Define your target tech and growth watchlist tickers (VST completely removed)
 tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
 
-# 2. YOUR ACTUAL COST BASIS DICTIONARY
+# 2. YOUR ACTUAL COST BASIS DICTIONARY (VST completely removed)
 my_costs = {
     "MU": 424.62, "NVDA": 220.80, "ORCL": 183.72, "SNDK": 1418.17, "MSFT": 455.37,
     "TSM": 424.30, "LLY": 971.12, "LRCX": 305.41, "NOW": 107.68,
@@ -37,7 +37,7 @@ for ticker in tickers:
         latest_obv = obv.iloc[-1]
         obv_trend = "Rising" if obv.tail(5).diff().mean() > 0 else "Falling"
 
-        # --- CALCULATE MACD ---
+        # --- CALCULATE MACD (State + Trajectory Logic) ---
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
         exp26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = exp12 - exp26
@@ -45,7 +45,21 @@ for ticker in tickers:
         
         latest_macd = macd_line.iloc[-1]
         latest_signal = signal_line.iloc[-1]
-        macd_status = "Bullish Crossover" if latest_macd > latest_signal else "Bearish Crossover"
+        
+        # Check previous day to determine if a fresh crossover occurred
+        prev_macd = macd_line.iloc[-2]
+        prev_signal = signal_line.iloc[-2]
+
+        if latest_macd > latest_signal:
+            if prev_macd <= prev_signal:
+                macd_status = "Bullish Crossover"
+            else:
+                macd_status = "Bullish Territory"
+        else:
+            if prev_macd >= prev_signal:
+                macd_status = "Bearish Crossover"
+            else:
+                macd_status = "Bearish Territory"
 
         # Format actual cost to 2 decimal places to save tokens
         cost_val = my_costs.get(ticker, 0.0)
@@ -77,7 +91,7 @@ You are an expert institutional technical analyst. Based on the market data summ
 
 CRITICAL ANALYSIS REQUIREMENT:
 - For "cost", map back the EXACT "Entry Cost" value provided to you in the data input. Do not alter it.
-- Factor the **OBV Trend** (Volume validation) and **MACD Crossover** (Momentum confirmation) explicitly into your trend determination.
+- Factor the **OBV Trend** (Volume validation) and **MACD Status** (Momentum environment/extension/crossover) explicitly into your trend determination.
 - For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals (Price vs Support/Resistance, Volume, and Momentum) in relation to that Entry Cost. 
 
 Stocks to analyze: {', '.join(tickers)}
@@ -93,10 +107,10 @@ Each object in the JSON array must follow this exact schema:
   "support": "Support level value",
   "resistance": "Resistance level value",
   "obv_status": "e.g., Rising / Falling",
-  "macd_status": "e.g., Bullish / Bearish",
+  "macd_status": "e.g., Bullish Territory / Bullish Crossover / Bearish Territory",
   "trend": "Bullish/Bearish/Sideways",
   "recommendation": "Buy/Hold/Sell",
-  "important_note": "Technical commentary taking their entry cost, OBV validation, and MACD momentum into consideration"
+  "important_note": "Technical commentary taking their entry cost, OBV validation, and MACD momentum state into consideration"
 }}
 """
 
@@ -151,7 +165,7 @@ pdf.add_page()
 # Standard A4 printable width is 190mm: 15+15+15+15+15+15+15+20+20+45 = 190
 with pdf.table(col_widths=(15, 15, 15, 15, 15, 15, 15, 20, 20, 45), text_align="LEFT") as table:
     # Render the Table Header row
-    pdf.set_font("Helvetica", "B", 8) # Sized down slightly to 8pt for better column fit
+    pdf.set_font("Helvetica", "B", 8) 
     pdf.set_text_color(15, 23, 42) # Slate 900
     header_row = table.row()
     headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Important Note"]
