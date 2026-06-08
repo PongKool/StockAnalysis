@@ -10,12 +10,12 @@ import pandas as pd
 client = genai.Client()
 
 # Define your target tech and growth watchlist tickers
-tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "VST", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
+tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
 
 # 2. YOUR ACTUAL COST BASIS DICTIONARY
 my_costs = {
     "MU": 424.62, "NVDA": 220.80, "ORCL": 183.72, "SNDK": 1418.17, "MSFT": 455.37,
-    "VST": 150.21, "TSM": 424.30, "LLY": 971.12, "LRCX": 305.41, "NOW": 107.68,
+    "TSM": 424.30, "LLY": 971.12, "LRCX": 305.41, "NOW": 107.68,
     "AMD": 448.37, "CACI": 524.53, "AVGO": 446.13, "ANET": 171.11
 }
 
