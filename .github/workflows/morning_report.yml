@@ -2,9 +2,9 @@ name: Generate Daily Market PDF
 
 on:
   schedule:
-    # Runs Monday through Friday at 01:00 UTC (8:00 AM Indochina Time)
-    - cron: '0 1 * * 1-5'
-  workflow_dispatch: # This allows you to click a button to run it manually anytime
+    # Runs Sunday through Thursday at 23:13 UTC (6:13 AM Monday-Friday Thailand Time)
+    - cron: '13 23 * * 0-4'
+  workflow_dispatch:
 
 permissions:
   contents: write # Grants the cloud environment permission to save/push files back to your repo
