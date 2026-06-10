@@ -252,6 +252,6 @@ with pdf.table(col_widths=(18, 14, 14, 14, 14, 12, 22, 17, 15, 50), text_align="
         pdf.set_text_color(51, 65, 85)
         row.cell(str(stock.get("important_note", "")))
 
-filename = "morning_market_analysis.pdf"
+filename = "thai_market_analysis.pdf"
 pdf.output(filename)
 print(f"Thai portfolio analysis finalized successfully as {filename}.")
