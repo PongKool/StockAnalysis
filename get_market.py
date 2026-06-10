@@ -80,18 +80,25 @@ for ticker in tickers:
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
 
-# 3. Request structured JSON format from Gemini
+# 3. Request structured JSON format from Gemini with Explicit Key Mapping
 prompt = f"""
 You are an expert institutional technical analyst. Based on the market data summary, volume metrics (OBV), momentum indicators (MACD), calculated Risk/Reward profiles, and the provided "Entry Cost" below, analyze each individual stock.
-CRITICAL ANALYSIS REQUIREMENT:
-- For "cost", map back the EXACT "Entry Cost" value provided to you in the data input. Do not alter it.
-- Factor the **Risk/Reward** ratio heavily into your decisions.
-- For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals in relation to that Entry Cost.
+
+CRITICAL JSON STRUCTURAL REQUIREMENT:
+You must return a raw JSON array of objects. Each object MUST contain exactly these keys:
+- "stock_name": The ticker string (e.g., "NVDA")
+- "cost": The exact entry cost string provided in the data summary below.
+- "latest_price": The numeric latest close price string.
+- "support": The 1Mo Support string.
+- "resistance": The 1Mo Resistance string.
+- "obv_status": The OBV trend status (e.g., "Rising" or "Falling").
+- "macd_status": The current MACD status string.
+- "trend": Short trend text (e.g., "Bullish", "Bearish", "Sideways").
+- "recommendation": A clear target ("BUY", "HOLD", or "SELL").
+- "important_note": A concise 1-2 sentence executive technical commentary summary.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
-
-CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks.
 """
 
 print("Generating structured technical analysis via Gemini API...")
@@ -106,27 +113,21 @@ raw_json = response.text.strip()
 try:
     analysis_data = json.loads(raw_json)
 except Exception as e:
-    print(f"Failed to parse JSON directly ({e}). Attempting fallback cleanup...")
-    if raw_json.startswith("```"):
-        raw_json = raw_json.strip("`").replace("json", "", 1).strip()
-    try:
-        analysis_data = json.loads(raw_json)
-    except Exception as final_error:
-        print("Critical error parsing model response. Initializing safety matrix layout.")
-        analysis_data = [
-            {
-                "stock_name": t, 
-                "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A", 
-                "latest_price": "Error", "support": "Error", "resistance": "Error", 
-                "obv_status": "Error", "macd_status": "Error", "trend": "Error", 
-                "recommendation": "Error", "important_note": "Failed to parse generation stream."
-            } for t in tickers
-        ]
+    print(f"Failed to parse JSON directly ({e}). Executing emergency layout matrix...")
+    analysis_data = [
+        {
+            "stock_name": t, 
+            "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A", 
+            "latest_price": "N/A", "support": "N/A", "resistance": "N/A", 
+            "obv_status": "N/A", "macd_status": "N/A", "trend": "N/A", 
+            "recommendation": "HOLD", "important_note": "Failed to parse generation stream."
+        } for t in tickers
+    ]
 
 # 4. Premium Portrait Design Compilation Engine
 class CorporatePortraitPDF(FPDF):
     def header(self):
-        # Top color rule
+        # Top color accent rule
         self.set_fill_color(30, 41, 59) # Slate 800
         self.rect(0, 0, 210, 4, "F")
         
@@ -182,16 +183,16 @@ row_count = 0
 
 for stock in analysis_data:
     fill_row = row_count % 2 == 1
-    pdf.set_fill_color(248, 250, 252) # Alternating tint
+    pdf.set_fill_color(248, 250, 252) # Alternating row tints
     pdf.set_text_color(51, 65, 85)
     pdf.set_draw_color(226, 232, 240)
     
-    # Calculate comment height requirements ahead of cell creation
+    # Calculate comment height requirements ahead of cell creation to avoid messy wrapping anomalies
     text_note = str(stock.get("important_note", ""))
     lines_needed = pdf.multi_cell(col_widths[9], 4.5, text_note, split_only=True)
     row_h = max(len(lines_needed) * 4.2, 7.5)
     
-    # Page Break Intercept
+    # Page Break Intercept handling
     if pdf.get_y() + row_h > 275:
         pdf.add_page()
         pdf.set_font("Helvetica", "B", 7.5)
@@ -201,7 +202,7 @@ for stock in analysis_data:
         pdf.ln()
         pdf.set_font("Helvetica", "", 7.5)
 
-    # Core Metric Cells
+    # Core Metric Cells mapping sequentially to headers array
     pdf.cell(col_widths[0], row_h, str(stock.get("stock_name", "")), border=1, align="C", fill=fill_row)
     pdf.cell(col_widths[1], row_h, f"${stock.get('cost', 'N/A')}", border=1, align="C", fill=fill_row)
     pdf.cell(col_widths[2], row_h, f"${stock.get('latest_price', '0.00')}", border=1, align="C", fill=fill_row)
@@ -213,11 +214,11 @@ for stock in analysis_data:
     # Trend Font Accents
     trend_status = str(stock.get("trend", "")).strip().lower()
     if "bullish" in trend_status:
-        pdf.set_text_color(22, 163, 74)
+        pdf.set_text_color(22, 163, 74) # Muted Green
     elif "bearish" in trend_status:
-        pdf.set_text_color(220, 38, 38)
+        pdf.set_text_color(220, 38, 38) # Muted Red
     pdf.cell(col_widths[7], row_h, str(stock.get("trend", "")), border=1, align="C", fill=fill_row)
-    pdf.set_text_color(51, 65, 85)
+    pdf.set_text_color(51, 65, 85) # Reset text color back to dark slate
     
     # Recommendation Badges
     rec_status = str(stock.get("recommendation", "")).strip().lower()
@@ -233,7 +234,7 @@ for stock in analysis_data:
         
     pdf.cell(col_widths[8], row_h, str(stock.get("recommendation", "")), border=1, align="C", fill=True)
     
-    # Balanced Text Block Layout (Multi-cell wrapper logic)
+    # Text Block Layout Commentary
     pdf.set_text_color(71, 85, 105)
     current_y = pdf.get_y()
     
