@@ -227,10 +227,9 @@ column_widths = (20, 13, 13, 14, 14, 12, 24, 16, 11, 53)
 with pdf.table(
     col_widths=column_widths, 
     text_align="LEFT",
-    line_height=5,
+    line_height=6,
     padding=2,
-    outer_border_width=0.5,
-    headers_line_height=6
+    outer_border_width=0.5
 ) as table:
     
     # --- HEADER ROW ---
