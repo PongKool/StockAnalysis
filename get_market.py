@@ -29,7 +29,7 @@ data_summary = ""
 for ticker in tickers:
     try:
         stock = yf.Ticker(ticker)
-        # Pull raw unadjusted market close numbers matching the trading platform
+        # Pull unadjusted historical matrix data
         hist = stock.history(period="3mo", auto_adjust=False)
         
         if hist.empty or len(hist) < 26:
@@ -38,8 +38,13 @@ for ticker in tickers:
         # Clean out any incomplete live/placeholder rows containing NaN
         hist = hist.dropna(subset=['Close'])
         
-        # Safely pull the newest closed price straight from the main dataframe
-        latest_close = hist['Close'].iloc[-1]
+        # --- FIX: Grab the absolute real quote closing price from summary info metadata ---
+        # This completely bypasses the data frame adjustments to lock onto the precise market closing bell price
+        try:
+            info = stock.info
+            latest_close = info.get('regularMarketPrice') or info.get('currentPrice') or hist['Close'].iloc[-1]
+        except Exception:
+            latest_close = hist['Close'].iloc[-1]
         
         # --- CALCULATE OBV ---
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
@@ -164,83 +169,4 @@ except Exception as e:
             "trend": "Error",
             "recommendation": "Error",
             "important_note": "Failed to parse data payload safely."
-        } for t in tickers
-    ]
-
-# 4. COMPILE REPORT INTO PDF TABLE LAYOUT
-class CorporatePDF(FPDF):
-    def header(self):
-        self.set_font("Helvetica", "B", 14)
-        self.set_text_color(30, 41, 59)
-        self.cell(0, 10, "Daily Market Report - Watchlist Technical Summary", new_x="LMARGIN", new_y="NEXT", align="L")
-        
-        thailand_tz = timezone(timedelta(hours=7))
-        now_thailand = datetime.now(thailand_tz)
-        thai_timestamp = now_thailand.strftime('%Y-%m-%d %H:%M:%S')
-        
-        self.set_font("Helvetica", "I", 9)
-        self.set_text_color(100, 116, 139)
-        self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time)", new_x="LMARGIN", new_y="NEXT", align="L")
-        self.ln(5)
-
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Helvetica", "I", 8)
-        self.set_text_color(148, 163, 184)
-        self.cell(0, 10, f"Page {self.page_no()}", align="C")
-
-pdf = CorporatePDF()
-pdf.add_page()
-
-with pdf.table(col_widths=(15, 15, 15, 15, 15, 15, 15, 20, 20, 45), text_align="LEFT") as table:
-    pdf.set_font("Helvetica", "B", 8)
-    pdf.set_text_color(15, 23, 42)
-    header_row = table.row()
-    headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Important Note"]
-    for header_title in headers:
-        header_row.cell(header_title)
-
-    pdf.set_font("Helvetica", "", 8)
-    for stock in analysis_data:
-        row = table.row()
-        ticker = str(stock.get("stock_name", "")).strip()
-        trend_status = str(stock.get("trend", "")).strip().lower()
-        rec_status = str(stock.get("recommendation", "")).strip().lower()
-        
-        # Pull precise programmatic data points from our dictionary mapping block
-        market_metrics = calculated_market_data.get(ticker, {"latest_price": "N/A", "support": "N/A", "resistance": "N/A"})
-        
-        pdf.set_text_color(51, 65, 85)
-        row.cell(ticker)
-        row.cell(str(stock.get("cost", "")))
-        
-        # Hard-coded numeric fields directly from pandas/yfinance variables
-        row.cell(market_metrics["latest_price"])
-        row.cell(market_metrics["support"])
-        row.cell(market_metrics["resistance"])
-        
-        row.cell(str(stock.get("obv_status", "")))
-        row.cell(str(stock.get("macd_status", "")))
-        
-        if "bullish" in trend_status:
-            pdf.set_text_color(34, 197, 94)
-        elif "bearish" in trend_status:
-            pdf.set_text_color(239, 68, 68)
-        else:
-            pdf.set_text_color(51, 65, 85)
-        row.cell(str(stock.get("trend", "")))
-        
-        if "buy" in rec_status:
-            pdf.set_text_color(34, 197, 94)
-        elif "sell" in rec_status:
-            pdf.set_text_color(239, 68, 68)
-        else:
-            pdf.set_text_color(234, 179, 8)
-        row.cell(str(stock.get("recommendation", "")))
-        
-        pdf.set_text_color(51, 65, 85)
-        row.cell(str(stock.get("important_note", "")))
-
-filename = "morning_market_analysis.pdf"
-pdf.output(filename)
-print(f"PDF output finalized successfully as {filename}.")
+        } for t in
