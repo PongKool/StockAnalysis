@@ -121,11 +121,11 @@ for ticker in tickers:
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI
 prompt = f"""
-You are an expert institutional technical analyst evaluating equities on the Stock Exchange of Thailand (SET). All currency denominations are in Thai Baht (THB). Based on the market data summary, volume metrics (OBV), momentum indicators (MACD), calculated Risk/Reward profiles, and the provided "Entry Cost" below, analyze each individual stock.
+You are an expert institutional technical analyst evaluating equities on the Stock Exchange of Thailand (SET). All currency denominations are in Thai Baht (THB). Based on the market data summary, provide comprehensive technical analysis.
 
 CRITICAL ANALYSIS REQUIREMENT:
 - For "cost", map back the EXACT "Entry Cost" value provided to you in the data input. Do not alter it.
-- Factor the **Risk/Reward** ratio heavily into your decisions. If a stock is trading immediately underneath its 1-Month Resistance ceiling (a poor ratio), protect capital and avoid issuing a "Buy" regardless of how bullish the MACD looks.
+- Factor the **Risk/Reward** ratio heavily into your decisions. If a stock is trading immediately underneath its 1-Month Resistance ceiling (a poor ratio), protect capital and avoid issuing a "Buy" recommendation.
 - Factor the **OBV Trend** (Volume validation) and **MACD Status** (Momentum environment/extension/crossover) explicitly into your trend determination.
 - For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals (Price vs Support/Resistance, Volume, and Momentum) in relation to that Entry Cost.
 
@@ -177,81 +177,254 @@ except Exception as e:
         } for t in tickers
     ]
 
-# 4. COMPILE REPORT INTO PDF TABLE LAYOUT
-class CorporatePDF(FPDF):
+# 4. COMPILE REPORT INTO PROFESSIONAL PDF LAYOUT
+class ProfessionalPDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.WIDTH = 210
+        self.HEIGHT = 297
+        # Define professional color scheme
+        self.DARK_BLUE = (31, 41, 55)      # Header/footer background
+        self.LIGHT_BLUE = (59, 130, 246)   # Accent color
+        self.ACCENT_GRAY = (107, 114, 128) # Secondary text
+        self.GREEN = (34, 197, 94)         # Bullish/Buy
+        self.RED = (239, 68, 68)           # Bearish/Sell
+        self.YELLOW = (234, 179, 8)        # Hold/Neutral
+        self.LIGHT_GRAY = (243, 244, 246)  # Row background
+        self.WHITE = (255, 255, 255)
+        self.DARK_TEXT = (15, 23, 42)
+
     def header(self):
-        self.set_font("Helvetica", "B", 14)
-        self.set_text_color(30, 41, 59)
-        self.cell(0, 10, "Daily Thai Market Report - Watchlist Technical Summary (SET)", new_x="LMARGIN", new_y="NEXT", align="L")
+        # Top decorative bar
+        self.set_fill_color(*self.DARK_BLUE)
+        self.rect(0, 0, self.WIDTH, 8, 'F')
         
+        # Logo/Title section with accent
+        self.set_xy(10, 8)
+        self.set_font("Helvetica", "B", 18)
+        self.set_text_color(*self.LIGHT_BLUE)
+        self.cell(0, 8, "THAI MARKET ANALYSIS", new_x="LMARGIN", new_y="NEXT")
+        
+        self.set_xy(10, 16)
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(*self.DARK_BLUE)
+        self.cell(0, 6, "Daily Technical Analysis Report - Stock Exchange of Thailand (SET)", new_x="LMARGIN", new_y="NEXT")
+        
+        # Timestamp section
         thailand_tz = timezone(timedelta(hours=7))
         now_thailand = datetime.now(thailand_tz)
-        thai_timestamp = now_thailand.strftime('%Y-%m-%d %H:%M:%S')
+        thai_timestamp = now_thailand.strftime('%d %B %Y | %H:%M:%S')
         
+        self.set_xy(10, 22)
         self.set_font("Helvetica", "I", 9)
-        self.set_text_color(100, 116, 139)
-        self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time)", new_x="LMARGIN", new_y="NEXT", align="L")
-        self.ln(5)
+        self.set_text_color(*self.ACCENT_GRAY)
+        self.cell(0, 5, f"Report Generated: {thai_timestamp} (Bangkok Time)", new_x="LMARGIN", new_y="NEXT")
+        
+        # Decorative line
+        self.set_xy(10, 28)
+        self.set_draw_color(*self.LIGHT_BLUE)
+        self.set_line_width(0.5)
+        self.line(10, 28, 200, 28)
+        
+        self.ln(8)
 
     def footer(self):
+        self.set_y(-20)
+        
+        # Decorative line
+        self.set_draw_color(*self.LIGHT_BLUE)
+        self.set_line_width(0.5)
+        self.line(10, self.y, 200, self.y)
+        
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
-        self.set_text_color(148, 163, 184)
-        self.cell(0, 10, f"Page {self.page_no()}", align="C")
+        self.set_text_color(*self.ACCENT_GRAY)
+        
+        # Left: Document info
+        self.set_xy(10, self.y)
+        self.cell(100, 5, "Thai Market Technical Analysis", new_x="LMARGIN", new_y="NEXT")
+        
+        # Right: Page number
+        self.set_xy(130, self.y - 5)
+        self.set_text_color(*self.ACCENT_GRAY)
+        self.cell(0, 5, f"Page {self.page_no()}", align="R")
 
-pdf = CorporatePDF()
+    def add_section_title(self, title):
+        """Add a professional section title"""
+        self.set_y(self.get_y() + 3)
+        self.set_font("Helvetica", "B", 12)
+        self.set_text_color(*self.LIGHT_BLUE)
+        self.cell(0, 7, title, new_x="LMARGIN", new_y="NEXT", border="B")
+        self.set_draw_color(*self.LIGHT_BLUE)
+        self.line(10, self.get_y() - 1, 200, self.get_y() - 1)
+        self.ln(3)
+
+    def add_legend(self):
+        """Add legend for recommendations and trends"""
+        self.add_section_title("Legend & Key Indicators")
+        
+        legend_items = [
+            ("Buy", self.GREEN, "Strong bullish signal with favorable risk/reward ratio"),
+            ("Hold", self.YELLOW, "Neutral position; wait for clearer directional signal"),
+            ("Sell", self.RED, "Bearish momentum with unfavorable technicals"),
+            ("Bullish", self.GREEN, "Uptrend indicated by technical indicators"),
+            ("Bearish", self.RED, "Downtrend indicated by technical indicators"),
+            ("Rising OBV", self.GREEN, "Bullish volume confirmation"),
+            ("Falling OBV", self.RED, "Bearish volume confirmation"),
+        ]
+        
+        self.set_font("Helvetica", "", 9)
+        for label, color, description in legend_items:
+            # Colored indicator box
+            self.set_fill_color(*color)
+            x_pos = self.get_x()
+            self.set_xy(15, self.get_y())
+            self.rect(15, self.get_y(), 3, 3, 'F')
+            self.set_xy(20, self.get_y())
+            self.set_text_color(*self.DARK_BLUE)
+            self.cell(25, 4, label + ":", new_x="RIGHT")
+            self.set_text_color(*self.ACCENT_GRAY)
+            self.cell(0, 4, description, new_x="LMARGIN", new_y="NEXT")
+        
+        self.ln(2)
+
+pdf = ProfessionalPDF()
 pdf.add_page()
 
-# Table total layout size is 190mm wide, sitting comfortably on A4 borders (210mm total width)
-with pdf.table(col_widths=(18, 14, 14, 14, 14, 12, 22, 17, 15, 50), text_align="LEFT") as table:
-    pdf.set_font("Helvetica", "B", 8)
-    pdf.set_text_color(15, 23, 42)
-    header_row = table.row()
-    headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Important Note (THB Context)"]
-    for header_title in headers:
-        header_row.cell(header_title)
+# Add legend section
+pdf.add_legend()
 
+# Add analysis section
+pdf.add_section_title("Watchlist Technical Analysis - Currency: Thai Baht (THB)")
+
+# Professional data table with improved spacing and styling
+with pdf.table(
+    col_widths=(16, 14, 14, 14, 14, 12, 14, 12, 12, 32),
+    text_align="CENTER",
+    line_height=6.5,
+    padding=(2, 2)
+) as table:
+    # Header row styling
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_fill_color(*pdf.DARK_BLUE)
+    
+    header_row = table.row()
+    headers = [
+        "Ticker",
+        "Cost (THB)",
+        "Price (THB)",
+        "Support",
+        "Resistance",
+        "OBV",
+        "MACD",
+        "Trend",
+        "Action",
+        "Technical Notes"
+    ]
+    
+    for header_title in headers:
+        header_row.cell(header_title, fill=True)
+    
+    # Data rows with alternating background colors
     pdf.set_font("Helvetica", "", 8)
+    row_index = 0
+    
     for stock in analysis_data:
         row = table.row()
         ticker = str(stock.get("stock_name", "")).strip()
         trend_status = str(stock.get("trend", "")).strip().lower()
         rec_status = str(stock.get("recommendation", "")).strip().lower()
+        obv_status = str(stock.get("obv_status", "")).strip()
+        macd_status = str(stock.get("macd_status", "")).strip()
         
-        # Pull precise programmatic data points from our dictionary mapping block
+        # Alternating row background for readability
+        row_fill = row_index % 2 == 0
+        if row_fill:
+            pdf.set_fill_color(*pdf.LIGHT_GRAY)
+        else:
+            pdf.set_fill_color(*pdf.WHITE)
+        
+        # Pull precise programmatic data points
         market_metrics = calculated_market_data.get(ticker, {"latest_price": "N/A", "support": "N/A", "resistance": "N/A"})
         
-        pdf.set_text_color(51, 65, 85)
-        row.cell(ticker)
-        row.cell(str(stock.get("cost", "")))
+        # Ticker cell
+        pdf.set_text_color(*pdf.DARK_BLUE)
+        row.cell(ticker, fill=row_fill)
         
-        # Hard-coded numeric fields directly from pandas/yfinance variables
-        row.cell(market_metrics["latest_price"])
-        row.cell(market_metrics["support"])
-        row.cell(market_metrics["resistance"])
+        # Cost cell
+        row.cell(str(stock.get("cost", "")), fill=row_fill)
         
-        row.cell(str(stock.get("obv_status", "")))
-        row.cell(str(stock.get("macd_status", "")))
+        # Price cells (numeric data)
+        row.cell(market_metrics["latest_price"], fill=row_fill)
+        row.cell(market_metrics["support"], fill=row_fill)
+        row.cell(market_metrics["resistance"], fill=row_fill)
         
+        # OBV Status (colored text)
+        if "rising" in obv_status.lower():
+            pdf.set_text_color(*pdf.GREEN)
+        else:
+            pdf.set_text_color(*pdf.RED)
+        row.cell(obv_status, fill=row_fill)
+        
+        # MACD Status
+        pdf.set_text_color(*pdf.DARK_BLUE)
+        row.cell(macd_status, fill=row_fill)
+        
+        # Trend (colored text)
         if "bullish" in trend_status:
-            pdf.set_text_color(34, 197, 94)
+            pdf.set_text_color(*pdf.GREEN)
         elif "bearish" in trend_status:
-            pdf.set_text_color(239, 68, 68)
+            pdf.set_text_color(*pdf.RED)
         else:
-            pdf.set_text_color(51, 65, 85)
-        row.cell(str(stock.get("trend", "")))
+            pdf.set_text_color(*pdf.ACCENT_GRAY)
+        row.cell(str(stock.get("trend", "")), fill=row_fill)
         
+        # Recommendation (colored background)
+        pdf.set_text_color(255, 255, 255)
         if "buy" in rec_status:
-            pdf.set_text_color(34, 197, 94)
+            pdf.set_fill_color(*pdf.GREEN)
         elif "sell" in rec_status:
-            pdf.set_text_color(239, 68, 68)
+            pdf.set_fill_color(*pdf.RED)
         else:
-            pdf.set_text_color(234, 179, 8)
-        row.cell(str(stock.get("recommendation", "")))
+            pdf.set_fill_color(*pdf.YELLOW)
+            pdf.set_text_color(*pdf.DARK_BLUE)
         
-        pdf.set_text_color(51, 65, 85)
-        row.cell(str(stock.get("important_note", "")))
+        row.cell(str(stock.get("recommendation", "")), fill=True)
+        
+        # Important Note
+        pdf.set_text_color(*pdf.DARK_BLUE)
+        if row_fill:
+            pdf.set_fill_color(*pdf.LIGHT_GRAY)
+        else:
+            pdf.set_fill_color(*pdf.WHITE)
+        
+        note_text = str(stock.get("important_note", ""))
+        # Truncate note for table readability
+        if len(note_text) > 50:
+            note_text = note_text[:47] + "..."
+        row.cell(note_text, fill=row_fill)
+        
+        row_index += 1
 
+pdf.ln(5)
+
+# Add professional footer section with key insights
+pdf.add_section_title("Analysis Summary")
+
+pdf.set_font("Helvetica", "", 9)
+pdf.set_text_color(*pdf.ACCENT_GRAY)
+
+summary_text = (
+    "This report provides a technical analysis of selected Thai equities listed on the Stock Exchange of Thailand (SET). "
+    "The analysis incorporates multiple technical indicators including price support/resistance levels, On-Balance Volume (OBV), "
+    "and MACD momentum signals. Recommendations are risk-adjusted and consider both entry costs and reward potential. "
+    "All prices and values are denominated in Thai Baht (THB). Investors should combine this technical analysis with "
+    "fundamental research and personal risk tolerance before making investment decisions."
+)
+pdf.multi_cell(0, 5, summary_text, align="J")
+
+# Save the PDF
 filename = "thai_market_analysis.pdf"
 pdf.output(filename)
-print(f"Thai portfolio analysis finalized successfully as {filename}.")
+print(f"Professional Thai portfolio analysis finalized successfully as {filename}.")
