@@ -180,21 +180,38 @@ except Exception as e:
 # 4. COMPILE REPORT INTO PDF TABLE LAYOUT
 class CorporatePDF(FPDF):
     def header(self):
-        self.set_font("Helvetica", "B", 14)
-        self.set_text_color(30, 41, 59)
-        self.cell(0, 10, "Daily Thai Market Report - Watchlist Technical Summary (SET)", new_x="LMARGIN", new_y="NEXT", align="L")
+        # Top decorative primary accent bar
+        self.set_fill_color(30, 41, 59) # Deep Slate Blue
+        self.rect(0, 0, 210, 4, "F")
+        
+        self.ln(4)
+        self.set_font("Helvetica", "B", 16)
+        self.set_text_color(15, 23, 42) # Dark Charcoal
+        self.cell(0, 10, "Daily Thai Market Report", new_x="LMARGIN", new_y="NEXT", align="L")
+        
+        self.set_font("Helvetica", "B", 10)
+        self.set_text_color(79, 70, 229) # Indigo Accent
+        self.cell(0, 5, "WATCHLIST TECHNICAL SUMMARY (SET)", new_x="LMARGIN", new_y="NEXT", align="L")
         
         thailand_tz = timezone(timedelta(hours=7))
         now_thailand = datetime.now(thailand_tz)
         thai_timestamp = now_thailand.strftime('%Y-%m-%d %H:%M:%S')
         
         self.set_font("Helvetica", "I", 9)
-        self.set_text_color(100, 116, 139)
+        self.set_text_color(100, 116, 139) # Muted Slate
         self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time)", new_x="LMARGIN", new_y="NEXT", align="L")
-        self.ln(5)
+        
+        # Subtle divider line under header
+        self.set_draw_color(226, 232, 240)
+        self.line(10, self.get_y() + 4, 200, self.get_y() + 4)
+        self.ln(10)
 
     def footer(self):
         self.set_y(-15)
+        # Subtle top divider line for footer
+        self.set_draw_color(241, 245, 249)
+        self.line(10, self.get_y(), 200, self.get_y())
+        
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(148, 163, 184)
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
@@ -202,54 +219,77 @@ class CorporatePDF(FPDF):
 pdf = CorporatePDF()
 pdf.add_page()
 
-# Table total layout size is 190mm wide, sitting comfortably on A4 borders (210mm total width)
-with pdf.table(col_widths=(18, 14, 14, 14, 14, 12, 22, 17, 15, 50), text_align="LEFT") as table:
+# Setup Table Styles (Professional spacing and explicit column configuration)
+pdf.set_font("Helvetica", "", 8)
+# Total width = 190mm (Fits perfectly on standard A4 with 10mm side margins)
+column_widths = (20, 13, 13, 14, 14, 12, 24, 16, 11, 53) 
+
+with pdf.table(
+    col_widths=column_widths, 
+    text_align="LEFT",
+    line_height=5,
+    padding=2,
+    outer_border_width=0.5,
+    headers_line_height=6
+) as table:
+    
+    # --- HEADER ROW ---
     pdf.set_font("Helvetica", "B", 8)
-    pdf.set_text_color(15, 23, 42)
+    pdf.set_text_color(255, 255, 255) # White text for header
+    pdf.set_fill_color(30, 41, 59)     # Deep Slate Background
+    
     header_row = table.row()
     headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Important Note (THB Context)"]
     for header_title in headers:
         header_row.cell(header_title)
-
-    pdf.set_font("Helvetica", "", 8)
-    for stock in analysis_data:
+    
+    # --- DATA ROWS ---
+    for idx, stock in enumerate(analysis_data):
         row = table.row()
         ticker = str(stock.get("stock_name", "")).strip()
         trend_status = str(stock.get("trend", "")).strip().lower()
         rec_status = str(stock.get("recommendation", "")).strip().lower()
         
-        # Pull precise programmatic data points from our dictionary mapping block
         market_metrics = calculated_market_data.get(ticker, {"latest_price": "N/A", "support": "N/A", "resistance": "N/A"})
         
-        pdf.set_text_color(51, 65, 85)
+        # Zebra striping background configuration
+        if idx % 2 == 0:
+            pdf.set_fill_color(255, 255, 255) # Pure White
+        else:
+            pdf.set_fill_color(248, 250, 252) # Off-White / Light Grey
+            
+        # Standard structural text color
+        pdf.set_text_color(51, 65, 85) 
+        
+        # Base cells
         row.cell(ticker)
         row.cell(str(stock.get("cost", "")))
-        
-        # Hard-coded numeric fields directly from pandas/yfinance variables
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
         row.cell(market_metrics["resistance"])
-        
         row.cell(str(stock.get("obv_status", "")))
         row.cell(str(stock.get("macd_status", "")))
         
+        # Conditional Formatting for Trend (Muted, premium color variants)
         if "bullish" in trend_status:
-            pdf.set_text_color(34, 197, 94)
+            pdf.set_text_color(21, 128, 61)   # Emerald Dark Green
         elif "bearish" in trend_status:
-            pdf.set_text_color(239, 68, 68)
+            pdf.set_text_color(185, 28, 28)   # Crimson Dark Red
         else:
             pdf.set_text_color(51, 65, 85)
         row.cell(str(stock.get("trend", "")))
         
+        # Conditional Formatting for Recommendation
         if "buy" in rec_status:
-            pdf.set_text_color(34, 197, 94)
+            pdf.set_text_color(21, 128, 61)   # Emerald Dark Green
         elif "sell" in rec_status:
-            pdf.set_text_color(239, 68, 68)
+            pdf.set_text_color(185, 28, 28)   # Crimson Dark Red
         else:
-            pdf.set_text_color(234, 179, 8)
+            pdf.set_text_color(180, 83, 9)    # Amber Dark Yellow
         row.cell(str(stock.get("recommendation", "")))
         
-        pdf.set_text_color(51, 65, 85)
+        # Reset color to soft slate for the descriptive note block
+        pdf.set_text_color(71, 85, 105)
         row.cell(str(stock.get("important_note", "")))
 
 filename = "thai_market_analysis.pdf"
