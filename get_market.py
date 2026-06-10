@@ -6,71 +6,91 @@ from fpdf import FPDF
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 
-# 1. Initialize Gemini Client
+# 1. Initialize Gemini Client (Uses the API key stored in your environment)
 client = genai.Client()
 
+# Define your target tech and growth watchlist tickers (VST completely removed)
 tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
 
+# 2. YOUR ACTUAL COST BASIS DICTIONARY (VST completely removed)
 my_costs = {
-    "MU": 424.62, "NVDA": 220.80, "ORCL": 183.72, "SNDK": 1418.17, "MSFT": 455.37,
-    "TSM": 424.30, "LLY": 971.12, "LRCX": 305.41, "NOW": 107.68, "AMD": 448.37,
-    "CACI": 524.53, "AVGO": 446.13, "ANET": 171.11
+    "MU": 424.62, "NVDA": 220.80, "ORCL": 183.72, "SNDK": 1418.17, 
+    "MSFT": 455.37, "TSM": 424.30, "LLY": 971.12, "LRCX": 305.41, 
+    "NOW": 107.68, "AMD": 448.37, "CACI": 524.53, "AVGO": 446.13, 
+    "ANET": 171.11
 }
 
 print("Fetching technical data from Yahoo Finance...")
 data_summary = ""
+
 for ticker in tickers:
     try:
         stock = yf.Ticker(ticker)
+        # Fetching 3 months of price context to accurately calculate 26-period EMA for MACD
         hist = stock.history(period="3mo")
         if hist.empty or len(hist) < 26:
             continue
-        
-        # OBV Calculation
+
+        # --- CALCULATE OBV ---
+        # OBV = Previous OBV + Current Volume (if close up) or - Current Volume (if close down)
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
         obv_trend = "Rising" if obv.tail(5).diff().mean() > 0 else "Falling"
-        
-        # MACD Core Formulas
+
+        # --- CALCULATE MACD (State + Trajectory Logic) ---
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
         exp26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = exp12 - exp26
         signal_line = macd_line.ewm(span=9, adjust=False).mean()
+        
         latest_macd = macd_line.iloc[-1]
         latest_signal = signal_line.iloc[-1]
         
+        # Check previous day to determine if a fresh crossover occurred
         prev_macd = macd_line.iloc[-2]
         prev_signal = signal_line.iloc[-2]
         
         if latest_macd > latest_signal:
-            macd_status = "Bullish Crossover" if prev_macd <= prev_signal else "Bullish Territory"
+            if prev_macd <= prev_signal:
+                macd_status = "Bullish Crossover"
+            else:
+                macd_status = "Bullish Territory"
         else:
-            macd_status = "Bearish Crossover" if prev_macd >= prev_signal else "Bearish Territory"
-            
+            if prev_macd >= prev_signal:
+                macd_status = "Bearish Crossover"
+            else:
+                macd_status = "Bearish Territory"
+
+        # Format actual cost to 2 decimal places to save tokens
         cost_val = my_costs.get(ticker, 0.0)
         actual_cost = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
-        
+
+        # Calculate true Support and Resistance using the trailing 1 month (approx last 21 trading days)
         hist_1m = hist.tail(21)
         support_level = hist_1m['Low'].min()
         resistance_level = hist_1m['High'].max()
         latest_close = hist_1m['Close'].iloc[-1]
-        
-        # Explicit Mathematical Risk / Reward Bounds Tracking
+
+        # --- CALCULATE RISK/REWARD RATIO ---
         risk_distance = latest_close - support_level
         reward_distance = resistance_level - latest_close
-        
+
+        # Handle edge case where price is exactly at or above resistance to prevent division by zero
         if reward_distance <= 0:
-            rr_ratio_str = "Poor (At Res)"
+            rr_ratio_str = "Poor (At Resistance)"
         elif risk_distance <= 0:
-            rr_ratio_str = "Exc (At Supp)"
+            rr_ratio_str = "Excellent (At Support)"
         else:
+            # Expressed as a single decimal ratio (e.g., Risking $1 to make $2.50 -> 1:2.50)
             calculated_ratio = reward_distance / risk_distance
             rr_ratio_str = f"1:{calculated_ratio:.2f}"
-            
+
+        # Compress the recent 14 days of closing prices into a minimal string layout
         recent_closes = hist_1m.tail(14)
         trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
-        
+
+        # Token-optimized data line representing the stock status including OBV, MACD, and Risk/Reward
         data_summary += (
             f"Ticker: {ticker} | Entry Cost: {actual_cost} | Latest Close: {latest_close:.2f} | "
             f"1Mo Support: {support_level:.2f} | 1Mo Resistance: {resistance_level:.2f} | "
@@ -81,174 +101,144 @@ for ticker in tickers:
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
 
-# 3. Request structured JSON format from Gemini enforcing strict Quantitative Filters
+# 3. Request structured JSON format from Gemini taking your real cost into account
 prompt = f"""
-You are an expert institutional technical analyst. Evaluate each stock asset strictly filtering standard momentum indicators through the provided quantitative Risk/Reward calculations.
+You are an expert institutional technical analyst. Based on the market data summary, volume metrics (OBV), momentum indicators (MACD), calculated Risk/Reward profiles, and the provided "Entry Cost" below, analyze each individual stock.
 
-CRITICAL RISK-MANAGEMENT RULES:
-1. Strict Risk/Reward Filter: If the Risk/Reward status says "Poor (At Res)" or the calculated mathematical upside ratio is less than 1:1.50, you are strictly FORBIDDEN from issuing a "BUY" recommendation, even if the MACD indicator is strongly bullish. Overextended assets must be categorized as HOLD or SELL to preserve capital.
-2. If an asset is flagged with an asymmetric profile like "Exc (At Supp)" and volume metrics (OBV) are Rising, favor a BUY execution.
-3. Your text commentary inside "important_note" must explicitly justify how the decision respects these quantitative boundaries relative to the Entry Cost.
-
-CRITICAL JSON STRUCTURAL REQUIREMENT:
-You must return a raw JSON array of objects. Each object MUST contain exactly these keys:
-- "stock_name": The ticker string (e.g., "NVDA")
-- "cost": The exact entry cost string provided in the data input.
-- "latest_price": The numeric latest close price string.
-- "support": The 1Mo Support string.
-- "resistance": The 1Mo Resistance string.
-- "obv_status": The OBV trend status (e.g., "Rising" or "Falling").
-- "macd_status": The current MACD status string.
-- "trend": Short trend text (e.g., "Bullish", "Bearish", "Sideways").
-- "recommendation": A clear target string ("BUY", "HOLD", or "SELL") conforming strictly to the risk logic filters above.
-- "important_note": A highly professional 1-2 sentence technical commentary summary focusing on risk dynamics.
+CRITICAL ANALYSIS REQUIREMENT:
+- For "cost", map back the EXACT "Entry Cost" value provided to you in the data input. Do not alter it.
+- Factor the **Risk/Reward** ratio heavily into your decisions. If a stock is trading immediately underneath its 1-Month Resistance ceiling (a poor ratio), protect capital and avoid issuing a "Buy" regardless of how bullish the MACD looks.
+- Factor the **OBV Trend** (Volume validation) and **MACD Status** (Momentum environment/extension/crossover) explicitly into your trend determination.
+- For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals (Price vs Support/Resistance, Volume, and Momentum) in relation to that Entry Cost.
 
 Stocks to analyze: {', '.join(tickers)}
+
 Data Input: {data_summary}
+
+CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text.
+
+Each object in the JSON array must follow this exact schema:
+{{
+  "stock_name": "TICKER",
+  "cost": "The exact entry cost provided to you",
+  "latest_price": "Latest close price value",
+  "support": "Support level value",
+  "resistance": "Resistance level value",
+  "obv_status": "e.g., Rising / Falling",
+  "macd_status": "e.g., Bullish Territory / Bullish Crossover / Bearish Territory",
+  "trend": "Bullish/Bearish/Sideways",
+  "recommendation": "Buy/Hold/Sell",
+  "important_note": "Technical commentary taking their entry cost, OBV validation, MACD momentum state, and structural Risk/Reward ratio into consideration"
+}}
 """
 
 print("Generating structured technical analysis via Gemini API...")
 response = client.models.generate_content(
-    model='gemini-3.5-flash', 
+    model='gemini-3.5-flash',
     contents=prompt,
-    config={'response_mime_type': 'application/json'}
 )
 
+# Clean up raw markdown block wrappers if generated by the model
 raw_json = response.text.strip()
+if raw_json.startswith("```"):
+    lines = raw_json.splitlines()
+    if lines[0].startswith("```"):
+        lines = lines[1:]
+    if lines[-1].startswith("```"):
+        lines = lines[:-1]
+    raw_json = "\n".join(lines).strip()
 
 try:
     analysis_data = json.loads(raw_json)
 except Exception as e:
-    print(f"Failed to parse JSON directly ({e}). Executing emergency matrix fallback...")
+    print("Failed to parse JSON. Falling back to an empty template table structure.")
     analysis_data = [
         {
             "stock_name": t, 
             "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A", 
-            "latest_price": "N/A", "support": "N/A", "resistance": "N/A", 
-            "obv_status": "N/A", "macd_status": "N/A", "trend": "N/A", 
-            "recommendation": "HOLD", "important_note": "Failed to parse generation stream cleanly."
+            "latest_price": "Error", "support": "Error", "resistance": "Error", 
+            "obv_status": "Error", "macd_status": "Error", "trend": "Error", 
+            "recommendation": "Error", "important_note": "Failed to parse data."
         } for t in tickers
     ]
 
-# 4. Premium Portrait Design Compilation Engine
-class CorporatePortraitPDF(FPDF):
+# 4. Compile the Data into a Beautiful PDF Table Layout
+class CorporatePDF(FPDF):
     def header(self):
-        # Slate Accent top border bar
-        self.set_fill_color(30, 41, 59) # Slate 800
-        self.rect(0, 0, 210, 4, "F")
+        self.set_font("Helvetica", "B", 14)
+        self.set_text_color(30, 41, 59) # Cool Slate 800
+        self.cell(0, 10, "Daily Market Report - Watchlist Technical Summary", new_x="LMARGIN", new_y="NEXT", align="L")
         
-        self.ln(6)
-        self.set_font("Helvetica", "B", 15)
-        self.set_text_color(15, 23, 42) # Slate 900
-        self.cell(0, 7, "EXECUTIVE MARKET REPORT", new_x="LMARGIN", new_y="NEXT", align="L")
-        
-        self.set_font("Helvetica", "", 9.5)
-        self.set_text_color(71, 85, 105) # Slate 600
-        self.cell(0, 5, "Watchlist Portfolio Technical & Momentum Summary", new_x="LMARGIN", new_y="NEXT", align="L")
-        
-        # Explicit Thailand Time Zone Header Sync
+        # Explicitly calculate current Thailand Time (UTC+7)
         thailand_tz = timezone(timedelta(hours=7))
-        thai_timestamp = datetime.now(thailand_tz).strftime('%Y-%m-%d %H:%M:%S')
-        self.set_font("Helvetica", "I", 8.5)
-        self.set_text_color(148, 163, 184) # Slate 400
-        self.cell(0, -11, f"Generated: {thai_timestamp} (Thailand Time)", new_x="LMARGIN", new_y="NEXT", align="R")
+        now_thailand = datetime.now(thailand_tz)
+        thai_timestamp = now_thailand.strftime('%Y-%m-%d %H:%M:%S')
         
-        self.ln(14)
-        self.set_draw_color(226, 232, 240) # Slate 200
-        self.line(12, self.get_y(), 198, self.get_y())
+        self.set_font("Helvetica", "I", 9)
+        self.set_text_color(100, 116, 139) # Slate 500
+        self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time)", new_x="LMARGIN", new_y="NEXT", align="L")
         self.ln(5)
 
     def footer(self):
-        self.set_y(-12)
+        self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
-        self.set_text_color(148, 163, 184)
-        self.cell(100, 10, "Internal Strategy Document - Confidential", align="L")
-        self.set_x(-40)
-        self.cell(28, 10, f"Page {self.page_no()}", align="R")
+        self.set_text_color(148, 163, 184) # Slate 400
+        self.cell(0, 10, f"Page {self.page_no()}", align="C")
 
-pdf = CorporatePortraitPDF(orientation='P', unit='mm', format='A4')
-pdf.set_margins(12, 12, 12)
+pdf = CorporatePDF()
 pdf.add_page()
 
-# Absolute horizontal mapping dimensions matching sequence fields below exactly
-col_widths = (13, 15, 15, 15, 15, 14, 25, 14, 13, 47)
-headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD Status", "Trend", "Rec.", "Technical Commentary"]
+# Setup Table Columns matching your new 10-column layout now
+# Standard A4 printable width is 190mm: 15+15+15+15+15+15+15+20+20+45 = 190
+with pdf.table(col_widths=(15, 15, 15, 15, 15, 15, 15, 20, 20, 45), text_align="LEFT") as table:
+    # Render the Table Header row
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_text_color(15, 23, 42) # Slate 900
+    header_row = table.row()
+    headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Important Note"]
+    for header_title in headers:
+        header_row.cell(header_title)
 
-# Render Header Row
-pdf.set_font("Helvetica", "B", 7.5)
-pdf.set_fill_color(241, 245, 249) # Light Slate 100
-pdf.set_text_color(51, 65, 85)     # Slate 700
-pdf.set_draw_color(203, 213, 225)  # Slate 300
+    # Render Data Rows dynamically
+    pdf.set_font("Helvetica", "", 8)
+    for stock in analysis_data:
+        row = table.row()
+        trend_status = str(stock.get("trend", "")).strip().lower()
+        rec_status = str(stock.get("recommendation", "")).strip().lower()
 
-for i, h_title in enumerate(headers):
-    pdf.cell(col_widths[i], 7, h_title, border=1, align="C" if i < 9 else "L", fill=True)
-pdf.ln()
+        # 1. Base details with default Slate 700 text
+        pdf.set_text_color(51, 65, 85)
+        row.cell(str(stock.get("stock_name", "")))
+        row.cell(str(stock.get("cost", "")))
+        row.cell(str(stock.get("latest_price", "")))
+        row.cell(str(stock.get("support", "")))
+        row.cell(str(stock.get("resistance", "")))
+        row.cell(str(stock.get("obv_status", "")))
+        row.cell(str(stock.get("macd_status", "")))
 
-# Render Corporate Rows
-pdf.set_font("Helvetica", "", 7.5)
-row_count = 0
+        # 2. Dynamic coloring for Trend cell
+        if "bullish" in trend_status:
+            pdf.set_text_color(34, 197, 94)   # Vibrant Green
+        elif "bearish" in trend_status:
+            pdf.set_text_color(239, 68, 68)   # Vibrant Red
+        else:
+            pdf.set_text_color(51, 65, 85)    # Default Slate 700
+        row.cell(str(stock.get("trend", "")))
 
-for stock in analysis_data:
-    fill_row = row_count % 2 == 1
-    pdf.set_fill_color(248, 250, 252) # Alternating slate rows
-    pdf.set_text_color(51, 65, 85)
-    pdf.set_draw_color(226, 232, 240)
-    
-    # Pre-calculate cell wrapping demand metrics
-    text_note = str(stock.get("important_note", ""))
-    lines_needed = pdf.multi_cell(col_widths[9], 4.5, text_note, split_only=True)
-    row_h = max(len(lines_needed) * 4.2, 7.5)
-    
-    # Page Break Intercept handling
-    if pdf.get_y() + row_h > 275:
-        pdf.add_page()
-        pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_fill_color(241, 245, 249)
-        for i, h_title in enumerate(headers):
-            pdf.cell(col_widths[i], 7, h_title, border=1, align="C" if i < 9 else "L", fill=True)
-        pdf.ln()
-        pdf.set_font("Helvetica", "", 7.5)
+        # 3. Dynamic coloring for Recommendation cell
+        if "buy" in rec_status:
+            pdf.set_text_color(34, 197, 94)   # Vibrant Green
+        elif "sell" in rec_status:
+            pdf.set_text_color(239, 68, 68)   # Vibrant Red
+        else:
+            pdf.set_text_color(234, 179, 8)   # Vibrant Amber for Hold
+        row.cell(str(stock.get("recommendation", "")))
 
-    # Sequential row generation under exact width index limits
-    pdf.cell(col_widths[0], row_h, str(stock.get("stock_name", "")), border=1, align="C", fill=fill_row)
-    pdf.cell(col_widths[1], row_h, f"${stock.get('cost', 'N/A')}", border=1, align="C", fill=fill_row)
-    pdf.cell(col_widths[2], row_h, f"${stock.get('latest_price', '0.00')}", border=1, align="C", fill=fill_row)
-    pdf.cell(col_widths[3], row_h, f"${stock.get('support', '0.00')}", border=1, align="C", fill=fill_row)
-    pdf.cell(col_widths[4], row_h, f"${stock.get('resistance', '0.00')}", border=1, align="C", fill=fill_row)
-    pdf.cell(col_widths[5], row_h, str(stock.get("obv_status", "")), border=1, align="C", fill=fill_row)
-    pdf.cell(col_widths[6], row_h, str(stock.get("macd_status", "")), border=1, align="L", fill=fill_row)
-    
-    # Dynamic Trend Accent Texts
-    trend_status = str(stock.get("trend", "")).strip().lower()
-    if "bullish" in trend_status:
-        pdf.set_text_color(22, 163, 74) # Institutional Green
-    elif "bearish" in trend_status:
-        pdf.set_text_color(220, 38, 38) # Institutional Red
-    pdf.cell(col_widths[7], row_h, str(stock.get("trend", "")), border=1, align="C", fill=fill_row)
-    pdf.set_text_color(51, 65, 85) # Reset text accent
-    
-    # Soft Color Execution Badges
-    rec_status = str(stock.get("recommendation", "")).strip().lower()
-    if "buy" in rec_status:
-        pdf.set_fill_color(220, 252, 231) # Pastel Green Fill
-        pdf.set_text_color(21, 128, 61)   # Dark Green Text
-    elif "sell" in rec_status:
-        pdf.set_fill_color(254, 226, 226) # Pastel Red Fill
-        pdf.set_text_color(185, 28, 28)   # Dark Red Text
-    else:
-        pdf.set_fill_color(254, 249, 195) # Pastel Amber Fill
-        pdf.set_text_color(161, 98, 7)    # Dark Amber Text
-        
-    pdf.cell(col_widths[8], row_h, str(stock.get("recommendation", "")), border=1, align="C", fill=True)
-    
-    # Flawless Dynamic Multi-cell Block Injection
-    pdf.set_text_color(71, 85, 105)
-    current_y = pdf.get_y()
-    
-    pdf.multi_cell(col_widths[9], row_h / len(lines_needed), text_note, border=1, align="L", fill=fill_row)
-    pdf.set_xy(12, current_y + row_h)
-    row_count += 1
+        # 4. Final text details reset
+        pdf.set_text_color(51, 65, 85)
+        row.cell(str(stock.get("important_note", "")))
 
+# Finalize the compiled PDF file
 filename = "morning_market_analysis.pdf"
 pdf.output(filename)
 print(f"PDF output finalized successfully as {filename}.")
