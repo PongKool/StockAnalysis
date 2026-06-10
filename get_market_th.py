@@ -113,11 +113,11 @@ for ticker in tickers:
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI
 prompt = f"""
-You are an expert institutional technical analyst evaluating equities on the Stock Exchange of Thailand (SET). All currency denominations are in Thai Baht (THB). Based on the market data summary provided below, analyze each stock comprehensively.
+You are an expert institutional technical analyst evaluating equities on the Stock Exchange of Thailand (SET). All currency denominations are in Thai Baht (THB). Based on the market data summary [...]
 
 CRITICAL ANALYSIS REQUIREMENT:
 - For "cost", map back the EXACT "Entry Cost" value provided to you in the data input. Do not alter it.
-- Factor the **Risk/Reward** ratio heavily into your decisions. If a stock is trading immediately underneath its 1-Month Resistance ceiling (a poor ratio), protect capital and avoid issuing a "Buy" recommendation.
+- Factor the **Risk/Reward** ratio heavily into your decisions. If a stock is trading immediately underneath its 1-Month Resistance ceiling (a poor ratio), protect capital and avoid issuing a "Bu[...]
 - Factor the **OBV Trend** (Volume validation) and **MACD Status** (Momentum environment/extension/crossover) explicitly into your trend determination.
 - For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals (Price vs Support/Resistance, Volume, and Momentum) in relation to that Entry Cost.
 
@@ -127,7 +127,7 @@ Stocks to analyze: {', '.join(tickers)}
 Data Input:
 {data_summary}
 
-CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. Each object in the JSON array must follow this exact structure:
+CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. Each object in the JSON array must follow[...]
 {{
   "stock_name": "TICKER",
   "cost": "The exact entry cost provided to you",
@@ -291,7 +291,7 @@ pdf.add_section_title("Watchlist Technical Analysis - Currency: Thai Baht (THB)"
 
 # Professional data table with improved spacing and styling
 with pdf.table(
-    col_widths=(16, 14, 14, 14, 14, 12, 14, 12, 12, 32),
+    col_widths=(14, 12, 12, 12, 12, 10, 12, 10, 10, 40),
     text_align="CENTER",
     line_height=6.5,
     padding=(2, 2)
@@ -394,28 +394,11 @@ with pdf.table(
         
         note_text = str(stock.get("important_note", ""))
         # Truncate note for table readability
-        if len(note_text) > 50:
-            note_text = note_text[:47] + "..."
+        if len(note_text) > 35:
+            note_text = note_text[:32] + "..."
         row.cell(note_text)
         
         row_index += 1
-
-pdf.ln(5)
-
-# Add professional footer section with key insights
-pdf.add_section_title("Analysis Summary")
-
-pdf.set_font("Helvetica", "", 9)
-pdf.set_text_color(*pdf.ACCENT_GRAY)
-
-summary_text = (
-    "This report provides a technical analysis of selected Thai equities listed on the Stock Exchange of Thailand (SET). "
-    "The analysis incorporates multiple technical indicators including price support/resistance levels, On-Balance Volume (OBV), "
-    "and MACD momentum signals. Recommendations are risk-adjusted and consider both entry costs and reward potential. "
-    "All prices and values are denominated in Thai Baht (THB). Investors should combine this technical analysis with "
-    "fundamental research and personal risk tolerance before making investment decisions."
-)
-pdf.multi_cell(0, 5, summary_text, align="J")
 
 # Save the PDF
 filename = "thai_market_analysis.pdf"
