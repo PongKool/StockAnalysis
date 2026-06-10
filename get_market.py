@@ -7,10 +7,8 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST
-# Define your target tech and growth watchlist tickers (VST completely removed)
 tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
 
-# YOUR ACTUAL COST BASIS DICTIONARY (VST completely removed)
 my_costs = {
     "MU": 424.62, "NVDA": 220.80, "ORCL": 183.72, "SNDK": 1418.17, 
     "MSFT": 455.37, "TSM": 424.30, "LLY": 971.12, "LRCX": 305.41, 
@@ -18,24 +16,30 @@ my_costs = {
     "ANET": 171.11
 }
 
-# Initialize Gemini Client (Uses the API key stored in your environment)
+# Dictionary to hold the exact calculated numbers for the PDF table mapping
+calculated_market_data = {}
+
+# Initialize Gemini Client
 client = genai.Client()
 
 print("Fetching technical data from Yahoo Finance...")
 data_summary = ""
 
-# 2. DATA GATHERING LOOP (Safe now that 'tickers' is defined above)
+# 2. DATA GATHERING LOOP
 for ticker in tickers:
     try:
         stock = yf.Ticker(ticker)
-        # Fetching 3 months of price context to accurately calculate 26-period EMA for MACD
-        hist = stock.history(period="3mo")
+        # Pull raw unadjusted market close numbers matching the trading platform
+        hist = stock.history(period="3mo", auto_adjust=False)
         
         if hist.empty or len(hist) < 26:
             continue
             
-        # --- THE FIX: Clean out any incomplete live/placeholder rows containing NaN ---
+        # Clean out any incomplete live/placeholder rows containing NaN
         hist = hist.dropna(subset=['Close'])
+        
+        # Safely pull the newest closed price straight from the main dataframe
+        latest_close = hist['Close'].iloc[-1]
         
         # --- CALCULATE OBV ---
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
@@ -43,7 +47,7 @@ for ticker in tickers:
         latest_obv = obv.iloc[-1]
         obv_trend = "Rising" if obv.tail(5).diff().mean() > 0 else "Falling"
         
-        # --- CALCULATE MACD (State + Trajectory Logic) ---
+        # --- CALCULATE MACD ---
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
         exp26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = exp12 - exp26
@@ -51,7 +55,6 @@ for ticker in tickers:
         latest_macd = macd_line.iloc[-1]
         latest_signal = signal_line.iloc[-1]
         
-        # Check previous day to determine if a fresh crossover occurred
         prev_macd = macd_line.iloc[-2]
         prev_signal = signal_line.iloc[-2]
         
@@ -66,21 +69,18 @@ for ticker in tickers:
             else:
                 macd_status = "Bearish Territory"
                 
-        # Format actual cost to 2 decimal places to save tokens
         cost_val = my_costs.get(ticker, 0.0)
         actual_cost = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
         
-        # Calculate true Support and Resistance using the trailing 1 month (approx last 21 trading days)
+        # Support and Resistance levels
         hist_1m = hist.tail(21)
         support_level = hist_1m['Low'].min()
         resistance_level = hist_1m['High'].max()
-        latest_close = hist_1m['Close'].iloc[-1]
         
         # --- CALCULATE RISK/REWARD RATIO ---
         risk_distance = latest_close - support_level
         reward_distance = resistance_level - latest_close
         
-        # Handle edge case where price is exactly at or above resistance to prevent division by zero
         if reward_distance <= 0:
             rr_ratio_str = "Poor (At Resistance)"
         elif risk_distance <= 0:
@@ -89,11 +89,16 @@ for ticker in tickers:
             calculated_ratio = reward_distance / risk_distance
             rr_ratio_str = f"1:{calculated_ratio:.2f}"
             
-        # Compress the recent 14 days of closing prices into a minimal string layout
         recent_closes = hist_1m.tail(14)
         trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
         
-        # Token-optimized data line representing the stock status
+        # Save exact programmatic calculations to map directly into the PDF table row builder later
+        calculated_market_data[ticker] = {
+            "latest_price": f"{latest_close:.2f}",
+            "support": f"{support_level:.2f}",
+            "resistance": f"{resistance_level:.2f}"
+        }
+        
         data_summary += (
             f"Ticker: {ticker} | Entry Cost: {actual_cost} | Latest Close: {latest_close:.2f} | "
             f"1Mo Support: {support_level:.2f} | 1Mo Resistance: {resistance_level:.2f} | "
@@ -114,6 +119,7 @@ CRITICAL ANALYSIS REQUIREMENT:
 - Factor the **OBV Trend** (Volume validation) and **MACD Status** (Momentum environment/extension/crossover) explicitly into your trend determination.
 - For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals (Price vs Support/Resistance, Volume, and Momentum) in relation to that Entry Cost.
 
+We only require the LLM to output recommendation, trend status, obv_status, macd_status and structural text insights.
 Stocks to analyze: {', '.join(tickers)}
 Data Input:
 {data_summary}
@@ -122,9 +128,6 @@ CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of obje
 {{
   "stock_name": "TICKER",
   "cost": "The exact entry cost provided to you",
-  "latest_price": "Latest close price value",
-  "support": "Support level value",
-  "resistance": "Resistance level value",
   "obv_status": "e.g., Rising / Falling",
   "macd_status": "e.g., Bullish Territory / Bullish Crossover / Bearish Territory",
   "trend": "Bullish/Bearish/Sideways",
@@ -139,7 +142,6 @@ response = client.models.generate_content(
     contents=prompt,
 )
 
-# Clean up raw markdown block wrappers if generated by the model
 raw_json = response.text.strip()
 if raw_json.startswith("```"):
     lines = raw_json.splitlines()
@@ -152,19 +154,16 @@ if raw_json.startswith("```"):
 try:
     analysis_data = json.loads(raw_json)
 except Exception as e:
-    print("Failed to parse JSON. Falling back to an empty template table structure.")
+    print("Failed to parse JSON. Falling back to template table structure.")
     analysis_data = [
         {
             "stock_name": t,
             "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
-            "latest_price": "Error",
-            "support": "Error",
-            "resistance": "Error",
             "obv_status": "Error",
             "macd_status": "Error",
             "trend": "Error",
             "recommendation": "Error",
-            "important_note": "Failed to parse data."
+            "important_note": "Failed to parse data payload safely."
         } for t in tickers
     ]
 
@@ -172,23 +171,22 @@ except Exception as e:
 class CorporatePDF(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 14)
-        self.set_text_color(30, 41, 59) # Cool Slate 800
+        self.set_text_color(30, 41, 59)
         self.cell(0, 10, "Daily Market Report - Watchlist Technical Summary", new_x="LMARGIN", new_y="NEXT", align="L")
         
-        # Explicitly calculate current Thailand Time (UTC+7)
         thailand_tz = timezone(timedelta(hours=7))
         now_thailand = datetime.now(thailand_tz)
         thai_timestamp = now_thailand.strftime('%Y-%m-%d %H:%M:%S')
         
         self.set_font("Helvetica", "I", 9)
-        self.set_text_color(100, 116, 139) # Slate 500
+        self.set_text_color(100, 116, 139)
         self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time)", new_x="LMARGIN", new_y="NEXT", align="L")
         self.ln(5)
 
     def footer(self):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
-        self.set_text_color(148, 163, 184) # Slate 400
+        self.set_text_color(148, 163, 184)
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
 
 pdf = CorporatePDF()
@@ -196,7 +194,7 @@ pdf.add_page()
 
 with pdf.table(col_widths=(15, 15, 15, 15, 15, 15, 15, 20, 20, 45), text_align="LEFT") as table:
     pdf.set_font("Helvetica", "B", 8)
-    pdf.set_text_color(15, 23, 42) # Slate 900
+    pdf.set_text_color(15, 23, 42)
     header_row = table.row()
     headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Important Note"]
     for header_title in headers:
@@ -205,32 +203,39 @@ with pdf.table(col_widths=(15, 15, 15, 15, 15, 15, 15, 20, 20, 45), text_align="
     pdf.set_font("Helvetica", "", 8)
     for stock in analysis_data:
         row = table.row()
+        ticker = str(stock.get("stock_name", "")).strip()
         trend_status = str(stock.get("trend", "")).strip().lower()
         rec_status = str(stock.get("recommendation", "")).strip().lower()
         
+        # Pull precise programmatic data points from our dictionary mapping block
+        market_metrics = calculated_market_data.get(ticker, {"latest_price": "N/A", "support": "N/A", "resistance": "N/A"})
+        
         pdf.set_text_color(51, 65, 85)
-        row.cell(str(stock.get("stock_name", "")))
+        row.cell(ticker)
         row.cell(str(stock.get("cost", "")))
-        row.cell(str(stock.get("latest_price", "")))
-        row.cell(str(stock.get("support", "")))
-        row.cell(str(stock.get("resistance", "")))
+        
+        # Hard-coded numeric fields directly from pandas/yfinance variables
+        row.cell(market_metrics["latest_price"])
+        row.cell(market_metrics["support"])
+        row.cell(market_metrics["resistance"])
+        
         row.cell(str(stock.get("obv_status", "")))
         row.cell(str(stock.get("macd_status", "")))
         
         if "bullish" in trend_status:
-            pdf.set_text_color(34, 197, 94)   # Vibrant Green
+            pdf.set_text_color(34, 197, 94)
         elif "bearish" in trend_status:
-            pdf.set_text_color(239, 68, 68)   # Vibrant Red
+            pdf.set_text_color(239, 68, 68)
         else:
-            pdf.set_text_color(51, 65, 85)    # Default Slate 700
+            pdf.set_text_color(51, 65, 85)
         row.cell(str(stock.get("trend", "")))
         
         if "buy" in rec_status:
-            pdf.set_text_color(34, 197, 94)   # Vibrant Green
+            pdf.set_text_color(34, 197, 94)
         elif "sell" in rec_status:
-            pdf.set_text_color(239, 68, 68)   # Vibrant Red
+            pdf.set_text_color(239, 68, 68)
         else:
-            pdf.set_text_color(234, 179, 8)   # Vibrant Amber for Hold
+            pdf.set_text_color(234, 179, 8)
         row.cell(str(stock.get("recommendation", "")))
         
         pdf.set_text_color(51, 65, 85)
