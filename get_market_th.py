@@ -6,11 +6,11 @@ from fpdf import FPDF
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 
-# 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
+# 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION (THAI SET WATCHLIST)
 tickers = ["ADVANC.BK", "AOT.BK", "BBL.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PTT.BK", "SCB.BK", "WHA.BK"]
 
 my_costs = {
-    "ADVANC.BK": 370.62,       # Custom entries configured in THB
+    "ADVANC.BK": 370.62,
     "AOT.BK": 55.00,
     "BBL.BK": 168.45,
     "GULF.BK": 57.92,
@@ -21,10 +21,7 @@ my_costs = {
     "WHA.BK": 4.87
 }
 
-# Dictionary to hold the exact calculated numbers for the PDF table mapping
 calculated_market_data = {}
-
-# Initialize Gemini Client
 client = genai.Client()
 
 print("Fetching technical data from Yahoo Finance for Thai Equities...")
@@ -34,30 +31,26 @@ data_summary = ""
 for ticker in tickers:
     try:
         stock = yf.Ticker(ticker)
-        # Pull unadjusted historical matrix data
         hist = stock.history(period="3mo", auto_adjust=False)
         
         if hist.empty or len(hist) < 26:
             continue
             
-        # Clean out any incomplete live/placeholder rows containing NaN
         hist = hist.dropna(subset=['Close'])
         
-        # Grab the absolute real quote closing price from summary info metadata
-        # This completely bypasses the data frame adjustments to lock onto the precise market closing bell price
         try:
             info = stock.info
             latest_close = info.get('regularMarketPrice') or info.get('currentPrice') or hist['Close'].iloc[-1]
         except Exception:
             latest_close = hist['Close'].iloc[-1]
         
-        # --- CALCULATE OBV ---
+        # CALCULATE OBV
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
         obv_trend = "Rising" if obv.tail(5).diff().mean() > 0 else "Falling"
         
-        # --- CALCULATE MACD ---
+        # CALCULATE MACD
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
         exp26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = exp12 - exp26
@@ -87,7 +80,7 @@ for ticker in tickers:
         support_level = hist_1m['Low'].min()
         resistance_level = hist_1m['High'].max()
         
-        # --- CALCULATE RISK/REWARD RATIO ---
+        # CALCULATE RISK/REWARD RATIO
         risk_distance = latest_close - support_level
         reward_distance = resistance_level - latest_close
         
@@ -102,7 +95,6 @@ for ticker in tickers:
         recent_closes = hist_1m.tail(14)
         trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
         
-        # Save exact programmatic calculations to map directly into the PDF table row builder later
         calculated_market_data[ticker] = {
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
@@ -121,7 +113,7 @@ for ticker in tickers:
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI
 prompt = f"""
-You are an expert institutional technical analyst evaluating equities on the Stock Exchange of Thailand (SET). All currency denominations are in Thai Baht (THB). Based on the market data summary, provide comprehensive technical analysis.
+You are an expert institutional technical analyst evaluating equities on the Stock Exchange of Thailand (SET). All currency denominations are in Thai Baht (THB). Based on the market data summary provided below, analyze each stock comprehensively.
 
 CRITICAL ANALYSIS REQUIREMENT:
 - For "cost", map back the EXACT "Entry Cost" value provided to you in the data input. Do not alter it.
@@ -129,12 +121,13 @@ CRITICAL ANALYSIS REQUIREMENT:
 - Factor the **OBV Trend** (Volume validation) and **MACD Status** (Momentum environment/extension/crossover) explicitly into your trend determination.
 - For "recommendation" (Buy/Hold/Sell) and "important_note", evaluate the market technicals (Price vs Support/Resistance, Volume, and Momentum) in relation to that Entry Cost.
 
-We only require the LLM to output recommendation, trend status, obv_status, macd_status and structural text insights.
+We only require the LLM to output: recommendation, trend status, obv_status, macd_status and structural text insights.
 Stocks to analyze: {', '.join(tickers)}
+
 Data Input:
 {data_summary}
 
-CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. Each object in the JSON array must follow this exact schema:
+CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. Each object in the JSON array must follow this exact structure:
 {{
   "stock_name": "TICKER",
   "cost": "The exact entry cost provided to you",
@@ -184,13 +177,13 @@ class ProfessionalPDF(FPDF):
         self.WIDTH = 210
         self.HEIGHT = 297
         # Define professional color scheme
-        self.DARK_BLUE = (31, 41, 55)      # Header/footer background
-        self.LIGHT_BLUE = (59, 130, 246)   # Accent color
-        self.ACCENT_GRAY = (107, 114, 128) # Secondary text
-        self.GREEN = (34, 197, 94)         # Bullish/Buy
-        self.RED = (239, 68, 68)           # Bearish/Sell
-        self.YELLOW = (234, 179, 8)        # Hold/Neutral
-        self.LIGHT_GRAY = (243, 244, 246)  # Row background
+        self.DARK_BLUE = (31, 41, 55)
+        self.LIGHT_BLUE = (59, 130, 246)
+        self.ACCENT_GRAY = (107, 114, 128)
+        self.GREEN = (34, 197, 94)
+        self.RED = (239, 68, 68)
+        self.YELLOW = (234, 179, 8)
+        self.LIGHT_GRAY = (243, 244, 246)
         self.WHITE = (255, 255, 255)
         self.DARK_TEXT = (15, 23, 42)
 
@@ -277,7 +270,6 @@ class ProfessionalPDF(FPDF):
         for label, color, description in legend_items:
             # Colored indicator box
             self.set_fill_color(*color)
-            x_pos = self.get_x()
             self.set_xy(15, self.get_y())
             self.rect(15, self.get_y(), 3, 3, 'F')
             self.set_xy(20, self.get_y())
@@ -323,8 +315,9 @@ with pdf.table(
         "Technical Notes"
     ]
     
+    # Add header cells without 'fill' parameter
     for header_title in headers:
-        header_row.cell(header_title, fill=True)
+        header_row.cell(header_title)
     
     # Data rows with alternating background colors
     pdf.set_font("Helvetica", "", 8)
@@ -350,26 +343,26 @@ with pdf.table(
         
         # Ticker cell
         pdf.set_text_color(*pdf.DARK_BLUE)
-        row.cell(ticker, fill=row_fill)
+        row.cell(ticker)
         
         # Cost cell
-        row.cell(str(stock.get("cost", "")), fill=row_fill)
+        row.cell(str(stock.get("cost", "")))
         
         # Price cells (numeric data)
-        row.cell(market_metrics["latest_price"], fill=row_fill)
-        row.cell(market_metrics["support"], fill=row_fill)
-        row.cell(market_metrics["resistance"], fill=row_fill)
+        row.cell(market_metrics["latest_price"])
+        row.cell(market_metrics["support"])
+        row.cell(market_metrics["resistance"])
         
         # OBV Status (colored text)
         if "rising" in obv_status.lower():
             pdf.set_text_color(*pdf.GREEN)
         else:
             pdf.set_text_color(*pdf.RED)
-        row.cell(obv_status, fill=row_fill)
+        row.cell(obv_status)
         
         # MACD Status
         pdf.set_text_color(*pdf.DARK_BLUE)
-        row.cell(macd_status, fill=row_fill)
+        row.cell(macd_status)
         
         # Trend (colored text)
         if "bullish" in trend_status:
@@ -378,7 +371,7 @@ with pdf.table(
             pdf.set_text_color(*pdf.RED)
         else:
             pdf.set_text_color(*pdf.ACCENT_GRAY)
-        row.cell(str(stock.get("trend", "")), fill=row_fill)
+        row.cell(str(stock.get("trend", "")))
         
         # Recommendation (colored background)
         pdf.set_text_color(255, 255, 255)
@@ -390,7 +383,7 @@ with pdf.table(
             pdf.set_fill_color(*pdf.YELLOW)
             pdf.set_text_color(*pdf.DARK_BLUE)
         
-        row.cell(str(stock.get("recommendation", "")), fill=True)
+        row.cell(str(stock.get("recommendation", "")))
         
         # Important Note
         pdf.set_text_color(*pdf.DARK_BLUE)
@@ -403,7 +396,7 @@ with pdf.table(
         # Truncate note for table readability
         if len(note_text) > 50:
             note_text = note_text[:47] + "..."
-        row.cell(note_text, fill=row_fill)
+        row.cell(note_text)
         
         row_index += 1
 
