@@ -284,7 +284,12 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
 
         # Reset color to soft slate for the descriptive note block
         pdf.set_text_color(71, 85, 105)
-        row.cell(str(stock.get("important_note", "")))
+        
+        # --- FIX UNICODE ENCODING CRASH ---
+        important_note_clean = str(stock.get("important_note", "")).replace("–", "-")
+        important_note_clean = important_note_clean.encode('latin-1', 'replace').decode('latin-1')
+        
+        row.cell(important_note_clean)
 
 filename = "thai_market_analysis.pdf"
 pdf.output(filename)
