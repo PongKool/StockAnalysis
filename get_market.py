@@ -11,9 +11,9 @@ import pandas as pd
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
 my_costs = {
-    "MU": 424.62, "NVDA": 220.31, "ORCL": 183.72, "SNDK": 1418.17, 
+    "MU": 0, "NVDA": 220.31, "ORCL": 183.72, "SNDK": 0, 
     "MSFT": 459.63, "TSM": 424.30, "LLY": 1005.17, "LRCX": 305.41, 
-    "NOW": 107.68, "AMD": 448.37, "CACI": 525.36, "AVGO": 451.22, "ANET": 171.11
+    "NOW": 107.68, "AMD": 0, "CACI": 0, "AVGO": 451.22, "ANET": 171.11
 }
 
 calculated_market_data = {}
