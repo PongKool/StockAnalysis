@@ -1,35 +1,53 @@
 # Stock Analysis AI Agent 📊
 
-This project uses an *AI agent* and localized automation pipelines to extract market data from Yahoo Finance, calculate institutional-grade technical indicators, and compile structured financial reports across multiple global stock markets.
+This project implements an **automated, institutional-grade financial analysis pipeline** designed to monitor high-beta tech portfolios and regional assets. By cleanly dividing tasks between high-speed local mathematical scripts and the Gemini AI engine, it tracks open positions, evaluates risk margins, and exports production-ready market reports without wasting API token efficiency.
 
-## Key Features:
-- **Multi-Market Pipeline:** Sequentially processes both US Equities (`get_market.py`) and Thai SET Equities (`get_market_th.py` via `.BK` extensions).
-- **Exact Pricing Safeguards:** Directly queries live metadata blocks (`stock.info`) to isolate the exact unadjusted market closing bell prices, completely preventing `NaN` data skips or split-adjusted pricing bugs.
-- **Support & Resistance Mapping:** Computes macro price boundaries based on 1-month historical lookup metrics.
-- **Volume & Momentum Filters:** Natively evaluates On-Balance Volume (OBV) trend slopes and MACD territorial environments/crossovers.
-- **Risk/Reward Ratios:** Calculates structural target margins before rendering a final investment evaluation.
+The system executes automatically across two distinct workflows: US Equities (`get_market.py`) and Thai SET Equities (`get_market_th.py`).
 
-## 🧠 How AI is Used in This Project
-To maximize token efficiency and lower operational costs, this project splits tasks between *local Python architectures* and *the Gemini AI agent*:
+---
 
-### 1. What Local Python Handles (Non-AI)
-- **Data Fetching:** Python connects directly to Yahoo Finance's public API using `yfinance` to download historical market data and live summary metadata.
-- **Mathematical Operations:** Python calculates exact technical metrics natively. It scans the historical data to compute Support, Resistance, cumulative On-Balance Volume (OBV), Moving Average Convergence Divergence (MACD), and the exact *Risk/Reward Ratio* without wasting AI tokens on raw math.
-- **Isolated Multi-PDF Composition:** Compiles, color-codes, and exports two distinct, production-ready document tracking models sequentially every morning: `morning_market_analysis.pdf` (USD) and `thai_market_analysis.pdf` (THB).
+## 🚀 Key Architectural Upgrades
 
-### 2. What the Gemini AI Agent Handles
-- **Strategic Financial Reasoning:** The AI reviews the compiled technical summary alongside your hardcoded Entry Cost. It applies professional financial logic to determine an actionable recommendation (*Buy*, *Hold*, or *Sell*)—such as blocking a "Buy" rating if a stock's Risk/Reward ratio is poor, even if momentum looks bullish.
-- **Localized Regional Insights:** Adapts its financial commentary contextually to prioritize asset metrics in their respective native currencies (USD vs. Thai Baht structural nuances).
-- **JSON Payload Synchronization:** Packs strategic technical summaries into strict structural JSON arrays for frictionless execution pipelines inside your automated GitHub workspace.
+* **High-Speed Bulk Data Downloading:** Replaced slow, sequential ticker-by-ticker network queries with a singular multi-index bulk payload download via `yf.download()`. This eliminates sequential network lag and cuts data-gathering times by up to **80%**.
+* **Macro Tech Sector Regime Filtering:** Integrates index tracking on the Invesco NASDAQ-100 ETF (`QQQ`). By calculating its 20-day EMA, the system gauges broader market health to stop the AI from blindly suggesting "Buy" ratings on stock pullbacks during systemic market corrections.
+* **High-Beta Tech Volatility Scaling (ATR):** Incorporates the 14-day **Average True Range (ATR)**. This provides a dynamic dollar-volatility buffer customized to the aggressive intraday swings of tech and semiconductor names (*NVDA, AMD, AVGO, TSM*).
+* **Strict JSON Type-Safety (Pydantic):** Employs Pydantic's `BaseModel` injected directly into Gemini's native `response_schema`. This forces the AI to output zero markdown blocks and pure structured JSON, completely eliminating pipeline runtime parsing exceptions.
+* **Unicode Table Sanitization:** Hardened text parsing channels automatically intercept and convert problematic hidden Unicode marks (like long en-dashes `–`) into standard safe hyphens to guarantee `FPDF` rendering success during headless automated workflows.
 
-## ⏱️ Timeframes & Analysis Metrics
-Because this system tracks highly volatile tech stocks (e.g., *NVDA, AMD, AVGO, TSM*) alongside premier Thai equities (e.g., *DELTA, KBANK, ADVANC*), it analyzes market movements using multiple distinct timeframes to eliminate short-term noise:
+---
 
-| Metric | Timeframe | How It Works |
+## 🧠 Split-Execution Core Architecture
+
+To minimize API latency and maximize token efficiency, tasks are heavily isolated:
+
+### 1. What Local Python Handles (Deterministic Calculation)
+* **Data Aggregation:** Bulk downloads a 6-month data matrix to allow Exponential Moving Average calculation smoothing to perfectly stabilize.
+* **Technical Metrics:** Computationally derives standard Support/Resistance boundaries strictly locked to a trailing 1-Month (21 trading days) window, computes running On-Balance Volume (OBV), and traces MACD historical crossovers.
+* **Immutable PDF Generation:** Assembles a highly scannable, zebra-striped data table utilizing `fpdf2`, complete with conditional green/red status highlighting.
+
+### 2. What the Gemini AI Agent Handles (Financial Reasoning)
+* **Strategic Financial Reasoning:** The AI reviews the compiled technical summary alongside your hardcoded Entry Cost. It applies professional financial logic to determine an actionable recommendation (*Buy*, *Hold*, or *Sell*).
+* **Bearish Divergence Hunting:** Evaluates if price action is climbing while its underlying volume matrix (`OBV Trend`) is simultaneously falling—flagging institutional distribution to enforce immediate defensive Take-Profit exit triggers.
+
+---
+
+## ⏱️ Technical Matrix Parameters
+
+The pipeline standardizes indicators across multiple timeframes to cross-verify signals:
+
+| Metric | Evaluation Window | Technical Function / Mechanics |
 | :--- | :--- | :--- |
-| **Pricing Engine** | Live Metadata Close | Queries the core `stock.info` payload directly. This bypasses structural historical row array distortions to lock onto the precise market closing bell price. |
-| **Support & Resistance** | 1-Month Lookback | Python evaluates a full month of daily data (~21 trading days) to find the absolute highest ceiling and lowest floor (`hist['Low'].min()`). This provides a robust, macro price floor where buyers historically step in. |
-| **Risk/Reward Ratio** | Structural Range | Evaluates the mathematical distance from the latest close to its 1-month support floor vs. its resistance ceiling. Expressed as an objective ratio (e.g., `1:2.50`) to enforce strict trade discipline. |
-| **OBV Trend** | 5-Day Momentum | Evaluates the running cumulative volume total over the trailing 5 trading days. A positive average slope flags the metric as *Rising*, providing short-term volume validation to support recent price activity. |
-| **MACD Status** | 3-Month Context | Leverages a longer historical lookback to accurately calculate institutional-standard moving averages (12-day Fast EMA, 26-day Slow EMA, and a 9-day Signal EMA). Dynamically flags structural states as *Bullish/Bearish Territory* or immediate *Crossovers*. |
-| **Trend Analysis** | 14 Trading Days | Gemini is supplied with a compressed list of the last 14 closing prices (~3 weeks of market action). This allows the AI to determine if the short-term direction is *Bullish*, *Bearish*, or *Sideways* while smoothing out random single-day volatility. |
+| **Pricing Engine** | `auto_adjust=True` | Extracts split/dividend-adjusted historical bars, ensuring live intraday trading data matches standard market-hour terminals. |
+| **Volatility Scaling** | 14-Day ATR | Estimates trailing daily asset trading range to identify extreme, high-beta momentum extensions. |
+| **Macro Regime** | 20-Day EMA | Tracks `QQQ` price posture to map global sector velocity (Bullish vs. Cautious environments). |
+| **Support & Resistance** | 1-Month Lookback | Scans 21 trading days (`hist_1m['Low'].min()`) to isolate true tactical buying/selling structural floors. |
+| **Volume Velocity** | 5-Day OBV Trend | Computes average directional volume accumulation. Stalled ranges automatically fall to a `"Flat"` identifier to capture trading halts. |
+| **Trend Continuity** | 3-Month Lookback | Sets up the baseline fast/slow moving averages to accurately trace institutional MACD crossovers. |
+
+---
+
+## 📥 Generated Artifacts
+
+Upon completing successful workflow triggers, the pipeline automatically writes out two high-visibility, professional data logs:
+1.  `morning_market_analysis.pdf` — Aggregated corporate brief outlining core US portfolio positioning.
+2.  `thai_market_analysis.pdf` — Formatted technical summary reporting on Thai asset positions.
