@@ -149,6 +149,9 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
    - If the GLOBAL TECH SECTOR REGIME is BEARISH, tighten requirements; exit if momentum begins to flatten even if a full crossover hasn't completed.
 3. **Pullback Adjustments ("Buy"):** Only issue a "Buy" recommendation if the asset is sitting at an "Excellent (At Support)" location, MACD is executing a "Bullish Crossover", OBV is "Rising", AND the GLOBAL TECH SECTOR REGIME is BULLISH. Never buy pullbacks during systemic market corrections.
 
+OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
+You MUST explicitly mention the current **Risk/Reward ratio status** and how the **QQQ Sector Regime** (Bullish vs. Bearish/Cautious) directly impacted your final recommendation decision for that specific stock. Keep it concise enough to fit the table cell.
+
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 """
