@@ -26,6 +26,27 @@ calculated_market_data = {}
 # Initialize Gemini Client
 client = genai.Client()
 
+# --- FETCH THAI BLUE-CHIP MACRO REGIME ---
+print("Evaluating Thai SET50 Macro Economic Regime...")
+macro_regime = "Bullish" # Default fallback
+try:
+    # TDEX tracks the SET50 Index (Thailand's top 50 blue chips)
+    macro_stock = yf.Ticker("TDEX.BK")
+    macro_hist = macro_stock.history(period="3mo", auto_adjust=False)
+    macro_hist = macro_hist.dropna(subset=['Close'])
+    
+    # Calculate 20-Day EMA to determine overall market posture
+    macro_ema20 = macro_hist['Close'].ewm(span=20, adjust=False).mean()
+    
+    latest_macro_close = macro_hist['Close'].iloc[-1]
+    latest_macro_ema = macro_ema20.iloc[-1]
+    
+    if latest_macro_close < latest_macro_ema:
+        macro_regime = "Bearish/Cautious"
+except Exception as e:
+    print(f"Warning: Could not calculate Thai macro regime: {e}")
+
+print(f"Current Thai Market Regime: {macro_regime}")
 print("Fetching technical data from Yahoo Finance for Thai Equities...")
 data_summary = ""
 
@@ -59,7 +80,7 @@ for ticker in tickers:
         exp26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = exp12 - exp26
         signal_line = macd_line.ewm(span=9, adjust=False).mean()
-        
+
         latest_macd = macd_line.iloc[-1]
         latest_signal = signal_line.iloc[-1]
         prev_macd = macd_line.iloc[-2]
@@ -118,29 +139,31 @@ for ticker in tickers:
             f"OBV: {latest_obv:.0f} ({obv_trend}) | MACD: {latest_macd:.2f} (Signal: {latest_signal:.2f}, {macd_status}) | "
             f"Recent Close Trend: [{trend_string}]\n"
         )
-
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
 
-# 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI (TRAILING TAKE-PROFIT LOGIC)
+# 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI (VALUE & CAP-PRESERVATION LOGIC)
 prompt = f"""
-You are an expert institutional technical analyst evaluating equities on the Stock Exchange of Thailand (SET). All currency denominations are in Thai Baht (THB). Your primary objective is to manage active risk and protect open capital using dynamic technical momentum indicators (MACD and OBV) as trailing Take Profit (exit) criteria.
+You are an institutional conservative asset manager evaluating premier defensive and value equities on the Stock Exchange of Thailand (SET). 
+All currency denominations are in Thai Baht (THB).
 
-CRITICAL TAKE-PROFIT EXIT ANALYSIS RULES:
-1. First, look at the "Is Position Profitable?" metric for each stock.
-2. If the position is profitable ("Yes"), prioritize locking in gains over blindly holding:
-   - **Take Profit / Sell Trigger:** If "MACD Status" reflects a "Bearish Crossover" OR the OBV trend is "Falling", the underlying momentum or buying volume is exhausted. You MUST downgrade the "recommendation" to "Sell" to lock in open profits.
-   - **Hold Trend:** If the position is profitable, but the MACD is in "Bullish Territory" and OBV is "Rising", ride the bullish momentum and set the recommendation to "Hold".
-3. If "Is Position Profitable?" is "No", look to "Hold" if a technical support recovery floor is firming up, or "Sell" defensively if structural support levels completely break.
-4. For the "cost" field in output, map back the EXACT "Entry Cost (THB)" value provided to you in the data input.
+You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Index ETF (TDEX): **{macro_regime}**. 
+Use this to gauge systemic domestic liquidity and risk.
 
-We only require the LLM to output recommendation, trend status, obv_status, macd_status and structural text insights.
+CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
+1. **Capital Preservation Rule:** Since these are mature cash-flow companies (Banks, Telecoms, Energy), prioritize guarding principal capital over waiting for explosive growth breakouts. 
+2. **Trailing Exit Strategy:** If a position is currently profitable ("Yes"):
+   - Downgrade the recommendation to **Sell** if the technicals show structural breakdown: "MACD Status" is a "Bearish Crossover" OR the OBV volume trend is "Falling" (signaling institutional fund flows exiting the asset).
+   - If the GLOBAL THAI MARKET REGIME is Bearish/Cautious, proactively look to downgrade momentum-stalled positions to **Hold** or defensive **Sell** to lock in profits, as liquidity in the broader SET index is contracting.
+3. **Value Pullback Adjustments ("Buy"):** Only issue a "Buy" recommendation if the asset has settled into an asymmetric "Excellent (At Support)" structural floor, OBV volume accumulation is "Rising" or steady, and the broader GLOBAL THAI MARKET REGIME is Bullish. **Do not buy defensive value stocks if the underlying SET50 benchmark is in a systemic markdown.**
+
+OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
+You MUST explicitly mention the current **Risk/Reward ratio status** and how the **Thai Market Regime (TDEX {macro_regime})** directly impacted your final recommendation decision for that specific value stock. Keep it concise enough to fit the table cell.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 
-CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text.
-Each object in the JSON array must follow this exact schema:
+CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. Each object in the JSON array must follow this exact schema:
 {{
   "stock_name": "TICKER",
   "cost": "The exact entry cost provided to you",
@@ -226,7 +249,7 @@ pdf.add_page()
 
 # Setup Table Styles (Professional spacing and explicit column configuration)
 pdf.set_font("Helvetica", "", 8)
-column_widths = (20, 13, 13, 14, 14, 12, 24, 16, 11, 53)
+column_widths = (20, 13, 13, 14, 14, 13, 22, 17, 11, 53)
 
 with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, padding=2, outer_border_width=0.5) as table:
     # --- HEADER ROW ---
@@ -244,6 +267,7 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
         ticker = str(stock.get("stock_name", "")).strip()
         trend_status = str(stock.get("trend", "")).strip().lower()
         rec_status = str(stock.get("recommendation", "")).strip().lower()
+        
         market_metrics = calculated_market_data.get(ticker, {"latest_price": "N/A", "support": "N/A", "resistance": "N/A"})
 
         # Zebra striping background configuration
@@ -288,7 +312,6 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
         # --- FIX UNICODE ENCODING CRASH ---
         important_note_clean = str(stock.get("important_note", "")).replace("–", "-")
         important_note_clean = important_note_clean.encode('latin-1', 'replace').decode('latin-1')
-        
         row.cell(important_note_clean)
 
 filename = "thai_market_analysis.pdf"
