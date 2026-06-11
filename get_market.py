@@ -19,37 +19,67 @@ my_costs = {
 calculated_market_data = {}
 client = genai.Client()
 
-# Strict schema to guarantee flawless, clean JSON mapping from the Gemini API
 class StockAnalysisSchema(BaseModel):
     stock_name: str = Field(description="The ticker symbol of the stock.")
     cost: str = Field(description="The exact entry cost value provided in data input.")
-    obv_status: str = Field(description="OBV trend direction, e.g., Rising / Falling")
+    obv_status: str = Field(description="OBV trend direction, e.g., Rising / Falling / Flat")
     macd_status: str = Field(description="Current MACD state, e.g., Bullish Territory / Bearish Crossover")
     trend: str = Field(description="Overall direction: Bullish, Bearish, or Sideways")
     recommendation: str = Field(description="Actionable decision: Buy, Hold, or Sell")
-    important_note: str = Field(description="Technical reason proving why momentum changes justify a Hold or Profit-Take Sell.")
+    important_note: str = Field(description="Technical reason focusing on momentum depletion, support health, or structural divergence.")
 
-print("Fetching technical data from Yahoo Finance...")
-data_summary = ""
+print("Fetching Macro Tech Sector Regime Context (QQQ)...")
+try:
+    qqq_hist = yf.Ticker("QQQ").history(period="1mo", auto_adjust=True)
+    qqq_ema20 = qqq_hist['Close'].ewm(span=20, adjust=False).mean().iloc[-1]
+    qqq_latest = qqq_hist['Close'].iloc[-1]
+    tech_market_regime = "BULLISH (QQQ above 20EMA)" if qqq_latest > qqq_ema20 else "BEARISH/CAUTIOUS (QQQ below 20EMA)"
+except Exception:
+    tech_market_regime = "NEUTRAL (Data Unavailable)"
 
-# 2. DATA GATHERING LOOP
+print(f"Current Tech Sector Context: {tech_market_regime}")
+print("Executing bulk historical data download via Yahoo Finance...")
+
+try:
+    all_hist = yf.download(tickers, period="6mo", auto_adjust=True, group_by='ticker')
+except Exception as e:
+    print(f"Bulk download failed: {e}")
+    all_hist = None
+
+data_summary = f"GLOBAL TECH SECTOR REGIME: {tech_market_regime}\n"
+
+# 2. DATA PROCESSING LOOP
 for ticker in tickers:
     try:
-        stock = yf.Ticker(ticker)
-        # auto_adjust=True fixes dividend/split gaps and includes the live trading day price bar
-        hist = stock.history(period="3mo", auto_adjust=True)
+        if all_hist is not None and ticker in all_hist.columns.levels[0]:
+            hist = all_hist[ticker].copy()
+        else:
+            hist = yf.Ticker(ticker).history(period="6mo", auto_adjust=True)
+
         if hist.empty or len(hist) < 26:
             continue
 
         hist = hist.dropna(subset=['Close'])
-        latest_close = hist['Close'].iloc[-1]  # Safely represents the latest available market price
+        latest_close = hist['Close'].iloc[-1]
+
+        # --- TECH PORT OPTIMIZATION: CALCULATE 14-DAY ATR (VOLATILITY SCALE) ---
+        high_low = hist['High'] - hist['Low']
+        high_close = (hist['High'] - hist['Close'].shift()).abs()
+        low_close = (hist['Low'] - hist['Close'].shift()).abs()
+        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+        atr = true_range.ewm(alpha=1/14, adjust=False).mean().iloc[-1]
+        atr_pct = (atr / latest_close) * 100
 
         # --- CALCULATE OBV ---
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
-        # Shifted diff() to run before tail() to ensure NO NaN corruption occurs
-        obv_trend = "Rising" if obv.diff().tail(5).mean() > 0 else "Falling"
+        
+        obv_mean_change = obv.diff().tail(5).mean()
+        if pd.isna(obv_mean_change) or obv_mean_change == 0:
+            obv_trend = "Flat"
+        else:
+            obv_trend = "Rising" if obv_mean_change > 0 else "Falling"
 
         # --- CALCULATE MACD ---
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
@@ -71,7 +101,7 @@ for ticker in tickers:
         actual_cost = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
         is_profitable = "Yes" if (cost_val > 0 and latest_close > cost_val) else "No"
 
-        # Support and Resistance levels
+        # --- FIXED: Locked Support/Resistance directly to the 21-day window ---
         hist_1m = hist.tail(21)
         support_level = hist_1m['Low'].min()
         resistance_level = hist_1m['High'].max()
@@ -99,6 +129,7 @@ for ticker in tickers:
         data_summary += (
             f"Ticker: {ticker} | Entry Cost: {actual_cost} | Latest Close: {latest_close:.2f} | "
             f"Is Position Profitable?: {is_profitable} | 1Mo Support: {support_level:.2f} | 1Mo Resistance: {resistance_level:.2f} | "
+            f"Daily ATR Volatility: {atr:.2f} ({atr_pct:.1f}%) | "
             f"Risk/Reward: {rr_ratio_str} | OBV: {latest_obv:.0f} ({obv_trend}) | "
             f"MACD: {latest_macd:.2f} (Signal: {latest_signal:.2f}, {macd_status}) | Recent Close Trend: [{trend_string}]\n"
         )
@@ -108,15 +139,15 @@ for ticker in tickers:
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI
 prompt = f"""
-You are an expert institutional technical analyst and risk manager. Your primary objective is to evaluate current positions and protect open capital using dynamic technical momentum indicators (MACD and OBV) as trailing Take Profit (exit) criteria.
+You are an expert institutional technical analyst managing a high-beta technology and semiconductor portfolio. 
+You are given the 'GLOBAL TECH SECTOR REGIME' context derived from the Nasdaq-100 (QQQ). Factor this heavily into your systemic risk decisions.
 
-CRITICAL TAKE-PROFIT EXIT ANALYSIS RULES:
-1. First, check the "Is Position Profitable?" metric for the stock.
-2. If the position is profitable ("Yes"), prioritize locking in gains over blindly holding:
-   - **Take Profit / Sell Trigger:** If "MACD Status" reflects a "Bearish Crossover" OR the OBV trend is "Falling", underlying momentum/volume is exhausted. You MUST set the "recommendation" to "Sell" to take profits.
-   - **Hold Trend:** If the position is profitable, but the MACD is in "Bullish Territory" and OBV is "Rising", allow profits to run and set the recommendation to "Hold".
-3. If "Is Position Profitable?" is "No", look to "Hold" if a technical support recovery is forming, or "Sell" defensively if support structural levels break.
-4. For the "cost" field in output, map back the EXACT "Entry Cost" value provided to you in the data input.
+CRITICAL PORTFOLIO RISK & EXIT RULES:
+1. **Bearish Divergence Rule:** Pay deep attention to instances where price action is stable or rising, but the OBV Trend is "Falling". This indicates institutional distribution/selling behind the scenes. If a position is profitable and showing an OBV divergence, flag it immediately as a Take-Profit exit.
+2. **Trailing Take-Profit Exits:** If a position is profitable ("Yes"), prioritize capital protection:
+   - Downgrade recommendation to **Sell** immediately if the "MACD Status" is a "Bearish Crossover" OR the OBV trend is "Falling" (signals institutional distribution).
+   - If the GLOBAL TECH SECTOR REGIME is BEARISH, tighten requirements; exit if momentum begins to flatten even if a full crossover hasn't completed.
+3. **Pullback Adjustments ("Buy"):** Only issue a "Buy" recommendation if the asset is sitting at an "Excellent (At Support)" location, MACD is executing a "Bullish Crossover", OBV is "Rising", AND the GLOBAL TECH SECTOR REGIME is BULLISH. Never buy pullbacks during systemic market corrections.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
@@ -168,7 +199,7 @@ class CorporatePDF(FPDF):
         
         self.set_font("Helvetica", "I", 9)
         self.set_text_color(100, 116, 139)
-        self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time)", new_x="LMARGIN", new_y="NEXT", align="L")
+        self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time) | Regime: {tech_market_regime}", new_x="LMARGIN", new_y="NEXT", align="L")
         
         self.set_draw_color(226, 232, 240)
         self.line(10, self.get_y() + 4, 200, self.get_y() + 4)
