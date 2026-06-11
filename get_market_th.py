@@ -249,7 +249,7 @@ pdf.add_page()
 
 # Setup Table Styles (Professional spacing and explicit column configuration)
 pdf.set_font("Helvetica", "", 8)
-column_widths = (20, 13, 13, 14, 14, 13, 22, 17, 11, 53)
+column_widths = (21, 13, 13, 14, 14, 14, 20, 17, 11, 53)
 
 with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, padding=2, outer_border_width=0.5) as table:
     # --- HEADER ROW ---
