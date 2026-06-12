@@ -9,11 +9,11 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
-tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "TSM", "LLY", "LRCX", "NOW", "AMD", "CACI", "AVGO", "ANET"]
+tickers = ["MU", "NVDA", "ORCL", "SNDK", "MSFT", "TSM", "LLY", "LRCX", "NOW", "AMD", "WMT", "AVGO", "ANET", "TPR"]
 my_costs = {
-    "MU": 0, "NVDA": 220.31, "ORCL": 183.72, "SNDK": 0, 
+    "MU": 999.89, "NVDA": 220.31, "ORCL": 183.72, "SNDK": 0, 
     "MSFT": 459.63, "TSM": 424.30, "LLY": 1005.17, "LRCX": 305.41, 
-    "NOW": 107.68, "AMD": 0, "CACI": 0, "AVGO": 451.22, "ANET": 171.11
+    "NOW": 107.68, "AMD": 0, "WMT": 120.34, "AVGO": 451.22, "ANET": 171.11, "TPR": 148.39
 }
 
 calculated_market_data = {}
