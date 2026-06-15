@@ -148,13 +148,18 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
 1. **Bearish Divergence Rule:** Pay deep attention to instances where price action is stable or rising, but the OBV Trend is "Falling". This indicates institutional distribution/selling behind the scenes. If a position is profitable and showing an OBV divergence, flag it immediately as a Take-Profit exit.
 2. **Trailing Take-Profit Exits:** If a position is profitable ("Yes"), prioritize capital protection:
    - Downgrade recommendation to **Sell** immediately if the "MACD Status" is a "Bearish Crossover" OR the OBV trend is "Falling" (signals institutional distribution).
+   - If the price trend and OBV trend are both confidently **"Rising"**, you may issue a **"Hold"** or **"Hold (Accumulate)"** to capture extended upside, even if the MACD line is temporarily lagging or sitting in Bearish Territory.
    - If the GLOBAL TECH SECTOR REGIME is BEARISH, tighten requirements; exit if momentum begins to flatten even if a full crossover hasn't completed.
-3. **Increasing Positions / Accumulation ("Buy" or "Hold (Accumulate)"):** - Issue a **"Buy"** or a **"Hold (Accumulate)"** recommendation if the stock demonstrates strong potential to continue upward.
+3. **Increasing Positions / Accumulation ("Buy" or "Hold (Accumulate)"):**
+   - Issue a **"Buy"** or a **"Hold (Accumulate)"** recommendation if the stock demonstrates strong potential to continue upward.
    - Strong potential is defined as having a **"Rising" OBV trend** (volume accumulation), an overall **"Bullish" trend**, AND a healthy MACD profile (**"Bullish Territory"** or a fresh **"Bullish Crossover"**).
-   - Do not strictly restrict buying to the absolute 1-month support floor if these three parameters are rising simultaneously, provided the GLOBAL TECH SECTOR REGIME is BULLISH.
+   - **CRITICAL RISK FILTER:** Even if the above parameters are strong, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status is labeled as **"Poor (At Resistance)"**. If it is hitting resistance, downgrade the final decision to a **"Hold"** to await a definitive breakout.
+   - Do not strictly restrict buying to the absolute 1-month support floor if these parameters are rising simultaneously, provided the GLOBAL TECH SECTOR REGIME is BULLISH and it is not blocked by the resistance filter above.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
-You MUST explicitly mention how the combination of a **Rising OBV volume trend**, a **Bullish overall trend**, and a **Strong MACD profile** justified your decision to buy or increase positions under the current QQQ Sector Regime. Keep it concise enough to fit the table cell.
+You MUST explicitly mention how the combination of a **Rising OBV volume trend**, a **Bullish overall trend**, and a **Strong MACD profile** justified your decision to buy or increase positions under the current QQQ Sector Regime. 
+- **CRITICAL BREAKOUT NOTE:** If the stock has successfully broken above its 1-month resistance floor, explicitly note that the **old resistance ceiling has turned into support**, invalidating the prior "Poor" Risk/Reward restriction and paving the way for momentum extension.
+Keep it concise enough to fit the table cell.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
