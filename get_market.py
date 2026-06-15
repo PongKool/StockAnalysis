@@ -25,7 +25,9 @@ class StockAnalysisSchema(BaseModel):
     obv_status: str = Field(description="OBV trend direction, e.g., Rising / Falling / Flat")
     macd_status: str = Field(description="Current MACD state, e.g., Bullish Territory / Bearish Crossover")
     trend: str = Field(description="Overall direction: Bullish, Bearish, or Sideways")
-    recommendation: str = Field(description="Actionable decision: Buy, Hold, or Sell")
+    
+    # UPDATED DESCRIPTION HERE TO ALLOW THE NEW RECS:
+    recommendation: str = Field(description="Actionable decision: Buy, Hold, Hold (Accumulate), or Sell")
     important_note: str = Field(description="Technical reason focusing on momentum depletion, support health, or structural divergence.")
 
 print("Fetching Macro Tech Sector Regime Context (QQQ)...")
@@ -139,18 +141,19 @@ for ticker in tickers:
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI
 prompt = f"""
-You are an expert institutional technical analyst managing a high-beta technology and semiconductor portfolio. 
-You are given the 'GLOBAL TECH SECTOR REGIME' context derived from the Nasdaq-100 (QQQ). Factor this heavily into your systemic risk decisions.
+You are an expert institutional technical analyst managing a high-beta technology and semiconductor portfolio. You are given the 'GLOBAL TECH SECTOR REGIME' context derived from the Nasdaq-100 (QQQ). Factor this heavily into your systemic risk decisions.
 
 CRITICAL PORTFOLIO RISK & EXIT RULES:
 1. **Bearish Divergence Rule:** Pay deep attention to instances where price action is stable or rising, but the OBV Trend is "Falling". This indicates institutional distribution/selling behind the scenes. If a position is profitable and showing an OBV divergence, flag it immediately as a Take-Profit exit.
 2. **Trailing Take-Profit Exits:** If a position is profitable ("Yes"), prioritize capital protection:
    - Downgrade recommendation to **Sell** immediately if the "MACD Status" is a "Bearish Crossover" OR the OBV trend is "Falling" (signals institutional distribution).
    - If the GLOBAL TECH SECTOR REGIME is BEARISH, tighten requirements; exit if momentum begins to flatten even if a full crossover hasn't completed.
-3. **Pullback Adjustments ("Buy"):** Only issue a "Buy" recommendation if the asset is sitting at an "Excellent (At Support)" location, MACD is executing a "Bullish Crossover", OBV is "Rising", AND the GLOBAL TECH SECTOR REGIME is BULLISH. Never buy pullbacks during systemic market corrections.
+3. **Increasing Positions / Accumulation ("Buy" or "Hold (Accumulate)"):** - Issue a **"Buy"** or a **"Hold (Accumulate)"** recommendation if the stock demonstrates strong potential to continue upward.
+   - Strong potential is defined as having a **"Rising" OBV trend** (volume accumulation), an overall **"Bullish" trend**, AND a healthy MACD profile (**"Bullish Territory"** or a fresh **"Bullish Crossover"**).
+   - Do not strictly restrict buying to the absolute 1-month support floor if these three parameters are rising simultaneously, provided the GLOBAL TECH SECTOR REGIME is BULLISH.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
-You MUST explicitly mention the current **Risk/Reward ratio status** and how the **QQQ Sector Regime** (Bullish vs. Bearish/Cautious) directly impacted your final recommendation decision for that specific stock. Keep it concise enough to fit the table cell.
+You MUST explicitly mention how the combination of a **Rising OBV volume trend**, a **Bullish overall trend**, and a **Strong MACD profile** justified your decision to buy or increase positions under the current QQQ Sector Regime. Keep it concise enough to fit the table cell.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
