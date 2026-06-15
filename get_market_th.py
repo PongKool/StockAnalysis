@@ -151,28 +151,27 @@ You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Ind
 Use this to gauge systemic domestic liquidity and risk.
 
 CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
-1. **Capital Preservation Rule:** Since these are mature cash-flow companies (Banks, Telecoms, Energy), prioritize guarding principal capital over waiting for explosive growth breakouts. 
-2. **Trailing Exit Strategy:** If a position is currently profitable ("Yes"):
-   - Downgrade the recommendation to **Sell** if the technicals show structural breakdown: "MACD Status" is a "Bearish Crossover" OR the OBV volume trend is "Falling" (signaling institutional fund flows exiting the asset).
-   - If the GLOBAL THAI MARKET REGIME is Bearish/Cautious, proactively look to downgrade momentum-stalled positions to **Hold** or defensive **Sell** to lock in profits, as liquidity in the broader SET index is contracting.
-3. **Value Pullback Adjustments ("Buy"):** Only issue a "Buy" recommendation if the asset has settled into an asymmetric "Excellent (At Support)" structural floor, OBV volume accumulation is "Rising" or steady, and the broader GLOBAL THAI MARKET REGIME is Bullish. **Do not buy defensive value stocks if the underlying SET50 benchmark is in a systemic markdown.**
+1. **Capital Preservation & Trailing Exit:** If a position is currently profitable ("Yes") but shows structural breakdown ("MACD Status" is a "Bearish Crossover" OR the OBV volume trend is "Falling"), downgrade to **Sell** to lock in profits.
+2. **Increasing Positions / Accumulation ("Buy" or "Hold"):** - Issue a **"Buy"** or an explicit **"Hold (Accumulate)"** recommendation if a stock demonstrates clear potential to go up. 
+   - Strong potential is defined as having a **"Rising" OBV trend** (volume accumulation) combined with a healthy MACD profile (**"Bullish Territory"** or a fresh **"Bullish Crossover"**).
+   - Even if the stock is not at its absolute 1-month support floor, prioritize this rising volume + MACD momentum combination as a signal to scale into or increase the position safely.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
-You MUST explicitly mention the current **Risk/Reward ratio status** and how the **Thai Market Regime (TDEX {macro_regime})** directly impacted your final recommendation decision for that specific value stock. Keep it concise enough to fit the table cell.
+You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions. Keep it concise enough to fit the table cell.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 
 CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. Each object in the JSON array must follow this exact schema:
 {{
-  "stock_name": "TICKER",
+"stock_name": "TICKER",
   "cost": "The exact entry cost provided to you",
   "obv_status": "e.g., Rising / Falling",
   "macd_status": "e.g., Bullish Territory / Bullish Crossover / Bearish Territory",
   "trend": "Bullish/Bearish/Sideways",
-  "recommendation": "Buy/Hold/Sell",
-  "important_note": "Rigorous technical commentary stating why the combination of profit state in THB, MACD crossover, or OBV structural trend dictates a Hold or a Take-Profit Sell decision."
-}}
+  "recommendation": "Buy/Hold/Hold (Accumulate)/Sell", 
+  "important_note": "Rigorous technical commentary stating why the combination of profit state in THB, MACD crossover, or OBV structural trend dictates a Hold, Accumulation, or a Take-Profit Sell decision."
+  }}
 """
 
 print("Generating structured technical analysis via Gemini API...")
