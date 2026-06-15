@@ -78,7 +78,7 @@ for ticker in tickers:
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
         
-        obv_mean_change = obv.diff().tail(5).mean()
+        obv_mean_change = obv.diff().tail(14).mean()
         if pd.isna(obv_mean_change) or obv_mean_change == 0:
             obv_trend = "Flat"
         else:
