@@ -165,7 +165,11 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
    - **CRITICAL RISK FILTER:** Even if parameters are strong, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status is labeled as **"Poor (At Resistance)"**. Downgrade to **"Hold"** to await a definitive breakout.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
-You MUST explicitly mention how technical profiles or volatility metrics justified your decision. If a stock was downgraded due to demanding too many 'ATRs to Target', note that the upside target requires too many days of average volatility. If the stock has successfully broken above its resistance floor, note that old resistance has turned into support. Keep it concise enough to fit the table cell.
+You MUST explicitly mention how technical profiles or volatility metrics justified your decision. 
+- If a stock is close to resistance (like SNDK), calculate the breakout target ($1-month Resistance + 0.01$) and explicitly state it in the note (e.g., "Watch for a clean breakout above $XXXX.XX").
+- If a stock was downgraded due to demanding too many 'ATRs to Target', note that the upside target requires too many days of average volatility. 
+- If the stock has successfully broken above its resistance floor, note that old resistance has turned into support. 
+Keep it concise enough to fit the table cell.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
