@@ -257,8 +257,8 @@ pdf.add_page()
 pdf.set_font("Helvetica", "", 8)
 column_widths = (18, 14, 14, 14, 14, 15, 18, 15, 13, 55)
 
-# Added dynamic vertical padding (cell_alignment="MIDDLE") to make wrapped rows look incredibly clean
-with pdf.table(col_widths=column_widths, text_align="LEFT", cell_alignment="MIDDLE", line_height=5, padding=2, outer_border_width=0.5) as table:
+# Removed invalid 'cell_alignment' kwarg to resolve fpdf.py structural initializer crash
+with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, padding=2, outer_border_width=0.5) as table:
     # --- HEADER ROW ---
     pdf.set_font("Helvetica", "B", 8)
     pdf.set_text_color(255, 255, 255) # White text for header
