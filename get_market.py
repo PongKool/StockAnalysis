@@ -232,7 +232,7 @@ pdf = CorporatePDF()
 pdf.add_page()
 
 # Shifted column layout spacing to create a dedicated visual column for the Volatility Stop
-column_widths = (13, 11, 11, 11, 11, 14, 11, 21, 15, 11, 61)
+column_widths = (13, 12, 12, 12, 12, 14, 11, 18, 14, 11, 61)
 
 with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, padding=1.5, outer_border_width=0.5) as table:
     pdf.set_font("Helvetica", "B", 7)
