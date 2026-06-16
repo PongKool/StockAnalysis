@@ -147,15 +147,17 @@ You are an institutional conservative asset manager evaluating premier defensive
 You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Index ETF (TDEX): **{macro_regime}**. Use this to gauge systemic domestic liquidity and risk.
 
 CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
-1. **Capital Preservation & Trailing Exit:** If a position is currently profitable ("Yes") but shows structural breakdown ("MACD Status" is a "Bearish Crossover" OR the OBV volume trend is "Falling"), downgrade to **Sell** to lock in profits.
+1. **Capital Preservation & Risk Management (Exits):**
+   - **Take-Profit Exit:** If a position is profitable ("Yes") but shows structural breakdown ("MACD Status" is a "Bearish Crossover" OR OBV trend is "Falling"), downgrade to **Take-Profit Exit** to lock in profits.
+   - **Support-Aware Stop-Loss:** If a position is losing money ("No") AND the Latest Close price has broken structurally below the calculated 1Mo Support floor, downgrade to **Support-Aware Stop-Loss** immediately to cut losses. If it is losing money but still holding above or at the support floor, maintain a **Hold** to see if the demand area triggers a rebound.
 2. **Increasing Positions / Accumulation ("Buy" or "Hold"):**
    - Issue a **"Buy"** or an explicit **"Hold (Accumulate)"** recommendation if a stock demonstrates clear potential to go up.
    - Strong potential is defined as having a **"Rising" OBV trend** (volume accumulation) combined with a healthy MACD profile (**"Bullish Territory"** or a fresh **"Bullish Crossover"**).
    - Even if the stock is not at its absolute 1-month support floor, prioritize this rising volume + MACD momentum combination as a signal to scale into or increase the position safely.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
-1. You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions. 
-2. You must explicitly integrate the calculated **Risk/Reward (R/R)** ratio provided in the data input string into this summary text. 
+1. You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions.
+2. You must explicitly integrate the calculated **Risk/Reward (R/R)** ratio provided in the data input string into this summary text.
 3. Keep it tightly concise enough to fit the table cell row layout without overflowing.
 
 Stocks to analyze: {', '.join(tickers)}
@@ -169,7 +171,7 @@ Each object in the JSON array must follow this exact schema:
   "obv_status": "e.g., Rising / Falling",
   "macd_status": "e.g., Bullish Territory / Bullish Crossover / Bearish Territory",
   "trend": "Bullish/Bearish/Sideways",
-  "recommendation": "Buy/Hold/Hold (Accumulate)/Sell",
+  "recommendation": "Buy/Hold/Hold (Accumulate)/Take-Profit Exit/Support-Aware Stop-Loss",
   "important_note": "Rigorous technical commentary explaining how the explicit Risk/Reward ratio, Thai profit state, and the core OBV + MACD trend combination drive your decision."
 }}
 """
@@ -249,19 +251,19 @@ pdf.add_page()
 
 # Setup Table Styles (Exactly 10 Columns adding up to 190mm printable width)
 pdf.set_font("Helvetica", "", 8)
-column_widths = (18, 14, 14, 14, 14, 15, 18, 15, 13, 55) 
+column_widths = (18, 14, 14, 14, 14, 15, 18, 15, 13, 55)
 
 with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, padding=2, outer_border_width=0.5) as table:
     # --- HEADER ROW ---
     pdf.set_font("Helvetica", "B", 8)
-    pdf.set_text_color(255, 255, 255) 
-    pdf.set_fill_color(30, 41, 59)     
+    pdf.set_text_color(255, 255, 255) # White text for header
+    pdf.set_fill_color(30, 41, 59)     # Deep Slate Background
     
     header_row = table.row()
     headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Important Note (THB Context)"]
     for header_title in headers:
         header_row.cell(header_title)
-        
+
     # --- DATA ROWS ---
     for idx, stock in enumerate(analysis_data):
         row = table.row()
@@ -298,10 +300,10 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
             pdf.set_text_color(51, 65, 85)
         row.cell(str(stock.get("trend", "")))
         
-        # Conditional Formatting for Recommendation
-        if "buy" in rec_status:
+        # Conditional Formatting for Recommendation (Updated vocabulary matching prompt)
+        if "buy" in rec_status or "accumulate" in rec_status:
             pdf.set_text_color(21, 128, 61)   # Emerald Dark Green
-        elif "sell" in rec_status:
+        elif "exit" in rec_status or "loss" in rec_status or "sell" in rec_status:
             pdf.set_text_color(185, 28, 28)   # Crimson Dark Red
         else:
             pdf.set_text_color(180, 83, 9)    # Amber Dark Yellow
