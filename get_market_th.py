@@ -37,7 +37,6 @@ try:
     
     # Calculate 20-Day EMA to determine overall market posture
     macro_ema20 = macro_hist['Close'].ewm(span=20, adjust=False).mean()
-    
     latest_macro_close = macro_hist['Close'].iloc[-1]
     latest_macro_ema = macro_ema20.iloc[-1]
     
@@ -58,34 +57,34 @@ for ticker in tickers:
         hist = stock.history(period="3mo", auto_adjust=False)
         if hist.empty or len(hist) < 26:
             continue
-
+            
         # Clean out any incomplete live/placeholder rows containing NaN
         hist = hist.dropna(subset=['Close'])
-
+        
         # Grab the absolute real quote closing price from summary info metadata
         try:
             info = stock.info
             latest_close = info.get('regularMarketPrice') or info.get('currentPrice') or hist['Close'].iloc[-1]
         except Exception:
             latest_close = hist['Close'].iloc[-1]
-
+            
         # --- CALCULATE OBV ---
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
         obv_trend = "Rising" if obv.tail(5).diff().mean() > 0 else "Falling"
-
+        
         # --- CALCULATE MACD ---
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
         exp26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = exp12 - exp26
         signal_line = macd_line.ewm(span=9, adjust=False).mean()
-
+        
         latest_macd = macd_line.iloc[-1]
         latest_signal = signal_line.iloc[-1]
         prev_macd = macd_line.iloc[-2]
         prev_signal = signal_line.iloc[-2]
-
+        
         if latest_macd > latest_signal:
             if prev_macd <= prev_signal:
                 macd_status = "Bullish Crossover"
@@ -96,22 +95,22 @@ for ticker in tickers:
                 macd_status = "Bearish Crossover"
             else:
                 macd_status = "Bearish Territory"
-
+                
         cost_val = my_costs.get(ticker, 0.0)
         actual_cost = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
         
         # Determine if the current Thai position is profitable
         is_profitable = "Yes" if (cost_val > 0 and latest_close > cost_val) else "No"
-
+        
         # Support and Resistance levels
         hist_1m = hist.tail(21)
         support_level = hist_1m['Low'].min()
         resistance_level = hist_1m['High'].max()
-
+        
         # --- CALCULATE RISK/REWARD RATIO ---
         risk_distance = latest_close - support_level
         reward_distance = resistance_level - latest_close
-
+        
         if reward_distance <= 0:
             rr_ratio_str = "Poor (At Resistance)"
         elif risk_distance <= 0:
@@ -119,17 +118,17 @@ for ticker in tickers:
         else:
             calculated_ratio = reward_distance / risk_distance
             rr_ratio_str = f"1:{calculated_ratio:.2f}"
-
+            
         recent_closes = hist_1m.tail(14)
         trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
-
+        
         # Save exact programmatic calculations to map directly into the PDF table row builder later
         calculated_market_data[ticker] = {
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
             "resistance": f"{resistance_level:.2f}"
         }
-
+        
         # Pack structured indicators and profit-states into the text stream context (THB Focus)
         data_summary += (
             f"Ticker: {ticker} | Entry Cost (THB): {actual_cost} | Latest Close (THB): {latest_close:.2f} | "
@@ -144,34 +143,35 @@ for ticker in tickers:
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI (VALUE & CAP-PRESERVATION LOGIC)
 prompt = f"""
-You are an institutional conservative asset manager evaluating premier defensive and value equities on the Stock Exchange of Thailand (SET). 
-All currency denominations are in Thai Baht (THB).
-
-You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Index ETF (TDEX): **{macro_regime}**. 
-Use this to gauge systemic domestic liquidity and risk.
+You are an institutional conservative asset manager evaluating premier defensive and value equities on the Stock Exchange of Thailand (SET). All currency denominations are in Thai Baht (THB).
+You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Index ETF (TDEX): **{macro_regime}**. Use this to gauge systemic domestic liquidity and risk.
 
 CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
 1. **Capital Preservation & Trailing Exit:** If a position is currently profitable ("Yes") but shows structural breakdown ("MACD Status" is a "Bearish Crossover" OR the OBV volume trend is "Falling"), downgrade to **Sell** to lock in profits.
-2. **Increasing Positions / Accumulation ("Buy" or "Hold"):** - Issue a **"Buy"** or an explicit **"Hold (Accumulate)"** recommendation if a stock demonstrates clear potential to go up. 
+2. **Increasing Positions / Accumulation ("Buy" or "Hold"):**
+   - Issue a **"Buy"** or an explicit **"Hold (Accumulate)"** recommendation if a stock demonstrates clear potential to go up.
    - Strong potential is defined as having a **"Rising" OBV trend** (volume accumulation) combined with a healthy MACD profile (**"Bullish Territory"** or a fresh **"Bullish Crossover"**).
    - Even if the stock is not at its absolute 1-month support floor, prioritize this rising volume + MACD momentum combination as a signal to scale into or increase the position safely.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
-You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions. Keep it concise enough to fit the table cell.
+1. You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions. 
+2. You must explicitly integrate the calculated **Risk/Reward (R/R)** ratio provided in the data input string into this summary text. 
+3. Keep it tightly concise enough to fit the table cell row layout without overflowing.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 
-CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text. Each object in the JSON array must follow this exact schema:
+CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in ```json blocks, and do not include any extra text.
+Each object in the JSON array must follow this exact schema:
 {{
-"stock_name": "TICKER",
+  "stock_name": "TICKER",
   "cost": "The exact entry cost provided to you",
   "obv_status": "e.g., Rising / Falling",
   "macd_status": "e.g., Bullish Territory / Bullish Crossover / Bearish Territory",
   "trend": "Bullish/Bearish/Sideways",
-  "recommendation": "Buy/Hold/Hold (Accumulate)/Sell", 
-  "important_note": "Rigorous technical commentary stating why the combination of profit state in THB, MACD crossover, or OBV structural trend dictates a Hold, Accumulation, or a Take-Profit Sell decision."
-  }}
+  "recommendation": "Buy/Hold/Hold (Accumulate)/Sell",
+  "important_note": "Rigorous technical commentary explaining how the explicit Risk/Reward ratio, Thai profit state, and the core OBV + MACD trend combination drive your decision."
+}}
 """
 
 print("Generating structured technical analysis via Gemini API...")
@@ -239,6 +239,7 @@ class CorporatePDF(FPDF):
         # Subtle top divider line for footer
         self.set_draw_color(241, 245, 249)
         self.line(10, self.get_y(), 200, self.get_y())
+        
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(148, 163, 184)
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
@@ -246,20 +247,21 @@ class CorporatePDF(FPDF):
 pdf = CorporatePDF()
 pdf.add_page()
 
-# Setup Table Styles (Professional spacing and explicit column configuration)
+# Setup Table Styles (Exactly 10 Columns adding up to 190mm printable width)
 pdf.set_font("Helvetica", "", 8)
-column_widths = (21, 13, 13, 14, 14, 14, 20, 17, 11, 53)
+column_widths = (18, 14, 14, 14, 14, 15, 18, 15, 13, 55) 
 
 with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, padding=2, outer_border_width=0.5) as table:
     # --- HEADER ROW ---
     pdf.set_font("Helvetica", "B", 8)
-    pdf.set_text_color(255, 255, 255) # White text for header
-    pdf.set_fill_color(30, 41, 59)     # Deep Slate Background
+    pdf.set_text_color(255, 255, 255) 
+    pdf.set_fill_color(30, 41, 59)     
+    
     header_row = table.row()
     headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Important Note (THB Context)"]
     for header_title in headers:
         header_row.cell(header_title)
-
+        
     # --- DATA ROWS ---
     for idx, stock in enumerate(analysis_data):
         row = table.row()
@@ -268,16 +270,16 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
         rec_status = str(stock.get("recommendation", "")).strip().lower()
         
         market_metrics = calculated_market_data.get(ticker, {"latest_price": "N/A", "support": "N/A", "resistance": "N/A"})
-
+        
         # Zebra striping background configuration
         if idx % 2 == 0:
             pdf.set_fill_color(255, 255, 255) # Pure White
         else:
             pdf.set_fill_color(248, 250, 252) # Off-White / Light Grey
-
+            
         # Standard structural text color
         pdf.set_text_color(51, 65, 85)
-
+        
         # Base cells
         row.cell(ticker)
         row.cell(str(stock.get("cost", "")))
@@ -286,7 +288,7 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
         row.cell(market_metrics["resistance"])
         row.cell(str(stock.get("obv_status", "")))
         row.cell(str(stock.get("macd_status", "")))
-
+        
         # Conditional Formatting for Trend (Muted, premium variants)
         if "bullish" in trend_status:
             pdf.set_text_color(21, 128, 61)   # Emerald Dark Green
@@ -295,7 +297,7 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
         else:
             pdf.set_text_color(51, 65, 85)
         row.cell(str(stock.get("trend", "")))
-
+        
         # Conditional Formatting for Recommendation
         if "buy" in rec_status:
             pdf.set_text_color(21, 128, 61)   # Emerald Dark Green
@@ -304,7 +306,7 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
         else:
             pdf.set_text_color(180, 83, 9)    # Amber Dark Yellow
         row.cell(str(stock.get("recommendation", "")))
-
+        
         # Reset color to soft slate for the descriptive note block
         pdf.set_text_color(71, 85, 105)
         
