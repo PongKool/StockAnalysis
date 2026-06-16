@@ -111,7 +111,9 @@ for ticker in tickers:
         risk_distance = latest_close - support_level
         reward_distance = resistance_level - latest_close
         
-        if reward_distance <= 0:
+        if latest_close > resistance_level:
+            rr_ratio_str = "Breakout (Above Resistance)"
+        elif reward_distance <= 0:
             rr_ratio_str = "Poor (At Resistance)"
         elif risk_distance <= 0:
             rr_ratio_str = "Excellent (At Support)"
@@ -148,12 +150,14 @@ You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Ind
 
 CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
 1. **Capital Preservation & Risk Management (Exits):**
-   - **Take-Profit Exit:** If a position is profitable ("Yes") but shows structural breakdown ("MACD Status" is a "Bearish Crossover" OR OBV trend is "Falling"), downgrade to **Take-Profit Exit** to lock in profits.
-   - **Support-Aware Stop-Loss:** If a position is losing money ("No") AND the Latest Close price has broken structurally below the calculated 1Mo Support floor, downgrade to **Support-Aware Stop-Loss** immediately to cut losses. If it is losing money but still holding above or at the support floor, maintain a **Hold** to see if the demand area triggers a rebound.
+   - **Take-Profit Exit:** If a position is profitable ("Yes") AND shows clear technical exhaustion (e.g., "MACD Status" is a "Bearish Crossover", OBV trend is "Falling", OR Risk/Reward has degraded to "Poor (At Resistance)"), downgrade to **Take-Profit Exit** to lock in profits.
+   - **Support-Aware Stop-Loss:** If a position is losing money ("No") AND the Latest Close price has broken structurally below the calculated 1Mo Support floor, downgrade to **Support-Aware Stop-Loss** immediately to cut losses. However, if it is losing money but the Risk/Reward is marked as "Excellent (At Support)" or is holding safely above or at the floor, maintain a **Hold** to monitor for a demand-zone rebound.
+
 2. **Increasing Positions / Accumulation ("Buy" or "Hold"):**
-   - Issue a **"Buy"** or an explicit **"Hold (Accumulate)"** recommendation if a stock demonstrates clear potential to go up.
-   - Strong potential is defined as having a **"Rising" OBV trend** (volume accumulation) combined with a healthy MACD profile (**"Bullish Territory"** or a fresh **"Bullish Crossover"**).
-   - Even if the stock is not at its absolute 1-month support floor, prioritize this rising volume + MACD momentum combination as a signal to scale into or increase the position safely.
+   - Issue a **"Buy"** or an explicit **"Hold (Accumulate)"** recommendation if a stock demonstrates clear potential to go up based on key multi-indicator criteria.
+   - **The Core Momentum Setup:** Upside potential is driven by a **"Rising" OBV trend** (proving clear volume accumulation) combined with a healthy MACD profile (**"Bullish Territory"** or a fresh **"Bullish Crossover"**).
+   - **The Strategic R/R Filter:** Under normal conditions, prioritize this rising volume + MACD combination as long as the Risk/Reward ratio is favorable (holding near support or showing a healthy upside ratio). Do not scale into a stock if the Risk/Reward is explicitly flagged as "Poor (At Resistance)".
+   - **Breakout Exception Clause:** If the Latest Close price breaks completely *above* the 1Mo Resistance ceiling AND the volume trend is firmly "Rising" with a confirmed "Bullish" MACD state, treat this as a powerful structural breakout. Override the traditional "Poor R/R" restriction and issue a **Buy** or **Hold (Accumulate)** to ride the expanding volume trend, noting that old resistance is transforming into new support.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 1. You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions.
@@ -253,7 +257,8 @@ pdf.add_page()
 pdf.set_font("Helvetica", "", 8)
 column_widths = (18, 14, 14, 14, 14, 15, 18, 15, 13, 55)
 
-with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, padding=2, outer_border_width=0.5) as table:
+# Added dynamic vertical padding (cell_alignment="MIDDLE") to make wrapped rows look incredibly clean
+with pdf.table(col_widths=column_widths, text_align="LEFT", cell_alignment="MIDDLE", line_height=5, padding=2, outer_border_width=0.5) as table:
     # --- HEADER ROW ---
     pdf.set_font("Helvetica", "B", 8)
     pdf.set_text_color(255, 255, 255) # White text for header
