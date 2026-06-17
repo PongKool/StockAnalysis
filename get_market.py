@@ -11,15 +11,24 @@ import io
 # Initialize Gemini Client (using recommended google-genai SDK)
 client = genai.Client()
 
-# --- CONFIGURATION ---
-WATCHLIST = ["AVGO", "ANET", "TPR", "PLTR", "WMT"]
+# --- CONFIGURATION (YOUR FULL 14-STOCK LIST) ---
+WATCHLIST = ["AVGO", "ANET", "TPR", "IONQ", "PLTR", "WMT", "NVDA", "NOW", "VST", "LRCX", "SNDK", "MSFT", "MU", "TSM"]
 
 PORTFOLIO_COSTS = {
-    "AVGO": 451.22,
-    "ANET": 169.94,
-    "TPR": 150.20,
-    "PLTR": 134.49,
-    "WMT": 120.34
+    "AVGO": 451.22, 
+    "ANET": 169.94, 
+    "TPR": 150.20, 
+    "IONQ": 64.31, 
+    "PLTR": 134.49, 
+    "WMT": 120.47, 
+    "NVDA": 217.03, 
+    "NOW": 107.68, 
+    "VST": 153.65, 
+    "LRCX": 319.36, 
+    "SNDK": 2094.39, 
+    "MSFT": 459.63, 
+    "MU": 1020.16, 
+    "TSM": 424.30
 }
 
 def get_market_regime():
@@ -61,12 +70,12 @@ def calculate_technical_metrics(ticker):
         # 3. ATR-Based Trailing Stop (2.5x ATR)
         atr_stop = latest_close - (2.5 * atr)
 
-        # Distance to resistance in terms of ATR days (Volatility Multiplier Input)
+        # Distance to resistance in terms of ATR days
         distance_to_resist = max(0, resistance - latest_close)
         atr_to_target = distance_to_resist / atr if atr > 0 else 0
 
         # 4. On-Balance Volume (OBV) Trend
-        obv = (true_range * 0).copy() # matching index
+        obv = (true_range * 0).copy()
         direction = hist['Close'].diff()
         obv.iloc[0] = 0
         for i in range(1, len(hist)):
@@ -105,7 +114,6 @@ def calculate_technical_metrics(ticker):
         trend = "Bullish" if latest_close > ema20 else "Bearish"
 
         # --- DYNAMIC ATR SUPPORT BUFFER LOGIC ---
-        # Automatically auto-tunes: wider room for fast assets, tighter room for steady ones
         support_buffer = support + (0.25 * atr)
 
         if latest_close < support:
@@ -155,15 +163,14 @@ def generate_ai_suggestion(ticker, metrics, regime):
     2. **TRAILING STOP RULE:** If the Current Price falls below the '2.5x ATR Trailing Stop Floor', the position is broken. Force a "Sell (Cut Loss)".
     3. **REGIME COUPLING:** If the Broad Market Regime is "BEARISH" and the stock's individual Structural Trend is "Bearish", do not buy or hold. Default to "Sell".
     4. **PROBABILITY & RISK FILTER:** Compare the total percentage distance to target resistance against the stock's 'Daily ATR Volatility (%)'.
-       * Calculate the volatility multiplier needed to hit the target. If the percentage distance to resistance is greater than 500% (5x) of its normal Daily ATR Volatility (representing more than 1 full trading week of maximum moves), the target is statistically unrealistic.
+       * Calculate the volatility multiplier needed to hit the target. If the percentage distance to resistance is greater than 500% (5x) of its normal Daily ATR Volatility, the target is statistically unrealistic.
        * **CRITICAL CORRECTION:** Only force an immediate **"Sell (Cut Loss)"** if the 5x threshold is exceeded AND the 'Support Status' is "BROKEN".
        * If the 5x threshold is exceeded but 'Support Status' is "TESTING SUPPORT", do NOT sell yet. Instead, issue a highly tactical **"Hold (Watch Support)"** recommendation to avoid panic-selling at the absolute bottom before a confirmed breakdown.
-       * Only issue a regular neutral **"Hold"** if the target is within the 5x threshold but you are awaiting a definitive breakout on an otherwise stable/sideways asset.
 
     DATA TO EVALUATE:
     {data_summary}
 
-    Return EXACTLY a valid JSON object matching this structure. Do not wrap it in markdown block tags, just pure string JSON text:
+    Return EXACTLY a valid JSON object matching this structure:
     {{
         "recommendation": "YOUR_RECOMMENDATION_HERE",
         "note": "YOUR_SINGLE_SENTENCE_CRITICAL_REASON_HERE"
@@ -171,14 +178,10 @@ def generate_ai_suggestion(ticker, metrics, regime):
     """
     
     try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
+        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         return pd.read_json(io.StringIO(clean_text), typ='series').to_dict()
     except Exception as e:
-        print(f"AI Generation Failed for {ticker}, using default fallbacks: {e}")
         return {"recommendation": "Hold", "note": "Analysis calculation failed pipeline."}
 
 def build_pdf_report(data_matrix, regime):
@@ -193,13 +196,11 @@ def build_pdf_report(data_matrix, regime):
     cell_style = ParagraphStyle('GridCell', parent=styles['Normal'], fontSize=8, leading=10, textColor=colors.HexColor("#2D3748"))
     header_style = ParagraphStyle('GridHead', parent=styles['Normal'], fontSize=9, leading=11, bold=True, textColor=colors.white)
 
-    # Header section
     import datetime
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     story.append(Paragraph("Daily Market Report", title_style))
     story.append(Paragraph(f"WATCHLIST TECHNICAL SUMMARY<br/>Generated automatically on {timestamp} (Thailand Time) | Regime: {regime} (QQQ relative to 20EMA)", subtitle_style))
     
-    # Table Matrix Formulation
     headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "ATR Stop", "OBV", "MACD", "Trend", "Rec.", "Important Note"]
     table_data = [[Paragraph(h, header_style) for h in headers]]
     
@@ -222,7 +223,6 @@ def build_pdf_report(data_matrix, regime):
         ]
         table_data.append(row)
         
-    # Table Styling configurations
     col_widths = [36, 38, 38, 42, 42, 44, 34, 46, 38, 44, 138]
     summary_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     summary_table.setStyle(TableStyle([
