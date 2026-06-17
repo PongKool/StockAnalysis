@@ -6,6 +6,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+import io
 
 # Initialize Gemini Client (using recommended google-genai SDK)
 client = genai.Client()
@@ -103,8 +104,10 @@ def calculate_technical_metrics(ticker):
         ema20 = hist['Close'].ewm(span=20, adjust=False).mean().iloc[-1]
         trend = "Bullish" if latest_close > ema20 else "Bearish"
 
-        # --- SMART SUPPORT BUFFER LOGIC (New Addition) ---
-        support_buffer = support * 1.02  # 2% buffer above the floor
+        # --- DYNAMIC ATR SUPPORT BUFFER LOGIC ---
+        # Automatically auto-tunes: wider room for fast assets, tighter room for steady ones
+        support_buffer = support + (0.25 * atr)
+
         if latest_close < support:
             support_status = "BROKEN"
         elif latest_close <= support_buffer:
@@ -172,7 +175,6 @@ def generate_ai_suggestion(ticker, metrics, regime):
             model='gemini-2.5-flash',
             contents=prompt
         )
-        # Handle structural parsing safely
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         return pd.read_json(io.StringIO(clean_text), typ='series').to_dict()
     except Exception as e:
@@ -237,7 +239,6 @@ def build_pdf_report(data_matrix, regime):
     doc.build(story)
     print(f"Successfully compiled and saved live analysis to {pdf_filename}")
 
-import io
 if __name__ == "__main__":
     print("Initiating production quantitative processing suite...")
     regime_status = get_market_regime()
