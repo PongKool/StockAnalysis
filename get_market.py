@@ -161,8 +161,10 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
 4. **Increasing Positions / Probability Filtering (NEW):**
    - Issue a **"Buy"** or a **"Hold (Accumulate)"** recommendation if the stock demonstrates strong potential to continue upward.
    - Strong potential is defined as having a **"Rising" OBV trend**, an overall **"Bullish" trend**, AND a healthy MACD profile.
-   - **PROBABILITY FILTER (ATR Distance):** Check 'ATRs Required to Hit Target Resistance'. If a stock requires more than 4.5 days of average ATR movement to reach its resistance ceiling, the target is statistically unrealistic for short-term trades. Downgrade its recommendation to a neutral **"Hold"** because the target takes too much time/effort to achieve.
-   - **CRITICAL RISK FILTER:** Even if parameters are strong, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status is labeled as **"Poor (At Resistance)"**. Downgrade to **"Hold"** to await a definitive breakout.
+- **PROBABILITY & RISK FILTER:** Compare the total percentage distance to target resistance against the stock's 'Daily ATR Volatility (%)'.
+  * Calculate the volatility multiplier needed to hit the target. If the percentage distance to resistance is greater than 500% (5x) of its normal Daily ATR Volatility (representing more than 1 full trading week of maximum moves), the target is statistically unrealistic.
+  * **CRITICAL CORRECTION:** If this 5x threshold is exceeded AND the stock's trend is already "Bearish", its OBV is "Falling", or its MACD is in "Bearish Territory", do NOT issue a "Hold". Instead, force a **"Sell"** or **"Sell (Cut Loss)"** recommendation due to high opportunity cost and downside risk.
+  * Only issue a neutral **"Hold"** if the target is within the 5x threshold but you are awaiting a definitive breakout on an otherwise stable/sideways asset.   - **CRITICAL RISK FILTER:** Even if parameters are strong, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status is labeled as **"Poor (At Resistance)"**. Downgrade to **"Hold"** to await a definitive breakout.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 You MUST explicitly mention how technical profiles or volatility metrics justified your decision. 
