@@ -1,4 +1,4 @@
-name: Generate Daily Market PDF
+tlabname: Generate Daily Market PDF
 
 on:
   schedule:
@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Generation Libraries
         run: |
-          pip install yfinance google-genai fpdf2
+          pip install yfinance google-genai fpdf2 reportlab
 
       # Runs the US Stock Market Analysis Script
       - name: Execute US Report Logic
