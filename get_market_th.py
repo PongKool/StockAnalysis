@@ -7,11 +7,11 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
-tickers = ["ADVANC.BK", "AOT.BK", "BBL.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PTT.BK", "SCB.BK", "WHA.BK"]
+tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PTT.BK", "SCB.BK", "WHA.BK"]
 my_costs = {
     "ADVANC.BK": 370.62,       # Custom entries configured in THB
     "AOT.BK": 55.00,
-    "BBL.BK": 168.45,
+    "KBANK.BK": 204.34,
     "GULF.BK": 57.92,
     "PRM.BK": 8.70,
     "KTB.BK": 32.53,
