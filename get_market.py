@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 from google import genai
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
@@ -35,7 +35,7 @@ def get_market_regime():
     except Exception as e:
         print(f"Error fetching market regime: {e}")
         return "UNKNOWN"
-        
+
 def calculate_technical_metrics(ticker):
     """Fetch data and calculate core technical indicators for a given ticker."""
     try:
@@ -45,13 +45,13 @@ def calculate_technical_metrics(ticker):
         if hist.empty:
             return None
 
-        # --- FIX: Clean up any broken/empty rows at the end of historical data ---
+        # Clean up empty rows at the end of historical data
         hist = hist.dropna(subset=['Close'])
 
         if len(hist) < 20:
             return None
 
-        # --- FIX: Backup strategy if the latest close is still missing or NaN ---
+        # Backup strategy if the latest close is missing or NaN
         latest_close = hist['Close'].iloc[-1]
         if pd.isna(latest_close) or latest_close <= 0:
             try:
@@ -60,7 +60,7 @@ def calculate_technical_metrics(ticker):
                 print(f"Skipping {ticker}: Pricing data completely unavailable.")
                 return None
 
-        # 1. Price & Support/Resistance (Using 20-day High/Low Channel)
+        # 1. Price & Support/Resistance
         support = hist['Low'].tail(20).min()
         resistance = hist['High'].tail(20).max()
 
@@ -74,8 +74,6 @@ def calculate_technical_metrics(ticker):
 
         # 3. ATR-Based Trailing Stop (2.5x ATR)
         atr_stop = latest_close - (2.5 * atr)
-
-        # Distance to resistance in terms of ATR days
         distance_to_resist = max(0, resistance - latest_close)
         atr_to_target = distance_to_resist / atr if atr > 0 else 0
 
@@ -112,11 +110,11 @@ def calculate_technical_metrics(ticker):
         else:
             macd_status = "Bearish Territory"
 
-        # 6. Structural Trend (Price vs 20 EMA)
+        # 6. Structural Trend
         ema20 = hist['Close'].ewm(span=20, adjust=False).mean().iloc[-1]
         trend = "Bullish" if latest_close > ema20 else "Bearish"
 
-        # --- DYNAMIC ATR SUPPORT BUFFER LOGIC ---
+        # Structural Support Status Matrix
         support_buffer = support + (0.25 * atr)
         if latest_close < support:
             support_status = "BROKEN"
@@ -135,47 +133,46 @@ def calculate_technical_metrics(ticker):
         print(f"Error calculating metrics for {ticker}: {e}")
         return None
 
-def generate_ai_suggestion(ticker, metrics, regime):
-    """Send structured data payload to Gemini to parse recommendations using fixed prompt criteria."""
-    cost = PORTFOLIO_COSTS.get(ticker, 0)
-    data_summary = (
-        f"Ticker: {ticker} | Cost Basis: ${cost:.2f} | Current Price: ${metrics['price']:.2f} | "
-        f"Support Floor: ${metrics['support']:.2f} | Support Status: {metrics['support_status']} | "
-        f"Resistance Ceiling: ${metrics['resistance']:.2f} | "
-        f"Daily ATR Volatility: {metrics['atr']:.2f} ({metrics['atr_pct']:.1f}%) | "
-        f"ATRs Required to Hit Target Resistance: {metrics['atr_to_target']:.1f} days | "
-        f"2.5x ATR Trailing Stop Floor: ${metrics['atr_stop']:.2f} | "
-        f"On-Balance Volume (OBV): {metrics['obv']} | MACD Line Status: {metrics['macd']} | "
-        f"Structural Trend: {metrics['trend']} | Broad Market Regime: {regime}"
-    )
+def generate_batch_ai_suggestions(all_stocks_data, regime):
+    """Sends entire watchlist technical matrix to Gemini in 1 request, minimizing token overhead."""
+    data_payload = ""
+    for item in all_stocks_data:
+        data_payload += (
+            f"Ticker: {item['ticker']} | Cost: {item['cost']:.2f} | Price: {item['price']:.2f} | "
+            f"Support: {item['support']:.2f} ({item['support_status']}) | Resist: {item['resistance']:.2f} | "
+            f"Stop: {item['atr_stop']:.2f} | OBV: {item['obv']} | MACD: {item['macd']} | Trend: {item['trend']}\n"
+        )
 
     prompt = f"""
-    You are an elite institutional risk-management system. Analyze the following data for {ticker} and generate a highly strict execution action ("Buy", "Hold", "Hold (Accumulate)", "Sell", or "Sell (Cut Loss)") along with a single-sentence reason.
+    You are an elite institutional risk-management system. Analyze the following portfolio dataset and generate a strict execution action ("Buy", "Hold", "Hold (Accumulate)", "Sell", or "Sell (Cut Loss)") along with a single-sentence reason for EVERY ticker.
 
     CRITICAL PORTFOLIO RISK & EXIT RULES:
-    1. **TAKE PROFIT RULE:** If the stock is highly profitable (Price is well above Cost Basis) but exhibits a Bearish Crossover or Bearish Territory MACD paired with "Falling" OBV, force a "Sell" or "Take Profit" to lock in gains. Do not stay exposed to volume distribution at the top.
-    2. **TRAILING STOP RULE:** If the Current Price falls below the '2.5x ATR Trailing Stop Floor', the position is broken. Force a "Sell (Cut Loss)".
-    3. **REGIME COUPLING:** If the Broad Market Regime is "BEARISH" and the stock's individual Structural Trend is "Bearish", do not buy or hold. Default to "Sell".
-    4. **PROBABILITY & RISK FILTER:** Compare the total percentage distance to target resistance against the stock's 'Daily ATR Volatility (%)'.
-       * Calculate the volatility multiplier needed to hit the target. If the percentage distance to resistance is greater than 500% (5x) of its normal Daily ATR Volatility, the target is statistically unrealistic.
-       * **CRITICAL CORRECTION:** Only force an immediate **"Sell (Cut Loss)"** if the 5x threshold is exceeded AND the 'Support Status' is "BROKEN".
-       * If the 5x threshold is exceeded but 'Support Status' is "TESTING SUPPORT", do NOT sell yet. Instead, issue a highly tactical **"Hold (Watch Support)"** recommendation to avoid panic-selling at the absolute bottom before a confirmed breakdown.
+    1. **TAKE PROFIT RULE:** If profitable but MACD shows Bearish Crossover/Territory and OBV is "Falling", force "Sell".
+    2. **TRAILING STOP RULE:** If Price falls below 'ATR Trailing Stop Floor', force "Sell (Cut Loss)".
+    3. **REGIME COUPLING:** If Market Regime is "BEARISH" and Stock Trend is "Bearish", default to "Sell".
+    4. **PROBABILITY FILTER:** If distance to resistance is > 5x Daily ATR Volatility AND support is "BROKEN", force "Sell (Cut Loss)". If support is "TESTING SUPPORT", use "Hold (Watch Support)".
 
     DATA TO EVALUATE:
-    {data_summary}
+    Broad Market Regime: {regime}
+    {data_payload}
 
-    Return EXACTLY a valid JSON object matching this structure:
-    {{
-      "recommendation": "YOUR_RECOMMENDATION_HERE",
-      "note": "YOUR_SINGLE_SENTENCE_CRITICAL_REASON_HERE"
-    }}
+    Return EXACTLY a valid JSON array of objects matching this structure:
+    [
+      {{
+        "ticker": "TICKER_SYMBOL",
+        "recommendation": "YOUR_RECOMMENDATION",
+        "note": "YOUR_SINGLE_SENTENCE_REASON"
+      }}
+    ]
     """
     try:
         response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
-        return pd.read_json(io.StringIO(clean_text), typ='series').to_dict()
+        suggestions = pd.read_json(io.StringIO(clean_text))
+        return suggestions.set_index('ticker').to_dict(orient='index')
     except Exception as e:
-        return {"recommendation": "Hold", "note": "Analysis calculation failed pipeline."}
+        print(f"Batch AI analysis failed: {e}")
+        return {}
 
 def build_pdf_report(data_matrix, regime):
     """Generate professional PDF summary report using ReportLab styling."""
@@ -200,24 +197,22 @@ def build_pdf_report(data_matrix, regime):
         rec_color = "#C53030" if "Sell" in item['rec'] else ("#2F855A" if "Buy" in item['rec'] else "#D69E2E")
         rec_style = ParagraphStyle('RecText', parent=cell_style, textColor=colors.HexColor(rec_color), bold=True)
         
-        # --- REMOVED THE "$" SYMBOLS FOR MAXIMIZED SPACE ---
         row = [
             Paragraph(item['ticker'], cell_style),
-            Paragraph(f"{item['cost']:.2f}", cell_style),
+            Paragraph(f"{item['cost']:.2f}", cell_style),  # Gaps removed from f-strings
             Paragraph(f"{item['price']:.2f}", cell_style),
             Paragraph(f"{item['support']:.2f}", cell_style),
             Paragraph(f"{item['resistance']:.2f}", cell_style),
             Paragraph(f"{item['atr_stop']:.2f}", cell_style),
             Paragraph(item['obv'], cell_style),
-            Paragraph(item['macd'].replace(" ", "<br/>"), cell_style),  
+            Paragraph(item['macd'].replace(" ", "<br/>"), cell_style),  # Dynamic 2-line break configuration
             Paragraph(item['trend'], cell_style),
             Paragraph(item['rec'], rec_style),
             Paragraph(item['note'], cell_style),
         ]
         table_data.append(row)
 
-    # Re-optimized layout matrix: Price/Cost/Stops are perfectly matched at 44. 
-    # Leftover padding extended Note out to 101 points.
+    # 540pt mathematically balanced layout grid
     col_widths = [38, 44, 44, 44, 44, 44, 40, 50, 50, 46, 96]
     
     summary_table = Table(table_data, colWidths=col_widths, repeatRows=1)
@@ -234,30 +229,38 @@ def build_pdf_report(data_matrix, regime):
     story.append(summary_table)
     doc.build(story)
     print(f"Successfully compiled and saved live analysis to {pdf_filename}")
-    
+
 if __name__ == "__main__":
     print("Initiating production quantitative processing suite...")
     regime_status = get_market_regime()
-    master_matrix = []
+    pre_matrix = []
     
+    # Step 1: Accumulate analytical data frames locally 
     for ticker in WATCHLIST:
         print(f"Processing structural health analytics for {ticker}...")
         metrics = calculate_technical_metrics(ticker)
         if metrics:
-            ai_output = generate_ai_suggestion(ticker, metrics, regime_status)
-            master_matrix.append({
+            pre_matrix.append({
                 "ticker": ticker,
                 "cost": PORTFOLIO_COSTS[ticker],
-                "price": metrics['price'],
-                "support": metrics['support'],
-                "resistance": metrics['resistance'],
-                "atr_stop": metrics['atr_stop'],
-                "obv": metrics['obv'],
-                "macd": metrics['macd'],
-                "trend": metrics['trend'],
-                "rec": ai_output.get("recommendation", "Hold"),
-                "note": ai_output.get("note", "No comment provided.")
+                **metrics
             })
             
-    if master_matrix:
+    # Step 2: Push batched data through a single structured LLM evaluation pass
+    if pre_matrix:
+        print("Sending consolidated matrix to Gemini Risk Engine...")
+        ai_batch_results = generate_batch_ai_suggestions(pre_matrix, regime_status)
+        
+        # Step 3: Combine datasets for the structural PDF reporter
+        master_matrix = []
+        for item in pre_matrix:
+            ticker = item['ticker']
+            ticker_ai = ai_batch_results.get(ticker, {"recommendation": "Hold", "note": "Pipeline fallback check applied."})
+            
+            master_matrix.append({
+                **item,
+                "rec": ticker_ai.get("recommendation", "Hold"),
+                "note": ticker_ai.get("note", "No comment provided.")
+            })
+            
         build_pdf_report(master_matrix, regime_status)
