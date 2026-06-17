@@ -1,4 +1,4 @@
-tlabname: Generate Daily Market PDF
+name: Generate Daily Market PDF
 
 on:
   schedule:
