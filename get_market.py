@@ -7,28 +7,18 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
+import datetime
 
 # Initialize Gemini Client (using recommended google-genai SDK)
 client = genai.Client()
 
 # --- CONFIGURATION (YOUR FULL 14-STOCK LIST) ---
 WATCHLIST = ["AVGO", "ANET", "TPR", "IONQ", "PLTR", "WMT", "NVDA", "NOW", "VST", "LRCX", "SNDK", "MSFT", "MU", "TSM"]
-
 PORTFOLIO_COSTS = {
-    "AVGO": 451.22, 
-    "ANET": 169.94, 
-    "TPR": 150.20, 
-    "IONQ": 64.31, 
-    "PLTR": 134.49, 
-    "WMT": 120.47, 
-    "NVDA": 217.03, 
-    "NOW": 107.68, 
-    "VST": 153.65, 
-    "LRCX": 319.36, 
-    "SNDK": 2094.39, 
-    "MSFT": 459.63, 
-    "MU": 1020.16, 
-    "TSM": 424.30
+    "AVGO": 451.22, "ANET": 169.94, "TPR": 150.20, "IONQ": 64.31, 
+    "PLTR": 134.49, "WMT": 120.47, "NVDA": 217.03, "NOW": 107.68, 
+    "VST": 153.65, "LRCX": 319.36, "SNDK": 2094.39, "MSFT": 459.63, 
+    "MU": 1020.16, "TSM": 424.30
 }
 
 def get_market_regime():
@@ -85,7 +75,6 @@ def calculate_technical_metrics(ticker):
                 obv.iloc[i] = obv.iloc[i-1] - hist['Volume'].iloc[i]
             else:
                 obv.iloc[i] = obv.iloc[i-1]
-        
         obv_ema = obv.ewm(span=10, adjust=False).mean()
         obv_trend = "Rising" if obv.iloc[-1] > obv_ema.iloc[-1] else "Falling"
 
@@ -94,7 +83,6 @@ def calculate_technical_metrics(ticker):
         ema26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = ema12 - ema26
         signal_line = macd_line.ewm(span=9, adjust=False).mean()
-        
         latest_macd = macd_line.iloc[-1]
         latest_sig = signal_line.iloc[-1]
         prev_macd = macd_line.iloc[-2]
@@ -115,7 +103,6 @@ def calculate_technical_metrics(ticker):
 
         # --- DYNAMIC ATR SUPPORT BUFFER LOGIC ---
         support_buffer = support + (0.25 * atr)
-
         if latest_close < support:
             support_status = "BROKEN"
         elif latest_close <= support_buffer:
@@ -124,17 +111,10 @@ def calculate_technical_metrics(ticker):
             support_status = "SAFE"
 
         return {
-            "price": latest_close,
-            "support": support,
-            "support_status": support_status,
-            "resistance": resistance,
-            "atr": atr,
-            "atr_pct": atr_pct,
-            "atr_to_target": atr_to_target,
-            "atr_stop": atr_stop,
-            "obv": obv_trend,
-            "macd": macd_status,
-            "trend": trend
+            "price": latest_close, "support": support, "support_status": support_status,
+            "resistance": resistance, "atr": atr, "atr_pct": atr_pct, 
+            "atr_to_target": atr_to_target, "atr_stop": atr_stop, "obv": obv_trend, 
+            "macd": macd_status, "trend": trend
         }
     except Exception as e:
         print(f"Error calculating metrics for {ticker}: {e}")
@@ -143,7 +123,6 @@ def calculate_technical_metrics(ticker):
 def generate_ai_suggestion(ticker, metrics, regime):
     """Send structured data payload to Gemini to parse recommendations using fixed prompt criteria."""
     cost = PORTFOLIO_COSTS.get(ticker, 0)
-    
     data_summary = (
         f"Ticker: {ticker} | Cost Basis: ${cost:.2f} | Current Price: ${metrics['price']:.2f} | "
         f"Support Floor: ${metrics['support']:.2f} | Support Status: {metrics['support_status']} | "
@@ -172,11 +151,10 @@ def generate_ai_suggestion(ticker, metrics, regime):
 
     Return EXACTLY a valid JSON object matching this structure:
     {{
-        "recommendation": "YOUR_RECOMMENDATION_HERE",
-        "note": "YOUR_SINGLE_SENTENCE_CRITICAL_REASON_HERE"
+      "recommendation": "YOUR_RECOMMENDATION_HERE",
+      "note": "YOUR_SINGLE_SENTENCE_CRITICAL_REASON_HERE"
     }}
     """
-    
     try:
         response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
@@ -196,14 +174,13 @@ def build_pdf_report(data_matrix, regime):
     cell_style = ParagraphStyle('GridCell', parent=styles['Normal'], fontSize=8, leading=10, textColor=colors.HexColor("#2D3748"))
     header_style = ParagraphStyle('GridHead', parent=styles['Normal'], fontSize=9, leading=11, bold=True, textColor=colors.white)
 
-    import datetime
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     story.append(Paragraph("Daily Market Report", title_style))
     story.append(Paragraph(f"WATCHLIST TECHNICAL SUMMARY<br/>Generated automatically on {timestamp} (Thailand Time) | Regime: {regime} (QQQ relative to 20EMA)", subtitle_style))
-    
+
     headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "ATR Stop", "OBV", "MACD", "Trend", "Rec.", "Important Note"]
     table_data = [[Paragraph(h, header_style) for h in headers]]
-    
+
     for item in data_matrix:
         rec_color = "#C53030" if "Sell" in item['rec'] else ("#2F855A" if "Buy" in item['rec'] else "#D69E2E")
         rec_style = ParagraphStyle('RecText', parent=cell_style, textColor=colors.HexColor(rec_color), bold=True)
@@ -216,14 +193,16 @@ def build_pdf_report(data_matrix, regime):
             Paragraph(f"${item['resistance']:.2f}", cell_style),
             Paragraph(f"${item['atr_stop']:.2f}", cell_style),
             Paragraph(item['obv'], cell_style),
-            Paragraph(item['macd'].replace(" Territory", "").replace(" Crossover", ""), cell_style),
+            Paragraph(item['macd'].replace(" ", "<br/>"), cell_style),  # Replaces space with line break for 2-line clean wrap
             Paragraph(item['trend'], cell_style),
             Paragraph(item['rec'], rec_style),
             Paragraph(item['note'], cell_style),
         ]
         table_data.append(row)
-        
-    col_widths = [36, 38, 38, 42, 42, 44, 34, 46, 38, 44, 138]
+
+    # Balanced 540pt grid configuration: Cost, Price, Support, Resist, and ATR Stop are all exactly 44 points wide.
+    col_widths = [36, 44, 44, 44, 44, 44, 40, 52, 52, 44, 96]
+    
     summary_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     summary_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1A365D")),
