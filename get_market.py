@@ -35,17 +35,32 @@ def get_market_regime():
     except Exception as e:
         print(f"Error fetching market regime: {e}")
         return "UNKNOWN"
-
+        
 def calculate_technical_metrics(ticker):
     """Fetch data and calculate core technical indicators for a given ticker."""
     try:
         stock = yf.Ticker(ticker)
         hist = stock.history(period="3mo")
+        
+        if hist.empty:
+            return None
+
+        # --- FIX: Clean up any broken/empty rows at the end of historical data ---
+        hist = hist.dropna(subset=['Close'])
+
         if len(hist) < 20:
             return None
 
-        # 1. Price & Support/Resistance (Using 20-day High/Low Channel)
+        # --- FIX: Backup strategy if the latest close is still missing or NaN ---
         latest_close = hist['Close'].iloc[-1]
+        if pd.isna(latest_close) or latest_close <= 0:
+            try:
+                latest_close = stock.fast_info['lastPrice']
+            except Exception:
+                print(f"Skipping {ticker}: Pricing data completely unavailable.")
+                return None
+
+        # 1. Price & Support/Resistance (Using 20-day High/Low Channel)
         support = hist['Low'].tail(20).min()
         resistance = hist['High'].tail(20).max()
 
@@ -185,23 +200,25 @@ def build_pdf_report(data_matrix, regime):
         rec_color = "#C53030" if "Sell" in item['rec'] else ("#2F855A" if "Buy" in item['rec'] else "#D69E2E")
         rec_style = ParagraphStyle('RecText', parent=cell_style, textColor=colors.HexColor(rec_color), bold=True)
         
+        # --- REMOVED THE "$" SYMBOLS FOR MAXIMIZED SPACE ---
         row = [
             Paragraph(item['ticker'], cell_style),
-            Paragraph(f"${item['cost']:.2f}", cell_style),
-            Paragraph(f"${item['price']:.2f}", cell_style),
-            Paragraph(f"${item['support']:.2f}", cell_style),
-            Paragraph(f"${item['resistance']:.2f}", cell_style),
-            Paragraph(f"${item['atr_stop']:.2f}", cell_style),
+            Paragraph(f"{item['cost']:.2f}", cell_style),
+            Paragraph(f"{item['price']:.2f}", cell_style),
+            Paragraph(f"{item['support']:.2f}", cell_style),
+            Paragraph(f"{item['resistance']:.2f}", cell_style),
+            Paragraph(f"{item['atr_stop']:.2f}", cell_style),
             Paragraph(item['obv'], cell_style),
-            Paragraph(item['macd'].replace(" ", "<br/>"), cell_style),  # Replaces space with line break for 2-line clean wrap
+            Paragraph(item['macd'].replace(" ", "<br/>"), cell_style),  
             Paragraph(item['trend'], cell_style),
             Paragraph(item['rec'], rec_style),
             Paragraph(item['note'], cell_style),
         ]
         table_data.append(row)
 
-    # Balanced 540pt grid configuration: Cost, Price, Support, Resist, and ATR Stop are all exactly 44 points wide.
-    col_widths = [36, 44, 44, 44, 44, 44, 40, 52, 52, 44, 96]
+    # Re-optimized layout matrix: Price/Cost/Stops are perfectly matched at 44. 
+    # Leftover padding extended Note out to 101 points.
+    col_widths = [38, 44, 44, 44, 44, 44, 40, 50, 50, 46, 96]
     
     summary_table = Table(table_data, colWidths=col_widths, repeatRows=1)
     summary_table.setStyle(TableStyle([
@@ -217,7 +234,7 @@ def build_pdf_report(data_matrix, regime):
     story.append(summary_table)
     doc.build(story)
     print(f"Successfully compiled and saved live analysis to {pdf_filename}")
-
+    
 if __name__ == "__main__":
     print("Initiating production quantitative processing suite...")
     regime_status = get_market_regime()
