@@ -98,12 +98,14 @@ for ticker in tickers:
         support_level = hist_1m['Low'].min()
         resistance_level = hist_1m['High'].max()
         
-        # --- RISK/REWARD RATIO ---
+        # --- RISK/REWARD RATIO WITH BREAKOUT DETECTION ---
         risk_distance = latest_close - support_level
         reward_distance = resistance_level - latest_close
         
         if latest_close < support_level:
             rr_ratio_str = "Breakdown"
+        elif latest_close > resistance_level:
+            rr_ratio_str = "Breakout"  # <-- Flags a clean breakout instead of "Poor"
         elif reward_distance <= 0:
             rr_ratio_str = "Poor"
         elif risk_distance == 0:
@@ -159,8 +161,8 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
      * If the percentage distance to resistance requires more than 5x its normal Daily ATR Volatility (Days: > 5.0), the target is statistically unrealistic for a short-term horizon.
      * **REVERSAL CORRECTION:** If this 5x threshold is exceeded AND the stock's macro trend is already "Bearish" WITHOUT showing an immediate recovery signature (i.e., its OBV is "Falling" or its MACD is in "Bearish Territory"), do NOT issue a "Hold". Instead, force a **"Sell"** or **"Sell (Cut Loss)"** recommendation due to high opportunity cost.
      * Only issue a neutral **"Hold"** if the target is within the 5x threshold but you are awaiting a definitive breakout on an otherwise stable/sideways asset.  
-   - **CRITICAL RISK FILTER:** Even if parameters are strong, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status (RR:) is labeled as **"Poor"**. Downgrade to **"Hold"** to await a definitive breakout.
-
+- **CRITICAL RISK FILTER:** Except during an active breakout scenario, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status (RR:) is labeled as "Poor" or "Breakdown". If RR: is labeled as "Breakdown", you must force a **"Sell"** or **"Sell (Cut Loss)"** to preserve capital. However, if the asset's price has broken out above resistance (resulting in an RR: of 'Breakout'), you may override general boundaries and issue a **"Buy"** or **"Hold (Accumulate)"** if OBV, MACD, and immediate trend milestones confirm strong upward velocity.
+   
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 You MUST explicitly mention how technical profiles or volatility metrics justified your decision.
 - If the Latest Close (L:) is within 1.5% of the Resistance level (R:), calculate the breakout target (Resistance + 0.01) and explicitly state it in the note (e.g., "Watch for a clean breakout above $XXXX.XX").
