@@ -181,9 +181,9 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 You MUST explicitly mention how technical profiles or volatility metrics justified your decision.
 - If the Latest Close (L:) is within 1.5% of the Resistance level (R:), calculate the breakout target (Resistance + 0.01) and explicitly state it in the note (e.g., "Watch for a clean breakout above $XXXX.XX").
-- If a stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
-- If the stock has successfully broken above its resistance floor, note that old resistance has turned into support.
-Keep it concise enough to fit a small table cell.
+- If the recommendation is "Sell", check the profitability flag (P:). If P is "Yes", explicitly label your reason as a "Take-Profit" action. If P is "No" (or cost is N/A), explicitly label your reason as a "Cut-Loss" or risk mitigation action.
+- If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
+- If the stock has successfully broken above its resistance floor, note that old resistance has turned into support. Keep it concise enough to fit a small table cell.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
