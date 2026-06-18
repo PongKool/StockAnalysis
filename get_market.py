@@ -10,10 +10,10 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
-tickers = ["MU", "NVDA", "SNDK", "TSM", "VST", "LRCX", "CEG", "WMT", "AVGO", "ANET", "TPR", "IONQ", "AMD", "VRT", "PH"]
+tickers = ["MU", "NVDA", "SNDK", "TSM", "VST", "LRCX", "CEG", "AVGO", "ANET", "TPR", "IONQ", "AMD", "VRT", "PH"]
 my_costs = {
     "MU": 1033.97, "NVDA": 217.03, "SNDK": 2094.39, "TSM": 424.30, "VST": 155.39, 
-    "LRCX": 319.36, "CEG": 273.55, "WMT": 120.47, "AVGO": 422.88, "ANET": 169.64,
+    "LRCX": 319.36, "CEG": 273.55, "AVGO": 422.88, "ANET": 169.64,
     "TPR": 149.58, "IONQ": 64.31, "AMD": 529.69, "VRT": 334.09, "PH": 960.95
     
 }
