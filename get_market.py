@@ -248,7 +248,7 @@ pdf.add_page()
 
 # Sums up to exactly 190 mm (Fits perfectly inside standard A4 margins)
 column_widths = (12, 12, 12, 12, 12, 14, 11, 15, 12, 11, 67)
-with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, padding=1.5, outer_border_width=0.5) as table:
+with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, padding=2, outer_border_width=0.5) as table:
     pdf.set_font("Helvetica", "B", 7)
     pdf.set_text_color(255, 255, 255)
     pdf.set_fill_color(30, 41, 59)
@@ -295,11 +295,13 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
             pdf.set_text_color(180, 83, 9)
         row.cell(str(stock.get("recommendation", "")))
         
+        # Determine row background color to prevent bleeding state artifacts
+        bg_color = (255, 255, 255) if idx % 2 == 0 else (248, 250, 252)
+
         # Pass a clean FontFace instance directly to the cell style parameter.
-        # This forces the fpdf2 engine to calculate the row's wrapping boundaries perfectly.
         row.cell(
             str(stock.get("important_note", "")),
-            style=FontFace(size_pt=6.5, color=(71, 85, 105))
+            style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_color)
         )
         
 filename = "morning_market_analysis.pdf"
