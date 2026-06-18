@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  run-thai-analysis:
+  run-us-analysis:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
