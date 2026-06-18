@@ -10,11 +10,12 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
-tickers = ["MU", "NVDA", "SNDK", "NOW", "MSFT", "TSM", "VST", "LRCX", "PLTR", "WMT", "AVGO", "ANET", "TPR", "IONQ"]
+tickers = ["MU", "NVDA", "SNDK", "TSM", "VST", "LRCX", "CEG", "WMT", "AVGO", "ANET", "TPR", "IONQ", "AMD", "VRT", "PH"]
 my_costs = {
-    "MU": 1020.16, "NVDA": 217.03, "SNDK": 2094.39, "NOW": 107.68, "MSFT": 459.63, 
-    "TSM": 424.30, "VST": 153.65, "LRCX": 319.36, "PLTR": 134.49, 
-    "WMT": 120.47, "AVGO": 451.22, "ANET": 169.94, "TPR": 150.20, "IONQ": 64.31
+    "MU": 1033.97, "NVDA": 217.03, "SNDK": 2094.39, "TSM": 424.30, "VST": 155.39, 
+    "LRCX": 319.36, "CEG": 273.55, "WMT": 120.47, "AVGO": 422.88, "ANET": 169.64,
+    "TPR": 149.58, "IONQ": 64.31, "AMD": 529.69, "VRT": 334.09, "PH": 960.95
+    
 }
 calculated_market_data = {}
 client = genai.Client()
@@ -183,7 +184,9 @@ You MUST explicitly mention how technical profiles or volatility metrics justifi
 - If the Latest Close (L:) is within 1.5% of the Resistance level (R:), calculate the breakout target (Resistance + 0.01) and explicitly state it in the note (e.g., "Watch for a clean breakout above $XXXX.XX").
 - If the recommendation is "Sell", check the profitability flag (P:). If P is "Yes", explicitly label your reason as a "Take-Profit" action. If P is "No" (or cost is N/A), explicitly label your reason as a "Cut-Loss" or risk mitigation action.
 - If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
-- If the stock has successfully broken above its resistance floor, note that old resistance has turned into support. Keep it concise enough to fit a small table cell.
+- If the stock has successfully broken above its resistance floor, note that old resistance has turned into support. 
+
+# Keep it concise enough to fit a small table cell.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
