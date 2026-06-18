@@ -245,7 +245,8 @@ class CorporatePDF(FPDF):
 pdf = CorporatePDF()
 pdf.add_page()
 
-column_widths = (13, 12, 12, 12, 12, 14, 11, 18, 14, 11, 61)
+# Sums up to exactly 190 mm (Fits perfectly inside standard A4 margins)
+column_widths = (12, 12, 12, 12, 12, 14, 11, 15, 12, 11, 67)
 with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, padding=1.5, outer_border_width=0.5) as table:
     pdf.set_font("Helvetica", "B", 7)
     pdf.set_text_color(255, 255, 255)
