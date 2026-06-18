@@ -21,6 +21,8 @@ jobs:
           pip install yfinance fpdf2 pandas google-genai
 
       - name: Execute Thai Market Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python get_market_th.py
 
       - name: Commit and Push Generated PDF
