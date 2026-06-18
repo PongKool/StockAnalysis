@@ -28,23 +28,33 @@ client = genai.Client()
 
 # --- FETCH THAI BLUE-CHIP MACRO REGIME ---
 print("Evaluating Thai SET50 Macro Economic Regime...")
-macro_regime = "Bullish" # Default fallback
+macro_regime = "Bullish" # Keep this default fallback!
 try:
     # TDEX tracks the SET50 Index (Thailand's top 50 blue chips)
     macro_stock = yf.Ticker("TDEX.BK")
     macro_hist = macro_stock.history(period="3mo", auto_adjust=False)
     macro_hist = macro_hist.dropna(subset=['Close'])
-    
+
     # Calculate 20-Day EMA to determine overall market posture
     macro_ema20 = macro_hist['Close'].ewm(span=20, adjust=False).mean()
     latest_macro_close = macro_hist['Close'].iloc[-1]
     latest_macro_ema = macro_ema20.iloc[-1]
-    
-    if latest_macro_close < latest_macro_ema:
+
+    # Define a tight 0.5% buffer zone around the EMA
+    upper_buffer = latest_macro_ema * 1.005
+    lower_buffer = latest_macro_ema * 0.995
+
+    # Evaluate the 3 states
+    if latest_macro_close > upper_buffer:
+        macro_regime = "Bullish"
+    elif latest_macro_close < lower_buffer:
         macro_regime = "Bearish/Cautious"
+    else:
+        macro_regime = "Neutral/Consolidating"
+
 except Exception as e:
     print(f"Warning: Could not calculate Thai macro regime: {e}")
-
+    
 print(f"Current Thai Market Regime: {macro_regime}")
 print("Fetching technical data from Yahoo Finance for Thai Equities...")
 data_summary = ""
@@ -106,17 +116,33 @@ for ticker in tickers:
         hist_1m = hist.tail(21)
         support_level = hist_1m['Low'].min()
         resistance_level = hist_1m['High'].max()
-        
+
+        # --- DYNAMIC BUFFER BASED ON MACRO REGIME ---
+        if macro_regime == "Bullish":
+            support_buffer = support_level * 0.025  # Wider buffer (buy earlier)
+        elif macro_regime == "Bearish/Cautious":
+            support_buffer = support_level * 0.005  # Tighter buffer (demand strict defense)
+        else:
+            support_buffer = support_level * 0.015  # Standard 1.5% buffer
+
         # --- CALCULATE RISK/REWARD RATIO ---
         risk_distance = latest_close - support_level
         reward_distance = resistance_level - latest_close
-        
-        if latest_close > resistance_level:
-            rr_ratio_str = "Breakout (Above Resistance)"
+
+        if latest_close < support_level:
+            rr_ratio_str = "Breakdown"
+        elif latest_close > resistance_level:
+            rr_ratio_str = "Breakout (Above Resistance)" if macro_regime != "Bearish/Cautious" else "Fakeout Risk"
+        # USED HERE: Checks if the price is safely hovering within your dynamic buffer zone
+        elif risk_distance <= support_buffer:
+            if macro_regime == "Bullish":
+                rr_ratio_str = "High-Conviction Bounce"
+            elif macro_regime == "Bearish/Cautious":
+                rr_ratio_str = "High Risk (Catching Knives)"
+            else:
+                rr_ratio_str = "Testing Support (Bounce Potential)"
         elif reward_distance <= 0:
             rr_ratio_str = "Poor (At Resistance)"
-        elif risk_distance <= 0:
-            rr_ratio_str = "Excellent (At Support)"
         else:
             calculated_ratio = reward_distance / risk_distance
             rr_ratio_str = f"1:{calculated_ratio:.2f}"
@@ -215,6 +241,11 @@ except Exception as e:
 
 # 4. COMPILE REPORT INTO PDF TABLE LAYOUT
 class CorporatePDF(FPDF):
+
+    def __init__(self, macro_regime="Bullish", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.macro_regime = macro_regime  # Store it as an instance variable
+    
     def header(self):
         # Top decorative primary accent bar
         self.set_fill_color(30, 41, 59) # Deep Slate Blue
@@ -235,7 +266,7 @@ class CorporatePDF(FPDF):
         
         self.set_font("Helvetica", "I", 9)
         self.set_text_color(100, 116, 139) # Muted Slate
-        self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time)", new_x="LMARGIN", new_y="NEXT", align="L")
+        self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time) | Macro Regime: {self.macro_regime}", new_x="LMARGIN", new_y="NEXT", align="L")
         
         # Subtle divider line under header
         self.set_draw_color(226, 232, 240)
@@ -252,7 +283,7 @@ class CorporatePDF(FPDF):
         self.set_text_color(148, 163, 184)
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
 
-pdf = CorporatePDF()
+pdf = CorporatePDF(macro_regime=macro_regime)
 pdf.add_page()
 
 # Setup Table Styles (Exactly 10 Columns adding up to 190mm printable width)
