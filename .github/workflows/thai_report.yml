@@ -1,0 +1,32 @@
+name: Thai Market Analysis Engine
+
+on:
+  workflow_dispatch: # Allows manual triggers
+
+jobs:
+  run-thai-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance fpdf2 pandas
+
+      - name: Execute Thai Market Script
+        run: python get_market_th.py
+
+      - name: Commit and Push Generated PDF
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add thai_market_analysis.pdf
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Automated Thai PDF Update [skip ci]" && git push)
