@@ -77,8 +77,15 @@ for ticker in tickers:
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
+
+        # Keep your 14-day macro trend        
         obv_mean_change = obv.diff().tail(14).mean()
         obv_trend = "Flat" if pd.isna(obv_mean_change) or obv_mean_change == 0 else ("Rising" if obv_mean_change > 0 else "Falling")
+        
+        # NEW: Explicit 5-day short-term trend calculation
+        obv_5d_change = obv.diff().tail(5).mean()
+        obv_5d_trend = "Flat" if pd.isna(obv_5d_change) or obv_5d_change == 0 else ("Rising" if obv_5d_change > 0 else "Falling")
+        
             
         # --- CALCULATE MACD ---
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
@@ -148,7 +155,7 @@ for ticker in tickers:
             f"T: {ticker} |C: {actual_cost} |L: {latest_close:.2f} |P: {is_profitable} |"
             f"S: {support_level:.2f} |R: {resistance_level:.2f} |ATR: {atr:.1f} ({atr_pct:.1f}%)|"
             f"Stop: {atr_stop_loss:.2f} |RR: {rr_ratio_str} |Days: {atr_to_target:.1f} |"
-            f"OBV: {obv_trend} |MACD: {macd_status} |Closes:[{trend_string}]\n"
+            f"OBV: {obv_trend} |OBV5D: {obv_5d_trend} |MACD: {macd_status} |Closes:[{trend_string}]\n"
         )
         
     except Exception as e:
@@ -177,8 +184,8 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
      * **BREAKDOWN RULE:** If RR: is labeled as "Breakdown", you must force a "Sell" or "Sell (Cut Loss)" to preserve capital. 
      * **BREAKOUT RULE:** If the asset's price has broken out above resistance (resulting in an RR: of 'Breakout'), you may override general boundaries and issue a "Buy" or "Hold (Accumulate)" if OBV, MACD, and immediate trend milestones confirm strong upward velocity.
      * **BUY THE BOUNCE RULE:** If RR: is labeled as "Testing Support (Bounce Potential)" AND the MACD Status is NOT a "Bearish Crossover", you are authorized to issue a "Buy" or "Hold (Accumulate)". This represents an institutional entry floor with an optimal risk-to-reward profile.
-   - **GLOBAL REGIME OVERRIDE:** If the GLOBAL TECH SECTOR REGIME is BULLISH, you are authorized to issue a neutral "Hold" (instead of an automatic "Sell") for any asset trading safely above its Volatility Stop Loss. Furthermore, if the raw data indicates that the OBV trend over a 5-day timeframe has begun "Rising" (confirming short-term institutional accumulation at support), you may upgrade a "Sell" to a neutral **"Hold"** or **"Hold (Accumulate)"**, even if the absolute daily macro trend is still flagged as Bearish.     
-   
+   - **GLOBAL REGIME OVERRIDE:** If the GLOBAL TECH SECTOR REGIME is BULLISH, you are authorized to issue a neutral "Hold" (instead of an automatic "Sell") for any asset trading safely above its Volatility Stop Loss. Furthermore, if the raw data explicitly flags the short-term volume trend as **OBV5D: Rising** (confirming recent institutional accumulation at support), you are fully authorized to upgrade a "Sell" to a neutral **"Hold"** or **"Hold (Accumulate)"**, even if the absolute daily macro indicator (OBV:) is still flagged as Falling.   
+
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 You MUST explicitly mention how technical profiles or volatility metrics justified your decision.
 - If the Latest Close (L:) is within 1.5% of the Resistance level (R:), calculate the breakout target (Resistance + 0.01) and explicitly state it in the note (e.g., "Watch for a clean breakout above $XXXX.XX").
