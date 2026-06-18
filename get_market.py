@@ -173,11 +173,12 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
      * If the percentage distance to resistance requires more than 5x its normal Daily ATR Volatility (Days: > 5.0), the target is statistically unrealistic for a short-term horizon.
      * **REVERSAL CORRECTION:** If this 5x threshold is exceeded AND the stock's macro trend is already "Bearish" WITHOUT showing an immediate recovery signature (i.e., its OBV is "Falling" or its MACD is in "Bearish Territory"), do NOT issue a "Hold". Instead, force a **"Sell"** or **"Sell (Cut Loss)"** recommendation due to high opportunity cost.
      * Only issue a neutral **"Hold"** if the target is within the 5x threshold but you are awaiting a definitive breakout on an otherwise stable/sideways asset.  
-    - **CRITICAL RISK FILTER:** Except during an active breakout scenario, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status (RR:) is labeled as "Poor" or "Breakdown". 
-      * **BREAKDOWN RULE:** If RR: is labeled as "Breakdown", you must force a "Sell" or "Sell (Cut Loss)" to preserve capital. 
-      * **BREAKOUT RULE:** If the asset's price has broken out above resistance (resulting in an RR: of 'Breakout'), you may override general boundaries and issue a "Buy" or "Hold (Accumulate)" if OBV, MACD, and immediate trend milestones confirm strong upward velocity.
-      * **BUY THE BOUNCE RULE:** If RR: is labeled as "Testing Support (Bounce Potential)" AND the MACD Status is NOT a "Bearish Crossover", you are authorized to issue a "Buy" or "Hold (Accumulate)". This represents an institutional entry floor with an optimal risk-to-reward profile.   
-
+   - **CRITICAL RISK FILTER:** Except during an active breakout scenario, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status (RR:) is labeled as "Poor" or "Breakdown". 
+     * **BREAKDOWN RULE:** If RR: is labeled as "Breakdown", you must force a "Sell" or "Sell (Cut Loss)" to preserve capital. 
+     * **BREAKOUT RULE:** If the asset's price has broken out above resistance (resulting in an RR: of 'Breakout'), you may override general boundaries and issue a "Buy" or "Hold (Accumulate)" if OBV, MACD, and immediate trend milestones confirm strong upward velocity.
+     * **BUY THE BOUNCE RULE:** If RR: is labeled as "Testing Support (Bounce Potential)" AND the MACD Status is NOT a "Bearish Crossover", you are authorized to issue a "Buy" or "Hold (Accumulate)". This represents an institutional entry floor with an optimal risk-to-reward profile.
+   - **GLOBAL REGIME OVERRIDE:** If the GLOBAL TECH SECTOR REGIME is BULLISH, you are authorized to issue a neutral "Hold" (instead of an automatic "Sell") for any asset trading safely above its Volatility Stop Loss. Furthermore, if the raw data indicates that the OBV trend over a 5-day timeframe has begun "Rising" (confirming short-term institutional accumulation at support), you may upgrade a "Sell" to a neutral **"Hold"** or **"Hold (Accumulate)"**, even if the absolute daily macro trend is still flagged as Bearish.     
+   
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 You MUST explicitly mention how technical profiles or volatility metrics justified your decision.
 - If the Latest Close (L:) is within 1.5% of the Resistance level (R:), calculate the breakout target (Resistance + 0.01) and explicitly state it in the note (e.g., "Watch for a clean breakout above $XXXX.XX").
@@ -251,7 +252,7 @@ pdf = CorporatePDF()
 pdf.add_page()
 
 # Sums up to exactly 190 mm (Fits perfectly inside standard A4 margins)
-column_widths = (12, 13, 13, 13, 13, 13, 12, 16, 12, 13, 60)
+column_widths = (12, 13, 13, 13, 13, 13, 12, 16, 13, 13, 59)
 with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, padding=2, outer_border_width=0.5) as table:
     pdf.set_font("Helvetica", "B", 7)
     pdf.set_text_color(255, 255, 255)
