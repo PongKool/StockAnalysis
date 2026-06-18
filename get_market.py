@@ -173,11 +173,10 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
      * If the percentage distance to resistance requires more than 5x its normal Daily ATR Volatility (Days: > 5.0), the target is statistically unrealistic for a short-term horizon.
      * **REVERSAL CORRECTION:** If this 5x threshold is exceeded AND the stock's macro trend is already "Bearish" WITHOUT showing an immediate recovery signature (i.e., its OBV is "Falling" or its MACD is in "Bearish Territory"), do NOT issue a "Hold". Instead, force a **"Sell"** or **"Sell (Cut Loss)"** recommendation due to high opportunity cost.
      * Only issue a neutral **"Hold"** if the target is within the 5x threshold but you are awaiting a definitive breakout on an otherwise stable/sideways asset.  
-
-- **CRITICAL RISK FILTER:** Except during an active breakout scenario, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status (RR:) is labeled as "Poor" or "Breakdown". 
-  * **BREAKDOWN RULE:** If RR: is labeled as "Breakdown", you must force a "Sell" or "Sell (Cut Loss)" to preserve capital. 
-  * **BREAKOUT RULE:** If the asset's price has broken out above resistance (resulting in an RR: of 'Breakout'), you may override general boundaries and issue a "Buy" or "Hold (Accumulate)" if OBV, MACD, and immediate trend milestones confirm strong upward velocity.
-  * **BUY THE BOUNCE RULE:** If RR: is labeled as "Testing Support (Bounce Potential)" AND the MACD Status is NOT a "Bearish Crossover", you are authorized to issue a "Buy" or "Hold (Accumulate)". This represents an institutional entry floor with an optimal risk-to-reward profile.   
+    - **CRITICAL RISK FILTER:** Except during an active breakout scenario, DO NOT recommend a "Buy" or "Hold (Accumulate)" if the Risk/Reward status (RR:) is labeled as "Poor" or "Breakdown". 
+      * **BREAKDOWN RULE:** If RR: is labeled as "Breakdown", you must force a "Sell" or "Sell (Cut Loss)" to preserve capital. 
+      * **BREAKOUT RULE:** If the asset's price has broken out above resistance (resulting in an RR: of 'Breakout'), you may override general boundaries and issue a "Buy" or "Hold (Accumulate)" if OBV, MACD, and immediate trend milestones confirm strong upward velocity.
+      * **BUY THE BOUNCE RULE:** If RR: is labeled as "Testing Support (Bounce Potential)" AND the MACD Status is NOT a "Bearish Crossover", you are authorized to issue a "Buy" or "Hold (Accumulate)". This represents an institutional entry floor with an optimal risk-to-reward profile.   
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 You MUST explicitly mention how technical profiles or volatility metrics justified your decision.
@@ -186,7 +185,9 @@ You MUST explicitly mention how technical profiles or volatility metrics justifi
 - If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
 - If the stock has successfully broken above its resistance floor, note that old resistance has turned into support. 
 
-# Keep it concise enough to fit a small table cell.
+CRITICAL FORMATTING:
+- Keep the 'important_note' detailed yet dense (strictly under 45 words) to ensure deep technical justification fits within the table structure.
+- Write in plain text only. Do NOT use markdown syntax (like **, *, or `) or raw quotation marks inside the text fields.
 
 Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
