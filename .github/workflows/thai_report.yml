@@ -18,7 +18,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance fpdf2 pandas
+          pip install yfinance fpdf2 pandas google-genai
 
       - name: Execute Thai Market Script
         run: python get_market_th.py
