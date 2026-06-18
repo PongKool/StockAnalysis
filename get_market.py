@@ -98,32 +98,8 @@ for ticker in tickers:
         support_level = hist_1m['Low'].min()
         resistance_level = hist_1m['High'].max()
 
-        # --- RISK/REWARD RATIO WITH BREAKOUT/BOUNCE DETECTION ---
-    risk_distance = latest_close - support_level
-    reward_distance = resistance_level - latest_close
-
-    # Define a tight buffer zone (e.g., within 1.5% of the support level)
-    support_buffer = support_level * 0.015 
-
-    if latest_close < support_level:
-        rr_ratio_str = "Breakdown"
-    elif latest_close > resistance_level:
-        rr_ratio_str = "Breakout"
-# NEW: Detect if price is hugging support but starting to bounce/hold
-    elif risk_distance <= support_buffer and (obv_trend == "Rising" or latest_close >= closes_14d[-2]):
-        rr_ratio_str = "Testing Support (Bounce Potential)"
-    elif reward_distance <= 0:
-        rr_ratio_str = "Poor"
-    elif risk_distance == 0:
-        rr_ratio_str = "Excellent"
-    else:
-        rr_ratio_str = f"1:{(reward_distance / risk_distance):.1f}"
-
-
-    
-        atr_to_target = (reward_distance / atr) if reward_distance > 0 else 0.0
-        
         # HIGH-BETA MILESTONE OPTIMIZATION (14-day history windowed into key nodes)
+        # Moved up here so closes_14d is defined before it's used in the conditional block below
         closes_14d = hist_1m['Close'].tail(14).tolist()
         optimized_trend = [
             closes_14d[0],   # T-14 (Macro baseline)
@@ -134,7 +110,31 @@ for ticker in tickers:
             closes_14d[-1]   # Today
         ]
         trend_string = ", ".join([f"{val:.1f}" for val in optimized_trend])
-        
+
+        # --- RISK/REWARD RATIO WITH BREAKOUT/BOUNCE DETECTION ---
+        risk_distance = latest_close - support_level
+        reward_distance = resistance_level - latest_close
+
+        # Define a tight buffer zone (e.g., within 1.5% of the support level)
+        support_buffer = support_level * 0.015
+
+        if latest_close < support_level:
+            rr_ratio_str = "Breakdown"
+        elif latest_close > resistance_level:
+            rr_ratio_str = "Breakout"
+        # NEW: Detect if price is hugging support but starting to bounce/hold
+        elif risk_distance <= support_buffer and (obv_trend == "Rising" or latest_close >= closes_14d[-2]):
+            rr_ratio_str = "Testing Support (Bounce Potential)"
+        elif reward_distance <= 0:
+            rr_ratio_str = "Poor"
+        elif risk_distance == 0:
+            rr_ratio_str = "Excellent"
+        else:
+            rr_ratio_str = f"1:{(reward_distance / risk_distance):.1f}"
+
+        atr_to_target = (reward_distance / atr) if reward_distance > 0 else 0.0
+
+        # --- SAVE & SUMMARIZE DATA ---
         calculated_market_data[ticker] = {
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
@@ -143,13 +143,15 @@ for ticker in tickers:
         }
         
         data_summary += (
-            f"T:{ticker}|C:{actual_cost}|L:{latest_close:.2f}|P:{is_profitable}|"
-            f"S:{support_level:.2f}|R:{resistance_level:.2f}|ATR:{atr:.1f}({atr_pct:.1f}%)|"
-            f"Stop:{atr_stop_loss:.2f}|RR:{rr_ratio_str}|Days:{atr_to_target:.1f}|"
-            f"OBV:{obv_trend}|MACD:{macd_status}|Closes:[{trend_string}]\n"
+            f"T: {ticker} |C: {actual_cost} |L: {latest_close:.2f} |P: {is_profitable} |"
+            f"S: {support_level:.2f} |R: {resistance_level:.2f} |ATR: {atr:.1f} ({atr_pct:.1f}%)|"
+            f"Stop: {atr_stop_loss:.2f} |RR: {rr_ratio_str} |Days: {atr_to_target:.1f} |"
+            f"OBV: {obv_trend} |MACD: {macd_status} |Closes:[{trend_string}]\n"
         )
+        
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
+        
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI
 prompt = f"""
