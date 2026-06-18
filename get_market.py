@@ -5,6 +5,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 from fpdf import FPDF
+from fpdf.fonts import FontFace
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 
@@ -294,13 +295,13 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
             pdf.set_text_color(180, 83, 9)
         row.cell(str(stock.get("recommendation", "")))
         
-        # Pass the string into the cell with an explicit style override
-        # This forces fpdf2 to calculate the multi-line wrapping height perfectly!
+        # Pass a clean FontFace instance directly to the cell style parameter.
+        # This forces the fpdf2 engine to calculate the row's wrapping boundaries perfectly.
         row.cell(
             str(stock.get("important_note", "")),
-            style=pdf.table_style.prepend(font_size=6.5, text_color=(71, 85, 105))
+            style=FontFace(size_pt=6.5, color=(71, 85, 105))
         )
-
+        
 filename = "morning_market_analysis.pdf"
 pdf.output(filename)
 print(f"PDF output finalized successfully as {filename}.")
