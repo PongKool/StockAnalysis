@@ -294,9 +294,9 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=6, paddi
             pdf.set_text_color(180, 83, 9)
         row.cell(str(stock.get("recommendation", "")))
         
-        pdf.set_font("Helvetica", "", 6.5)
-        pdf.set_text_color(71, 85, 105)
-        row.cell(str(stock.get("important_note", "")))
+     # Force the cell to dynamically recalculate its multi-line height with the smaller font
+        row.cell(str(stock.get("important_note", "")), 
+                 style=pdf.table_style.prepend(font_size=6.5, text_color=(71, 85, 105)))
 
 filename = "morning_market_analysis.pdf"
 pdf.output(filename)
