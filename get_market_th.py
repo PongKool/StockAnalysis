@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
-tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PTT.BK", "SCB.BK", "WHA.BK", "CPF.BK", "CENTEL.BK", "BDMS.BK"]
+tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PTT.BK", "SCB.BK", "WHA.BK", "CPF.BK", "CENTEL.BK", "BDMS.BK", "TRUE.BK"]
 my_costs = {
     "ADVANC.BK": 364.11,       # Custom entries configured in THB
     "AOT.BK": 61.76,
@@ -20,7 +20,8 @@ my_costs = {
     "WHA.BK": 4.87,
     "CPF.BK": 19.42,
     "CENTEL.BK": 36.81,
-    "BDMS.BK": 18.47
+    "BDMS.BK": 18.47,
+    "TRUE.BK": 12.71
 }
 
 # Dictionary to hold the exact calculated numbers for the PDF table mapping
