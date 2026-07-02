@@ -266,7 +266,7 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
     pdf.set_fill_color(30, 41, 59)
     
     header_row = table.row()
-    headers = ["Ticker", "Cost", "Price", "Support", "Resist.", "ATR Stop", "OBV", "MACD", "Trend", "Rec.", "Important Note"]
+    headers = ["Ticker", "Cost", "Price", "Support21", "Resist21", "ATR Stop14", "OBV14", "MACD", "Trend21", "Rec.", "Important Note"]
     for header_title in headers:
         header_row.cell(header_title)
         
