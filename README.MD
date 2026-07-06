@@ -4,8 +4,8 @@ This project implements an **automated, institutional-grade financial analysis p
 
 The system executes automatically across two isolated workflows: US Equities (`get_market.py`) and Thai SET Equities (`get_market_th.py`).
 
-[View Latest Market Analysis (Direct)](https://raw.githubusercontent.com/PongKool/StockAnalysis/main/morning_market_analysis.pdf)
-(https://raw.githubusercontent.com/PongKool/StockAnalysis/main/thai_market_analysis.pdf)
+* [View US Market Analysis (Direct)](https://raw.githubusercontent.com/PongKool/StockAnalysis/main/morning_market_analysis.pdf)
+* [View Thai Market Analysis (Direct)](https://raw.githubusercontent.com/PongKool/StockAnalysis/main/thai_market_analysis.pdf)
 
 ---
 
