@@ -329,8 +329,15 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, paddi
     for header_title in headers:
         header_row.cell(header_title)
 
-   # --- DATA ROWS ---
-    for idx, stock in enumerate(analysis_data):
+# --- DATA ROWS ---
+# If Gemini returned a dict (with a 'stocks' key), extract the list
+if isinstance(analysis_data, dict):
+    analysis_data = analysis_data.get("stocks", [])
+
+# Now iterate over the list
+for idx, stock in enumerate(analysis_data):
+    if not isinstance(stock, dict):
+        continue
         # DEFENSIVE CHECK: Ensure each 'stock' is actually a dictionary before using .get()
         if not isinstance(stock, dict):
             print(f"Skipping malformed data entry (expected dict, got {type(stock)}): {stock}")
