@@ -4,8 +4,23 @@ import yfinance as yf
 from google import genai
 from google.genai import types
 from fpdf import FPDF
+from pydantic import BaseModel, Field
+from typing import List
 from datetime import datetime, timezone, timedelta
 import pandas as pd
+
+# 2. DEFINE SCHEMA FOR GEMINI
+class StockAnalysis(BaseModel):
+    stock_name: str
+    cost: str
+    obv_status: str
+    macd_status: str
+    trend: str
+    recommendation: str
+    important_note: str
+
+class StockAnalysisList(BaseModel):
+    stocks: List[StockAnalysis]
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
 tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PTT.BK", "SCB.BK", "WHA.BK", "CPF.BK", "IVL.BK", "BDMS.BK", "BCP.BK", "PTTGC.BK"]
@@ -215,6 +230,7 @@ Each object in the JSON array must follow this exact schema:
 """
 
 print("Generating structured technical analysis via Gemini API...")
+
 response = client.models.generate_content(
     model='gemini-3.5-flash', 
     contents=prompt,
