@@ -2,6 +2,7 @@ import os
 import json
 import yfinance as yf
 from google import genai
+from google.genai import types
 from fpdf import FPDF
 from datetime import datetime, timezone, timedelta
 import pandas as pd
