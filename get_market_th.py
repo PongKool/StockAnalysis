@@ -329,12 +329,21 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, paddi
     for header_title in headers:
         header_row.cell(header_title)
 
-    # --- DATA ROWS ---
+   # --- DATA ROWS ---
     for idx, stock in enumerate(analysis_data):
-        row = table.row()
-        ticker = str(stock.get("stock_name", "")).strip()
-        trend_status = str(stock.get("trend", "")).strip().lower()
-        rec_status = str(stock.get("recommendation", "")).strip().lower()
+        # DEFENSIVE CHECK: Ensure each 'stock' is actually a dictionary before using .get()
+        if not isinstance(stock, dict):
+            print(f"Skipping malformed data entry (expected dict, got {type(stock)}): {stock}")
+        continue
+    
+    # Now it is safe to proceed
+    row = table.row()
+    ticker = str(stock.get("stock_name", "")).strip()
+    trend_status = str(stock.get("trend", "")).strip().lower()
+    rec_status = str(stock.get("recommendation", "")).strip().lower()
+    
+    
+    # ... rest of your code ...
         
         market_metrics = calculated_market_data.get(ticker, {"latest_price": "N/A", "support": "N/A", "resistance": "N/A"})
         
