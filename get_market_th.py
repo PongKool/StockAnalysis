@@ -4,23 +4,8 @@ import yfinance as yf
 from google import genai
 from google.genai import types
 from fpdf import FPDF
-from pydantic import BaseModel, Field
-from typing import List
 from datetime import datetime, timezone, timedelta
 import pandas as pd
-
-# 2. DEFINE SCHEMA FOR GEMINI
-class StockAnalysis(BaseModel):
-    stock_name: str
-    cost: str
-    obv_status: str
-    macd_status: str
-    trend: str
-    recommendation: str
-    important_note: str
-
-class StockAnalysisList(BaseModel):
-    stocks: List[StockAnalysis]
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
 tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PTT.BK", "SCB.BK", "WHA.BK", "CPF.BK", "IVL.BK", "BDMS.BK", "BCP.BK", "PTTGC.BK"]
@@ -230,13 +215,10 @@ Each object in the JSON array must follow this exact schema:
 """
 
 print("Generating structured technical analysis via Gemini API...")
-
 response = client.models.generate_content(
-    model='gemini-3.5-flash', 
+    model='gemini-3.5-flash',
     contents=prompt,
     config=types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=StockAnalysisList,
         temperature=0.15
     )
 )
@@ -329,28 +311,12 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, paddi
     for header_title in headers:
         header_row.cell(header_title)
 
-# --- DATA ROWS ---
-# If Gemini returned a dict (with a 'stocks' key), extract the list
-if isinstance(analysis_data, dict):
-    analysis_data = analysis_data.get("stocks", [])
-
-# Now iterate over the list
-for idx, stock in enumerate(analysis_data):
-    if not isinstance(stock, dict):
-        continue
-        # DEFENSIVE CHECK: Ensure each 'stock' is actually a dictionary before using .get()
-        if not isinstance(stock, dict):
-            print(f"Skipping malformed data entry (expected dict, got {type(stock)}): {stock}")
-        continue
-    
-    # Now it is safe to proceed
-    row = table.row()
-    ticker = str(stock.get("stock_name", "")).strip()
-    trend_status = str(stock.get("trend", "")).strip().lower()
-    rec_status = str(stock.get("recommendation", "")).strip().lower()
-    
-    
-    # ... rest of your code ...
+    # --- DATA ROWS ---
+    for idx, stock in enumerate(analysis_data):
+        row = table.row()
+        ticker = str(stock.get("stock_name", "")).strip()
+        trend_status = str(stock.get("trend", "")).strip().lower()
+        rec_status = str(stock.get("recommendation", "")).strip().lower()
         
         market_metrics = calculated_market_data.get(ticker, {"latest_price": "N/A", "support": "N/A", "resistance": "N/A"})
         
