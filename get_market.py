@@ -51,9 +51,15 @@ adx = qqq_hist.ta.adx(length=14)
 
 # 3. Extract latest values
 latest_close = qqq_hist['Close'].iloc[-1]
-upper_band = bbands['BBU_20_2.0'].iloc[-1]
-lower_band = bbands['BBL_20_2.0'].iloc[-1]
-current_adx = adx['ADX_14'].iloc[-1]
+
+# Dynamically find the correct column names so the code never breaks
+upper_col = [c for c in bbands.columns if c.startswith('BBU')][0]
+lower_col = [c for c in bbands.columns if c.startswith('BBL')][0]
+adx_col = [c for c in adx.columns if c.startswith('ADX')][0]
+
+upper_band = bbands[upper_col].iloc[-1]
+lower_band = bbands[lower_col].iloc[-1]
+current_adx = adx[adx_col].iloc[-1]
 
 # 4. Logic: Trend strength (ADX) + Volatility (BB)
 if current_adx > 20:
