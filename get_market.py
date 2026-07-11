@@ -38,37 +38,26 @@ class StockAnalysisList(BaseModel):
 
 print("Fetching Macro Tech Sector Regime Context (QQQ)...")
 
-import pandas_ta as ta
+# 1. Fetch data for exactly 40 days
+start_date = datetime.now(timezone.utc) - timedelta(days=40)
+qqq_hist = yf.Ticker("QQQ").history(start=start_date, auto_adjust=True)
 
-# 1. Fetch data
-qqq_hist = yf.Ticker("QQQ").history(period="1mo", auto_adjust=True)
-
-# 2. Calculate Indicators using pandas_ta
-# Bollinger Bands: returns a DataFrame with columns BBL_20_2.0, BBM_20_2.0, BBU_20_2.0
-bbands = qqq_hist.ta.bbands(length=20, std=2)
-# ADX: returns a DataFrame with columns ADX_14, DMP_14, DMN_14
+# 2. Calculate Indicators
+# EMA 20
+ema20 = qqq_hist.ta.ema(length=20).iloc[-1]
+# ADX 14
 adx = qqq_hist.ta.adx(length=14)
-
-# 3. Extract latest values
-latest_close = qqq_hist['Close'].iloc[-1]
-
-# Dynamically find the correct column names so the code never breaks
-upper_col = [c for c in bbands.columns if c.startswith('BBU')][0]
-lower_col = [c for c in bbands.columns if c.startswith('BBL')][0]
 adx_col = [c for c in adx.columns if c.startswith('ADX')][0]
-
-upper_band = bbands[upper_col].iloc[-1]
-lower_band = bbands[lower_col].iloc[-1]
 current_adx = adx[adx_col].iloc[-1]
 
-# 4. Logic: Trend strength (ADX) + Volatility (BB)
+# 3. Logic: Trend strength (ADX) + Direction (Price vs EMA 20)
+latest_close = qqq_hist['Close'].iloc[-1]
+
 if current_adx > 20:
-    if latest_close > upper_band:
+    if latest_close > ema20:
         tech_market_regime = "BULLISH"
-    elif latest_close < lower_band:
-        tech_market_regime = "BEARISH"
     else:
-        tech_market_regime = "NEUTRAL"
+        tech_market_regime = "BEARISH"
 else:
     tech_market_regime = "NEUTRAL"
 
