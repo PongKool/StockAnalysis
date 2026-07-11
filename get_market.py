@@ -41,7 +41,7 @@ print("Fetching Macro Tech Sector Regime Context (QQQ)...")
 import pandas_ta as ta
 
 # 1. Fetch data
-qqq_hist = yf.Ticker("QQQ").history(period="3mo", auto_adjust=True)
+qqq_hist = yf.Ticker("QQQ").history(period="1mo", auto_adjust=True)
 
 # 2. Calculate Indicators using pandas_ta
 # Bollinger Bands: returns a DataFrame with columns BBL_20_2.0, BBM_20_2.0, BBU_20_2.0
