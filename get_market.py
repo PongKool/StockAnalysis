@@ -8,6 +8,9 @@ from fpdf import FPDF
 from fpdf.fonts import FontFace
 from datetime import datetime, timezone, timedelta
 import pandas as pd
+import pandas_ta as ta
+
+
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 tickers = ["MU", "SYK", "AMZN", "TSM", "VST", "LRCX", "ETN", "GOOG", "GILD", "MSFT", "LLY", "AMD", "META", "PLTR" ]
@@ -33,12 +36,33 @@ class StockAnalysisList(BaseModel):
     analyses: list[StockAnalysisSchema]
 
 print("Fetching Macro Tech Sector Regime Context (QQQ)...")
-try:
-    qqq_hist = yf.Ticker("QQQ").history(period="1mo", auto_adjust=True)
-    qqq_ema20 = qqq_hist['Close'].ewm(span=20, adjust=False).mean().iloc[-1]
-    qqq_latest = qqq_hist['Close'].iloc[-1]
-    tech_market_regime = "BULLISH" if qqq_latest > qqq_ema20 else "BEARISH"
-except Exception:
+
+import pandas_ta as ta
+
+# 1. Fetch data
+qqq_hist = yf.Ticker("QQQ").history(period="3mo", auto_adjust=True)
+
+# 2. Calculate Indicators using pandas_ta
+# Bollinger Bands: returns a DataFrame with columns BBL_20_2.0, BBM_20_2.0, BBU_20_2.0
+bbands = qqq_hist.ta.bbands(length=20, std=2)
+# ADX: returns a DataFrame with columns ADX_14, DMP_14, DMN_14
+adx = qqq_hist.ta.adx(length=14)
+
+# 3. Extract latest values
+latest_close = qqq_hist['Close'].iloc[-1]
+upper_band = bbands['BBU_20_2.0'].iloc[-1]
+lower_band = bbands['BBL_20_2.0'].iloc[-1]
+current_adx = adx['ADX_14'].iloc[-1]
+
+# 4. Logic: Trend strength (ADX) + Volatility (BB)
+if current_adx > 20:
+    if latest_close > upper_band:
+        tech_market_regime = "BULLISH"
+    elif latest_close < lower_band:
+        tech_market_regime = "BEARISH"
+    else:
+        tech_market_regime = "NEUTRAL"
+else:
     tech_market_regime = "NEUTRAL"
 
 print("Executing bulk historical data download via Yahoo Finance...")
