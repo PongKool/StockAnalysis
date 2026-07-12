@@ -267,6 +267,12 @@ class CorporatePDF(FPDF):
     #---------DEBUG OUT
     
     def header(self):
+        # --- ADD DEBUG PRINTS HERE ---
+        print(f"DEBUG: Current ADX in header: {self.adx}")
+        print(f"DEBUG: Current EMA20 in header: {self.ema}")
+        print(f"DEBUG: Current Close in header: {self.close}")
+        # -----------------------------
+        
         self.set_fill_color(30, 41, 59)
         self.rect(0, 0, 210, 4, "F")
         self.ln(4)
