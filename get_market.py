@@ -256,6 +256,15 @@ except Exception as e:
 
 # 4. COMPILE REPORT INTO PDF TABLE LAYOUT
 class CorporatePDF(FPDF):
+
+    #--------DEBUG IN
+    def __init__(self, adx, ema, close):
+        super().__init__()
+        self.adx = adx
+        self.ema = ema
+        self.close = close
+    #---------DEBUG OUT
+    
     def header(self):
         self.set_fill_color(30, 41, 59)
         self.rect(0, 0, 210, 4, "F")
@@ -271,7 +280,12 @@ class CorporatePDF(FPDF):
         thai_timestamp = datetime.now(thailand_tz).strftime('%Y-%m-%d %H:%M:%S')
         self.set_font("Helvetica", "I", 9)
         self.set_text_color(100, 116, 139)
-        self.cell(0, 5, f"Generated on {thai_timestamp} (TH Time) | Sector Context: {tech_market_regime}", new_x="LMARGIN", new_y="NEXT", align="L")
+
+        #----------DEBUG IN
+        debug_str = f"ADX: {self.adx:.2f} | EMA20: {self.ema:.2f} | Close: {self.close:.2f}"
+        self.cell(0, 5, f"Generated on {thai_timestamp} (TH Time) | Context: {tech_market_regime} | {debug_str}", new_x="LMARGIN", new_y="NEXT", align="L")
+        #----------DEBUG OUT
+        
         self.set_draw_color(226, 232, 240)
         self.line(10, self.get_y() + 4, 200, self.get_y() + 4)
         self.ln(10)
@@ -284,7 +298,10 @@ class CorporatePDF(FPDF):
         self.set_text_color(148, 163, 184)
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
 
-pdf = CorporatePDF()
+#----------DEBUG IN
+pdf = CorporatePDF(current_adx, ema20, latest_close)
+#---------DEBUG OUT
+
 pdf.add_page()
 
 # Sums up to exactly 190 mm (Fits perfectly inside standard A4 margins)
