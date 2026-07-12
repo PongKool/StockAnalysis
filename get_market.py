@@ -52,7 +52,7 @@ adx_col = [c for c in adx.columns if c.startswith('ADX')][0]
 current_adx = adx[adx_col].iloc[-1]
 
 # 3. Logic: Trend strength (ADX) + Direction (Price vs EMA 20)
-latest_close = qqq_hist['Close'].iloc[-1]
+qqq_latest_close = qqq_hist['Close'].iloc[-1]
 
 # --- ADD DEBUG PRINTS HERE ---
 print(f"--- DEBUG DATA ---")
@@ -306,7 +306,7 @@ class CorporatePDF(FPDF):
         self.cell(0, 10, f"Page {self.page_no()}", align="C")
 
 #----------DEBUG IN
-pdf = CorporatePDF(current_adx, ema20, latest_close)
+pdf = CorporatePDF(current_adx, ema20, qqq_latest_close)
 #---------DEBUG OUT
 
 pdf.add_page()
