@@ -64,7 +64,7 @@ print(f"Condition (Close > EMA20): {qqq_latest_close > ema20}")
 # -----------------------------
 
 if current_adx > 20:
-    if latest_close > ema20:
+    if qqq_latest_close > ema20:
         tech_market_regime = "BULLISH"
     else:
         tech_market_regime = "BEARISH"
