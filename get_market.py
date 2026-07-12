@@ -38,7 +38,7 @@ class StockAnalysisList(BaseModel):
 
 print("Fetching Macro Tech Sector Regime Context (QQQ)...")
 
-# 1. Fetch data for exactly 40 days
+# 1. Fetch data for exactly 60 days
 start_date = datetime.now(timezone.utc) - timedelta(days=60)
 # Change line 43 in get_market.py to:
 qqq_hist = yf.Ticker("QQQ").history(start=start_date, auto_adjust=True, actions=True)
