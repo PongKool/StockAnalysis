@@ -303,12 +303,6 @@ class CorporatePDF(FPDF):
 pdf = CorporatePDF(current_adx, ema20, qqq_latest_close)
 #---------DEBUG OUT
 
-# --- ADD DEBUG PRINTS HERE ---
-print(f"DEBUG: Current ADX in header: {self.adx}")
-print(f"DEBUG: Current EMA20 in header: {self.ema}")
-print(f"DEBUG: Current Close in header: {self.close}")
-# -----------------------------
-
 pdf.add_page()
 
 # Sums up to exactly 190 mm (Fits perfectly inside standard A4 margins)
