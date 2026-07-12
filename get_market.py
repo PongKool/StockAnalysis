@@ -38,7 +38,9 @@ class StockAnalysisList(BaseModel):
 
 print("Fetching Macro Tech Sector Regime Context (QQQ)...")
 
-# 1. Fetch data for exactly 100 days
+# Fetch 100 days of data to account for indicator "warm-up". 
+# ADX and EMA use recursive smoothing and require a long history to calculate accurate, stable values for the final row.
+
 start_date = datetime.now(timezone.utc) - timedelta(days=100)
 qqq_hist = yf.Ticker("QQQ").history(start=start_date, auto_adjust=True, actions=True)
 
