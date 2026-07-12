@@ -32,6 +32,10 @@ The Gemini AI processes each portfolio through custom financial lenses, explicit
 
 ### 2. Thai Blue-Chip Framework (Value & Capital Preservation)
 * **SET50 Liquidity Filter:** Uses the `TDEX.BK` 20-day EMA to gauge institutional capital flows in Bangkok. If the broader market is in a structural markdown, the AI stops "Buy" recommendations on value pullbacks to keep from catching falling knives.
+* **Explicit Dynamic Buffer (Backend `get_market_th.py`):** The batch processor uses a deterministic engine that applies hard-coded multipliers to individual stock support levels based on the current TDEX market regime:
+    - **Bullish:** 2.5% buffer (allows room for healthy pullbacks).
+    - **Neutral:** 1.5% buffer (standard consolidation tracking).
+    - **Bearish/Cautious:** 0.5% buffer (strict capital preservation).
 * **Defensive Trailing Exits:** Prioritizes guarding principal capital over waiting for speculative breakouts. If a position is profitable while its OBV trend falls or the MACD logs a bearish crossover, it enforces an immediate exit recommendation (**Sell** or **Hold**) to lock in gains.
 
 ---
