@@ -58,11 +58,11 @@ print(f"--- DEBUG DATA ---")
 print(f"Calculated ADX: {current_adx}")
 print(f"Calculated EMA20: {ema20}")
 print(f"Latest Close: {qqq_latest_close}")
-print(f"Condition (ADX > 20): {current_adx > 20}")
+print(f"Condition (ADX > 25): {current_adx > 25}")
 print(f"Condition (Close > EMA20): {qqq_latest_close > ema20}")
 # -----------------------------
 
-if current_adx > 20:
+if current_adx > 25:
     if qqq_latest_close > ema20:
         tech_market_regime = "BULLISH"
     else:
