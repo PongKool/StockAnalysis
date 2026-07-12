@@ -47,7 +47,7 @@ qqq_hist = yf.Ticker("QQQ").history(start=start_date, auto_adjust=True, actions=
 ema20 = qqq_hist.ta.ema(length=20).iloc[-1]
 # ADX 14
 adx_data = qqq_hist.ta.adx(length=14)
-adx_col = [c for c in adx.columns if c.startswith('ADX')][0]
+adx_col = [c for c in adx_data.columns if c.startswith('ADX')][0]
 current_adx = adx_data[adx_col].iloc[-1]
 
 # 3. Logic: Trend strength (ADX) + Direction (Price vs EMA 20)
