@@ -40,16 +40,15 @@ print("Fetching Macro Tech Sector Regime Context (QQQ)...")
 
 # 1. Fetch data for exactly 60 days
 start_date = datetime.now(timezone.utc) - timedelta(days=60)
-# Change line 43 in get_market.py to:
 qqq_hist = yf.Ticker("QQQ").history(start=start_date, auto_adjust=True, actions=True)
 
 # 2. Calculate Indicators
 # EMA 20
 ema20 = qqq_hist.ta.ema(length=20).iloc[-1]
 # ADX 14
-adx = qqq_hist.ta.adx(length=14)
+adx_data = qqq_hist.ta.adx(length=14)
 adx_col = [c for c in adx.columns if c.startswith('ADX')][0]
-current_adx = adx[adx_col].iloc[-1]
+current_adx = adx_data[adx_col].iloc[-1]
 
 # 3. Logic: Trend strength (ADX) + Direction (Price vs EMA 20)
 qqq_latest_close = qqq_hist['Close'].iloc[-1]
