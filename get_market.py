@@ -53,6 +53,15 @@ current_adx = adx[adx_col].iloc[-1]
 # 3. Logic: Trend strength (ADX) + Direction (Price vs EMA 20)
 latest_close = qqq_hist['Close'].iloc[-1]
 
+# --- ADD DEBUG PRINTS HERE ---
+print(f"--- DEBUG DATA ---")
+print(f"Calculated ADX: {current_adx}")
+print(f"Calculated EMA20: {ema20}")
+print(f"Latest Close: {latest_close}")
+print(f"Condition (ADX > 20): {current_adx > 20}")
+print(f"Condition (Close > EMA20): {latest_close > ema20}")
+# -----------------------------
+
 if current_adx > 20:
     if latest_close > ema20:
         tech_market_regime = "BULLISH"
