@@ -13,16 +13,16 @@ my_costs = {
     "ADVANC.BK": 370.96,       # Custom entries configured in THB
     "AOT.BK": 61.76,
     "KBANK.BK": 231.39,
-    "GULF.BK": 57.92,
+    "GULF.BK": 63.56,
     "PRM.BK": 8.69,
-    "KTB.BK": 36.24,
-    "PTT.BK": 35.83,
+    "KTB.BK": 40.64,
+    "PTT.BK": 36.02,
     "SCB.BK": 142.63,
     "WHA.BK": 5.46,
     "CPF.BK": 19.42,
     "IVL.BK": 23.13,
     "BDMS.BK": 18.47,
-    "BCP.BK": 35.78,
+    "BCP.BK": 36.53,
     "PTTGC.BK": 34.39
 }
 
