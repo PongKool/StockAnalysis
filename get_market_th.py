@@ -12,18 +12,18 @@ tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PT
 my_costs = {
     "ADVANC.BK": 370.96,       # Custom entries configured in THB
     "AOT.BK": 61.76,
-    "KBANK.BK": 230.39,
+    "KBANK.BK": 231.39,
     "GULF.BK": 57.92,
     "PRM.BK": 8.69,
     "KTB.BK": 36.24,
     "PTT.BK": 35.83,
     "SCB.BK": 142.63,
-    "WHA.BK": 4.87,
+    "WHA.BK": 5.46,
     "CPF.BK": 19.42,
     "IVL.BK": 23.13,
     "BDMS.BK": 18.47,
     "BCP.BK": 35.78,
-    "PTTGC.BK": 34.31
+    "PTTGC.BK": 34.39
 }
 
 # Dictionary to hold the exact calculated numbers for the PDF table mapping
