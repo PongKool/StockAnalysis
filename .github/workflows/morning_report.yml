@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Generation Libraries
         run: |
-          pip install yfinance google-genai fpdf2 reportlab pandas pandas-ta
+          pip install yfinance google-genai fpdf2 reportlab pandas pandas_ta
 
       # Runs the US Stock Market Analysis Script
       - name: Execute US Report Logic
