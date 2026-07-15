@@ -13,9 +13,9 @@ import pandas_ta as ta
 
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
-tickers = ["MU", "DXCM", "AMZN", "TSM", "VST", "SHOP", "AAPL", "GOOG", "NEE", "AAPL", "MSFT", "CACI", "ADBE", "META", "PLTR", "HAL" ]
+tickers = ["MU", "DXCM", "AMZN", "TSM", "AVGO", "SHOP", "AAPL", "GOOG", "NEE", "AAPL", "MSFT", "CACI", "ADBE", "META", "PLTR", "HAL" ]
 my_costs = {
-    "MU": 1155.31, "DXCM": 74.24, "AMZN": 243.50, "TSM": 468.74, "VST": 163.01, 
+    "MU": 1155.31, "DXCM": 74.24, "AMZN": 243.50, "TSM": 468.74, "AVGO": 394.39, 
     "SHOP": 126.05, "AAPL": 313.49, "GOOG": 352.86, "NEE": 88.74, "AAPL": 312.49,
     "MSFT": 385.80, "CACI": 471.67, "ADBE": 231.30, "META": 600.30, "PLTR": 132.89,
     "HAL": 35.00
