@@ -219,7 +219,7 @@ Each object in the JSON array must follow this exact schema:
 
 print("Generating structured technical analysis via Gemini API...")
 response = client.models.generate_content(
-    model='gemini-3.5-flash',
+    model='gemini-3.5-flash-lite',
     contents=prompt,
     config=types.GenerateContentConfig(
         temperature=0.15
