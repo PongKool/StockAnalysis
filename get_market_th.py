@@ -226,6 +226,7 @@ response = client.models.generate_content(
     )
 )
 
+
 raw_json = response.text.strip()
 if raw_json.startswith("```"):
     lines = raw_json.splitlines()
@@ -251,30 +252,41 @@ except Exception as e:
         } for t in tickers
     ]
 
+# --- 3. Calculate LLM Token Costs ---
+input_tokens = response.usage_metadata.prompt_token_count
+output_tokens = response.usage_metadata.candidates_token_count
+cost_usd = ((input_tokens * 0.075) / 1000000) + ((output_tokens * 0.30) / 1000000)
+
+try:
+    thb_ticker = yf.Ticker("THB=X")
+    usd_to_thb_rate = thb_ticker.fast_info['last_price']
+except Exception:
+    usd_to_thb_rate = 35.00
+
+cost_thb = cost_usd * usd_to_thb_rate
+token_cost_display = f"Tokens: In {input_tokens:,} / Out {output_tokens:,} | Cost: ${cost_usd:.6f} (~{cost_thb:.2f} THB)"
+
 # 4. COMPILE REPORT INTO PDF TABLE LAYOUT
 class CorporatePDF(FPDF):
-
-    def __init__(self, macro_regime="Bullish", *args, **kwargs):
+    def __init__(self, macro_regime="Bullish", token_cost_str="", *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.macro_regime = macro_regime  # Store it as an instance variable
-    
+        self.macro_regime = macro_regime
+        self.token_cost_str = token_cost_str
+
     def header(self):
         # Top decorative primary accent bar
-        self.set_fill_color(30, 41, 59) # Deep Slate Blue
+        self.set_fill_color(30, 41, 59)
         self.rect(0, 0, 210, 4, "F")
         self.ln(4)
-        
         self.set_font("Helvetica", "B", 16)
-        self.set_text_color(15, 23, 42) # Dark Charcoal
+        self.set_text_color(15, 23, 42)
         self.cell(0, 10, "Daily Thai Market Report", new_x="LMARGIN", new_y="NEXT", align="L")
-        
         self.set_font("Helvetica", "B", 10)
-        self.set_text_color(79, 70, 229) # Indigo Accent
+        self.set_text_color(79, 70, 229)
         self.cell(0, 5, "WATCHLIST TECHNICAL SUMMARY (SET)", new_x="LMARGIN", new_y="NEXT", align="L")
         
         thailand_tz = timezone(timedelta(hours=7))
-        now_thailand = datetime.now(thailand_tz)
-        thai_timestamp = now_thailand.strftime('%Y-%m-%d %H:%M:%S')
+        thai_timestamp = datetime.now(thailand_tz).strftime('%Y-%m-%d %H:%M:%S')
         
         self.set_font("Helvetica", "I", 9)
         self.set_text_color(100, 116, 139) # Muted Slate
@@ -287,15 +299,17 @@ class CorporatePDF(FPDF):
 
     def footer(self):
         self.set_y(-15)
-        # Subtle top divider line for footer
         self.set_draw_color(241, 245, 249)
         self.line(10, self.get_y(), 200, self.get_y())
         
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(148, 163, 184)
-        self.cell(0, 10, f"Page {self.page_no()}", align="C")
+        
+        # Display Page Number on the left and Token Cost info on the right
+        self.cell(100, 10, f"Page {self.page_no()}", align="L")
+        self.cell(90, 10, self.token_cost_str, align="R")
 
-pdf = CorporatePDF(macro_regime=macro_regime)
+pdf = CorporatePDF(macro_regime=macro_regime, token_cost_str=token_cost_display)
 pdf.add_page()
 
 # Setup Table Styles (Exactly 10 Columns adding up to 190mm printable width)
