@@ -26,7 +26,6 @@ client = genai.Client()
 
 class StockAnalysisSchema(BaseModel):
     stock_name: str = Field(description="Ticker symbol.")
-    cost: str = Field(description="Entry cost or N/A.")
     obv_status: str = Field(description="Rising/Falling/Flat")
     macd_status: str = Field(description="MACD crossover/territory state.")
     trend: str = Field(description="Bullish/Bearish/Sideways")
@@ -347,7 +346,9 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
         pdf.set_text_color(51, 65, 85)
         
         row.cell(ticker)
-        row.cell(str(stock.get("cost", "")))
+    #    cost_val = my_costs.get(ticker, 0.0)
+        cost_display = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
+        row.cell(cost_display)
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
         row.cell(market_metrics["resistance"])
