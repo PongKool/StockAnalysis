@@ -13,12 +13,12 @@ import pandas_ta as ta
 
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
-tickers = ["MU", "ORCL", "AMZN", "NVDA", "AVGO", "SHOP", "AAPL", "GOOG", "CEG", "VRT", "MSFT", "VST", "ADBE", "META", "PLTR", "BABA", "TSM", "SNDK" ]
+tickers = ["MU", "ORCL", "AMZN", "NVDA", "AVGO", "SHOP", "AAPL", "GOOG", "CEG", "VRT", "MSFT", "VST", "ADBE", "META", "PLTR", "BABA", "TSM", "SNDK", "NFLX" ]
 my_costs = {
     "MU": 1155.31, "ORCL": 125.00, "AMZN": 243.50, "NVDA": 191.79, "AVGO": 394.39, 
     "SHOP": 130.21, "AAPL": 318.44, "GOOG": 352.86, "CEG": 269.51, "VRT": 226.00,
     "MSFT": 387.59, "VST": 162.62, "ADBE": 226.86, "META": 602.41, "PLTR": 132.94,
-    "BABA": 116.95, "TSM": 400.00, "SNDK": 1252.00
+    "BABA": 116.95, "TSM": 400.00, "SNDK": 1252.00, "NFLX": 72.86
     
 }
 calculated_market_data = {}
