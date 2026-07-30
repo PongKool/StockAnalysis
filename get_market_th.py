@@ -8,25 +8,28 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
-tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "PRM.BK", "KTB.BK", "PTT.BK", "SCB.BK", "WHA.BK", "CPF.BK", "IVL.BK", "BDMS.BK", "BCP.BK", "PTTGC.BK", "SCC.BK", "TRUE.BK", "PTTEP.BK"]
+tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "IVL.BK", "PTTGC.BK", "PRM.BK", "BCP.BK", "KTB.BK", "PTT.BK", "PTTEP.BK", "TRUE.BK", "WHAUP.BK", "SCB.BK", "WHA.BK", "CPF.BK",  "BDMS.BK", "SCC.BK"]
 my_costs = {
     "ADVANC.BK": 376.97,       # Custom entries configured in THB
     "AOT.BK": 61.76,
     "KBANK.BK": 231.39,
-    "GULF.BK": 63.56,
+    "GULF.BK": 67.46,
+    "IVL.BK": 23.61,
+    "PTTGC.BK": 36.17,
     "PRM.BK": 8.69,
+    "BCP.BK": 37.64,
     "KTB.BK": 40.69,
     "PTT.BK": 36.40,
+    "PTTEP.BK": 144.03,
+    "TRUE.BK": 14.00,
+    "WHAUP.BK": 8.06,
+    
     "SCB.BK": 142.63,
     "WHA.BK": 5.46,
     "CPF.BK": 19.42,
-    "IVL.BK": 23.40,
     "BDMS.BK": 18.47,
-    "BCP.BK": 36.53,
-    "PTTGC.BK": 34.39,
-    "SCC.BK": 256.43,
-    "TRUE.BK": 14.01,
-    "PTTEP.BK": 144.03
+    "SCC.BK": 256.43
+    
 }
 
 # Dictionary to hold the exact calculated numbers for the PDF table mapping
