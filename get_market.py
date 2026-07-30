@@ -346,8 +346,8 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
         pdf.set_text_color(51, 65, 85)
         
         row.cell(ticker)
-    #    cost_val = my_costs.get(ticker, 0.0)
-        cost_display = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
+        current_cost = my_costs.get(ticker, 0.0)
+        cost_display = f"{current_cost:.2f}" if current_cost > 0 else "N/A"
         row.cell(cost_display)
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
