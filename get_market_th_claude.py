@@ -220,7 +220,7 @@ CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of obje
 print("Generating structured technical analysis via Claude API...")
 
 response = client.messages.create(
-    model="claude-3-5-sonnet-20241022",
+    model="claude-3-5-sonnet-latest",
     max_tokens=4096,
     temperature=0.15,
     system="You are an institutional conservative asset manager evaluating premier defensive and value equities on the Stock Exchange of Thailand (SET). You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in markdown code blocks or include extra text.",
