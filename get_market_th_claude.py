@@ -220,9 +220,8 @@ CRITICAL INSTRUCTION: You must reply ONLY with a valid, clean JSON array of obje
 print("Generating structured technical analysis via Claude API...")
 
 response = client.messages.create(
-    model="claude-sonnet-5",
+    model="claude-haiku-4-5",
     max_tokens=4096,
-    temperature=0.15,
     system="You are an institutional conservative asset manager evaluating premier defensive and value equities on the Stock Exchange of Thailand (SET). You must reply ONLY with a valid, clean JSON array of objects. Do not wrap it in markdown code blocks or include extra text.",
     messages=[
         {
@@ -261,8 +260,8 @@ except Exception as e:
 input_tokens = response.usage.input_tokens
 output_tokens = response.usage.output_tokens
 
-# Claude 3.5 Sonnet Standard Pricing ($3.00 per M input tokens, $15.00 per M output tokens)
-cost_usd = ((input_tokens * 3.00) / 1000000) + ((output_tokens * 15.00) / 1000000)
+# Claude haiku 4.5 Standard Pricing ($1.00 per M input tokens, $5.00 per M output tokens)
+cost_usd = ((input_tokens * 1.00) / 1000000) + ((output_tokens * 5.00) / 1000000)
 
 try:
     thb_ticker = yf.Ticker("THB=X")
