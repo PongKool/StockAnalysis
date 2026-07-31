@@ -1,0 +1,4 @@
+yfinance
+anthropic
+fpdf2
+pandas
