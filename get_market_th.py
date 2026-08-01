@@ -222,7 +222,8 @@ Each object in the JSON array must follow this exact schema:
 
 print("Generating structured technical analysis via Gemini API...")
 response = client.models.generate_content(
-    model='gemini-3.5-flash-lite',
+  # model='gemini-3.5-flash-lite',
+    model='gemini-3.6-flash',
     contents=prompt,
     config=types.GenerateContentConfig(
         temperature=0.15
@@ -258,7 +259,8 @@ except Exception as e:
 # --- 3. Calculate LLM Token Costs ---
 input_tokens = response.usage_metadata.prompt_token_count
 output_tokens = response.usage_metadata.candidates_token_count
-cost_usd = ((input_tokens * 0.075) / 1000000) + ((output_tokens * 0.30) / 1000000)
+# cost_usd = ((input_tokens * 0.3) / 1000000) + ((output_tokens * 2.5) / 1000000)
+cost_usd = ((input_tokens * 1.5) / 1000000) + ((output_tokens * 7.5) / 1000000)
 
 try:
     thb_ticker = yf.Ticker("THB=X")
