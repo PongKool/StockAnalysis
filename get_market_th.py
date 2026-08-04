@@ -16,7 +16,7 @@ my_costs = {
     "GULF.BK": 67.46,
     "TU.BK": 13.20,
     "PTTGC.BK": 36.17,
-    "PRM.BK": 8.69,
+    "PRM.BK": 10.07,
     "BCP.BK": 37.64,
     "KTB.BK": 40.69,
     "PTT.BK": 36.40,
