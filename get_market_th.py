@@ -10,11 +10,11 @@ import pandas as pd
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
 tickers = ["ADVANC.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "IVL.BK", "PTTGC.BK", "PRM.BK", "BCP.BK", "KTB.BK", "PTT.BK", "PTTEP.BK", "TRUE.BK", "WHAUP.BK", "SCB.BK", "WHA.BK", "CPF.BK",  "BDMS.BK", "SCC.BK"]
 my_costs = {
-    "ADVANC.BK": 376.97,       # Custom entries configured in THB
+    "BH.BK": 189.32,       # Custom entries configured in THB
     "AOT.BK": 61.76,
     "KBANK.BK": 231.39,
     "GULF.BK": 67.46,
-    "IVL.BK": 23.61,
+    "TU.BK": 13.20,
     "PTTGC.BK": 36.17,
     "PRM.BK": 8.69,
     "BCP.BK": 37.64,
