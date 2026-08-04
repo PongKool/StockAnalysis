@@ -290,7 +290,7 @@ class CorporatePDF(FPDF):
         self.ln(4)
         self.set_font("Helvetica", "B", 16)
         self.set_text_color(15, 23, 42)
-        self.cell(0, 10, "Daily Market Report", new_x="LMARGIN", new_y="NEXT", align="L")
+        self.cell(0, 10, "Daily US Market Report", new_x="LMARGIN", new_y="NEXT", align="L")
         self.set_font("Helvetica", "B", 10)
         self.set_text_color(79, 70, 229)
         self.cell(0, 5, "WATCHLIST TECHNICAL SUMMARY", new_x="LMARGIN", new_y="NEXT", align="L")
@@ -383,6 +383,6 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
             style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_color)
         )
         
-filename = "morning_market_analysis.pdf"
+filename = "us_market_analysis.pdf"
 pdf.output(filename)
 print(f"PDF output finalized successfully as {filename}.")
