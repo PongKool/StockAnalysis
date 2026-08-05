@@ -8,29 +8,28 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
-tickers = ["BH.BK", "AOT.BK", "KBANK.BK", "GULF.BK", "TU.BK", "PTTGC.BK", "PRM.BK", "BCP.BK", "KTB.BK", "PTT.BK", "PTTEP.BK", "TRUE.BK", "WHAUP.BK", "SCB.BK", "WHA.BK", "CPF.BK",  "BDMS.BK", "SCC.BK"]
 my_costs = {
     "BH.BK": 189.32,       # Custom entries configured in THB
     "AOT.BK": 61.76,
     "KBANK.BK": 231.39,
-    "GULF.BK": 67.46,
-    "TU.BK": 13.20,
+    "GULF.BK": 67.21,
     "PTTGC.BK": 36.17,
-    "PRM.BK": 10.07,
+    "PRM.BK": 10.04,
+    "SCC.BK": 264.44,
+    "TU.BK": 13.22,
     "BCP.BK": 37.64,
-    "KTB.BK": 40.69,
+    "KTB.BK": 44.29,
     "PTT.BK": 36.40,
-    "PTTEP.BK": 144.03,
-    "TRUE.BK": 14.00,
+    "PTTEP.BK": 149.13,
+    "TRUE.BK": 14.06,
     "WHAUP.BK": 8.06,
     
     "SCB.BK": 142.63,
     "WHA.BK": 5.46,
-    "CPF.BK": 19.42,
-    "BDMS.BK": 18.47,
-    "SCC.BK": 256.43
-    
+    "BDMS.BK": 18.47
 }
+
+tickers = list(my_costs.keys())
 
 # Dictionary to hold the exact calculated numbers for the PDF table mapping
 calculated_market_data = {}
