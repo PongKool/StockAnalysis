@@ -14,22 +14,22 @@ import pandas_ta as ta
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "MU": 1155.31, 
+    "MU": 0, 
     "ORCL": 142.34, 
-    "AMZN": 243.50, 
+    "AMZN": 0, 
     "NVDA": 208.23, 
     "AVGO": 420.50, 
-    "SHOP": 130.21, 
+    "SHOP": 0, 
     "ETN": 449.13, 
     "GOOG": 375.34, 
     "CEG": 268.66, 
-    "VRT": 226.00,
+    "VRT": 0,
     "MSFT": 402.75, 
     "ADBE": 233.52, 
-    "PLTR": 132.94,
+    "PLTR": 0,
     "BABA": 128.54, 
-    "TSM": 400.00, 
-    "SNDK": 1252.00, 
+    "TSM": 0, 
+    "SNDK": 0, 
     "GLW": 158.46    
 }
 
@@ -143,8 +143,13 @@ for ticker in tickers:
             macd_status = "Bearish Crossover" if macd_line.iloc[-2] >= signal_line.iloc[-2] else "Bearish Territory"
             
         cost_val = my_costs.get(ticker, 0.0)
-        actual_cost = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
-        is_profitable = "Yes" if (cost_val > 0 and latest_close > cost_val) else "No"
+
+        # Fallback to latest price if cost is 0, None, or empty
+        if not cost_val or cost_val == 0 or str(cost_val).strip() == "":
+            cost_val = latest_close
+
+        actual_cost = f"{cost_val:.2f}"
+        is_profitable = "Yes" if latest_close >= cost_val else "No"
         
         # --- SUPPORT/RESISTANCE TO 21-DAY WINDOW ---
         hist_1m = hist.tail(21)
@@ -363,7 +368,10 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
         
         row.cell(ticker)
         current_cost = my_costs.get(ticker, 0.0)
-        cost_display = f"{current_cost:.2f}" if current_cost > 0 else "N/A"
+        if not current_cost or current_cost == 0 or str(current_cost).strip() == "":
+            cost_display = market_metrics.get("latest_price", "N/A")
+        else:
+            cost_display = f"{current_cost:.2f}"
         row.cell(cost_display)
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
