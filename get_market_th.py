@@ -9,23 +9,23 @@ import pandas as pd
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
 my_costs = {
-    "BH.BK": 189.57,       # Custom entries configured in THB
-    "AOT.BK": 61.76,
-    "GULF.BK": 67.21,
+    "BH.BK": 189.99,       # Custom entries configured in THB
+    "AOT.BK": 0,
+    "GULF.BK": 67.33,
     "PRM.BK": 10.00,
-    "SCC.BK": 264.44,
+    "SCC.BK": 262.44,
     "TU.BK": 13.22,
-    "BCP.BK": 37.64,
-    "KBANK.BK": 247.22,
-    "KTB.BK": 44.35,
-    "PTT.BK": 36.40,
+    "BCP.BK": 0,
+    "KBANK.BK": 249.72,
+    "KTB.BK": 44.45,
+    "PTT.BK": 0,
     "PTTEP.BK": 149.13,
     "TRUE.BK": 14.06,
     "WHAUP.BK": 8.06,
     
-    "SCB.BK": 142.63,
-    "WHA.BK": 5.46,
-    "BDMS.BK": 18.47
+    "SCB.BK": 0,
+    "WHA.BK": 0,
+    "BDMS.BK": 19.92
 }
 
 tickers = list(my_costs.keys())
@@ -116,11 +116,17 @@ for ticker in tickers:
             else:
                 macd_status = "Bearish Territory"
                 
+        # Get cost from dictionary; default to 0.0 if not found
         cost_val = my_costs.get(ticker, 0.0)
-        actual_cost = f"{cost_val:.2f}" if cost_val > 0 else "N/A"
+        
+        # If cost is blank, None, or 0, fallback to the latest price
+        if not cost_val or cost_val == 0 or str(cost_val).strip() == "":
+            cost_val = latest_close
+            
+        actual_cost = f"{cost_val:.2f}"
         
         # Determine if the current Thai position is profitable
-        is_profitable = "Yes" if (cost_val > 0 and latest_close > cost_val) else "No"
+        is_profitable = "Yes" if latest_close >= cost_val else "No"
         
         # Support and Resistance levels
         hist_1m = hist.tail(21)
@@ -351,7 +357,9 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, paddi
         
         # Base cells
         row.cell(ticker)
-        row.cell(str(stock.get("cost", "")))
+        cost_val = stock.get("cost", "")
+        display_cost = str(cost_val) if cost_val not in ["", None, "N/A"] else str(market_metrics.get("latest_price", "N/A"))
+        row.cell(display_cost)
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
         row.cell(market_metrics["resistance"])
