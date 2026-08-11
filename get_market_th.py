@@ -11,10 +11,10 @@ import pandas as pd
 my_costs = {
     "BH.BK": 190.69,       # Custom entries configured in THB
     "AOT.BK": 0,
-    "GULF.BK": 67.33,
+    "GULF.BK": 67.24,
     "PRM.BK": 0,
     "SCC.BK": 262.44,
-    "TU.BK": 13.24,
+    "TU.BK": 13.27,
     "BCP.BK": 0,
     "KBANK.BK": 249.82,
     "KTB.BK": 44.51,
@@ -25,7 +25,7 @@ my_costs = {
     
     "SCB.BK": 0,
     "WHA.BK": 0,
-    "BDMS.BK": 20.02
+    "BDMS.BK": 20.01
 }
 
 tickers = list(my_costs.keys())
