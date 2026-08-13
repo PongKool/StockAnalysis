@@ -11,14 +11,14 @@ import pandas as pd
 my_costs = {
     "BH.BK": 190.69,       # Custom entries configured in THB
     "AOT.BK": 0,
-    "GULF.BK": 67.24,
+    "GULF.BK": 67.18,
     "PRM.BK": 0,
     "SCC.BK": 262.44,
-    "TU.BK": 13.27,
+    "TU.BK": 13.28,
     "BCP.BK": 0,
-    "KBANK.BK": 249.82,
+    "KBANK.BK": 250.47,
     "KTB.BK": 44.51,
-    "PTT.BK": 0,
+    "PTT.BK": 39.53,
     "PTTEP.BK": 149.13,
     "TRUE.BK": 14.06,
     "WHAUP.BK": 8.06,
