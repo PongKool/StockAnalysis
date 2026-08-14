@@ -23,15 +23,15 @@ my_costs = {
     "ETN": 449.20, 
     "GOOG": 368.38, 
     "LRCX": 0,
-    "VRT": 292.70,
+    "VRT": 292.34,
     "MSFT": 406.57, 
     "ADBE": 236.44, 
     "ISRG": 0,
-    "NFLX": 0,
+    "NFLX": 77.06,
     "BABA": 128.44, 
-    "TSM": 0, 
+    "TSM": 433.29,
     "CCJ": 0, 
-    "GLW": 158.21    
+    "GLW": 158.28    
 }
 
 tickers = list(my_costs.keys())
