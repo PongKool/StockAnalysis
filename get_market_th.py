@@ -15,15 +15,15 @@ my_costs = {
     "PRM.BK": 0,
     "SCC.BK": 262.44,
     "TU.BK": 13.28,
-    "BCP.BK": 49.79,
+    "BCP.BK": 49.71,
     "KBANK.BK": 251.55,
     "KTB.BK": 44.54,
-    "PTT.BK": 39.53,
-    "PTTEP.BK": 149.13,
+    "PTT.BK": 39.70,
+    "PTTEP.BK": 0,
     "TRUE.BK": 14.06,
     "WHAUP.BK": 8.06,
     
-    "SCB.BK": 0,
+    "PTTGC.BK": 0,
     "WHA.BK": 0,
     "BDMS.BK": 20.01
 }
