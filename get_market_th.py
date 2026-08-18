@@ -7,7 +7,7 @@ from fpdf import FPDF
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 
-DRY_RUN = True  # Set to True when testing layout/code for $0.00; False for live runs
+DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for live runs
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
 my_costs = {
