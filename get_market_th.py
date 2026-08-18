@@ -192,19 +192,25 @@ You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Ind
 
 CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
 
-1. **BREAKOUT EXCEPTION (CHECK FIRST):**
-   - If Latest Close is breaking out *above* or pushing aggressively *at* 1Mo Resistance, BUT volume trend is "Rising" with a confirmed "Bullish" MACD state:
+CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
+
+1. **CONFIRMED BREAKOUT (PRICE ABOVE RESISTANCE):**
+   - Condition: Latest Close is strictly breaking out ABOVE 1Mo Resistance (`Latest Close > 1Mo Resistance`), accompanied by a "Rising" OBV trend and a "Bullish" MACD profile:
      - For **Watchlist Stocks** (`Entry Cost: 0.00`): Recommend **Buy (Breakout)** to enter expanding volume momentum.
-     - For **Held Positions** (`Entry Cost > 0`): Recommend **Hold** or **Hold (Accumulate)** to ride the trend. Override standard "Poor R/R" exit rules.
+     - For **Held Positions** (`Entry Cost > 0`): Recommend **Hold (Accumulate)** to aggressively scale into the confirmed trend. Override standard "Poor R/R" exit rules.
 
-2. **WATCHLIST / NEW POSITION ENTRY (`Entry Cost: 0.00`):**
+2. **TESTING RESISTANCE / EXTENDED MOVE (PRICE AT OR BELOW RESISTANCE):**
+   - Condition: Price is near or testing resistance (`Latest Close <= 1Mo Resistance`) with an unfavorable Risk/Reward ratio (< 1:1.0):
+     - For **Held Positions (`Entry Cost > 0`)**: If still bullish/momentum intact, recommend **Hold** (ride current shares without adding new risk at the ceiling). If showing exhaustion (MACD bearish cross or falling OBV), recommend **Take-Profit Exit**.
+     - For **Watchlist Stocks (`Entry Cost: 0.00`)**: Recommend **Hold** (or **Watch**) to wait for either a confirmed breakout above resistance or a pullback to support.
+
+3. **WATCHLIST / NEW POSITION ENTRY (`Entry Cost: 0.00`):**
    - **Buy (Initiate Position):** Recommend **Buy** if OBV is "Rising" with a healthy MACD profile ("Bullish Territory" or fresh "Bullish Crossover") AND Risk/Reward is favorable (near support or upside ratio > 1:1.5).
-   - **Neutral / Wait:** Recommend **Hold** (or **Watch**) if setup conditions are unmet (e.g., Bearish MACD, Falling OBV, or stalled at resistance). Never issue exit/stop-loss recommendations for unentered assets.
+   - **Neutral / Wait:** Recommend **Hold** (or **Watch**) if conditions are unmet (e.g., Bearish MACD, Falling OBV). Never issue exit/stop-loss recommendations for unentered assets.
 
-3. **HELD POSITIONS: DEFENSE & ACCUMULATION (`Entry Cost > 0`):**
-   - **Take-Profit Exit:** If position is profitable AND shows exhaustion (Bearish MACD crossover, Falling OBV, or stalled at resistance with "Poor" R/R), recommend **Take-Profit Exit**.
-   - **Support-Aware Stop-Loss:** If position is unprofitable AND Latest Close breaks structurally below 1Mo Support, recommend **Support-Aware Stop-Loss**. If holding at support with bounce potential, maintain **Hold**.
-   - **Hold (Accumulate):** If position is healthy with "Rising" OBV + "Bullish" MACD at support, recommend **Hold (Accumulate)**.
+4. **HELD POSITIONS: DEFENSE & SUPPORT ACCUMULATION (`Entry Cost > 0`):**
+   - **Hold (Accumulate):** If position is healthy with "Rising" OBV + "Bullish" MACD while resting near **1Mo Support** (favorable R/R), recommend **Hold (Accumulate)**.
+   - **Support-Aware Stop-Loss:** If position is unprofitable AND Latest Close breaks structurally below 1Mo Support, recommend **Support-Aware Stop-Loss**. If holding support with bounce potential, maintain **Hold**.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 1. You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions.
