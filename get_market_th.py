@@ -117,16 +117,13 @@ for ticker in tickers:
                 macd_status = "Bearish Territory"
                 
         # Get cost from dictionary; default to 0.0 if not found
-        cost_val = my_costs.get(ticker, 0.0)
-        
-        # If cost is blank, None, or 0, fallback to the latest price
-        if not cost_val or cost_val == 0 or str(cost_val).strip() == "":
-            cost_val = latest_close
-            
-        actual_cost = f"{cost_val:.2f}"
-        
-        # Determine if the current Thai position is profitable
-        is_profitable = "Yes" if latest_close >= cost_val else "No"
+        raw_cost = my_costs.get(ticker, 0.0)
+        if not raw_cost or raw_cost == 0:
+            actual_cost = "0.00"
+            is_profitable = "N/A (Watchlist)"
+        else:
+            actual_cost = f"{float(raw_cost):.2f}"
+            is_profitable = "Yes" if latest_close >= float(raw_cost) else "No"
         
         # Support and Resistance levels
         hist_1m = hist.tail(21)
@@ -176,7 +173,7 @@ for ticker in tickers:
         # Pack structured indicators and profit-states into the text stream context (THB Focus)
         data_summary += (
             f"Ticker: {ticker} | Entry Cost (THB): {actual_cost} | Latest Close (THB): {latest_close:.2f} | "
-            f"Is Position Profitable?: {is_profitable} | "
+            f"Position Status: {position_status} | "
             f"1Mo Support: {support_level:.2f} | 1Mo Resistance: {resistance_level:.2f} | "
             f"Risk/Reward: {rr_ratio_str} | "
             f"OBV: {latest_obv:.0f} ({obv_trend}) | MACD: {latest_macd:.2f} (Signal: {latest_signal:.2f}, {macd_status}) | "
@@ -191,17 +188,20 @@ You are an institutional conservative asset manager evaluating premier defensive
 You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Index ETF (TDEX): **{macro_regime}**. Use this to gauge systemic domestic liquidity and risk.
 
 CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
-1. **CRITICAL BREAKOUT EXCEPTION (CHECK FIRST):**
-   - If a stock's Latest Close price is breaking out *above* or pushing aggressively *at* the 1Mo Resistance ceiling, BUT its volume trend is firmly "Rising" with a confirmed "Bullish" MACD state, treat this as a powerful structural breakout. You MUST override all standard "Poor R/R" exit rules for this asset. Do not exit. Instead, recommend **Hold** or **Hold (Accumulate)** to ride the expanding volume trend, noting that old resistance is transforming into new structural support.
 
-2. **Capital Preservation & Risk Management (Standard Exits):**
-   - **Take-Profit Exit:** If a position is profitable ("Yes") AND shows clear technical exhaustion (e.g., "MACD Status" is a "Bearish Crossover", OBV trend is "Falling", OR the asset is stalled right at Resistance on weak/falling volume with a "Poor" R/R), downgrade to **Take-Profit Exit** to lock in profits.
-   - **Support-Aware Stop-Loss:** If a position is losing money ("No") AND the Latest Close price has broken structurally below the calculated 1Mo Support floor, downgrade to **Support-Aware Stop-Loss** immediately to cut losses. However, if it is losing money but the Risk/Reward is marked as "Excellent (At Support)" or is holding safely above or at the floor, maintain a **Hold** to monitor for a demand-zone rebound.
+1. **BREAKOUT EXCEPTION (CHECK FIRST):**
+   - If Latest Close is breaking out *above* or pushing aggressively *at* 1Mo Resistance, BUT volume trend is "Rising" with a confirmed "Bullish" MACD state:
+     - For **Watchlist Stocks** (`Entry Cost: 0.00`): Recommend **Buy (Breakout)** to enter expanding volume momentum.
+     - For **Held Positions** (`Entry Cost > 0`): Recommend **Hold** or **Hold (Accumulate)** to ride the trend. Override standard "Poor R/R" exit rules.
 
-3. **Increasing Positions / Accumulation ("Buy" or "Hold"):**
-   - Issue a **"Buy"** or an explicit **"Hold (Accumulate)"** recommendation if a stock demonstrates clear potential to go up based on key multi-indicator criteria.
-   - **The Core Momentum Setup:** Upside potential is driven by a **"Rising" OBV trend** (proving clear volume accumulation) combined with a healthy MACD profile (**"Bullish Territory"** or a fresh **"Bullish Crossover"**).
-   - **The Strategic R/R Filter:** Under normal conditions, prioritize this rising volume + MACD combination as long as the Risk/Reward ratio is favorable (holding near support or showing a healthy upside ratio). Do not scale into a stock if the Risk/Reward is explicitly flagged as "Poor (At Resistance)" unless it qualifies for the Breakout Exception in Rule 1.
+2. **WATCHLIST / NEW POSITION ENTRY (`Entry Cost: 0.00`):**
+   - **Buy (Initiate Position):** Recommend **Buy** if OBV is "Rising" with a healthy MACD profile ("Bullish Territory" or fresh "Bullish Crossover") AND Risk/Reward is favorable (near support or upside ratio > 1:1.5).
+   - **Neutral / Wait:** Recommend **Hold** (or **Watch**) if setup conditions are unmet (e.g., Bearish MACD, Falling OBV, or stalled at resistance). Never issue exit/stop-loss recommendations for unentered assets.
+
+3. **HELD POSITIONS: DEFENSE & ACCUMULATION (`Entry Cost > 0`):**
+   - **Take-Profit Exit:** If position is profitable AND shows exhaustion (Bearish MACD crossover, Falling OBV, or stalled at resistance with "Poor" R/R), recommend **Take-Profit Exit**.
+   - **Support-Aware Stop-Loss:** If position is unprofitable AND Latest Close breaks structurally below 1Mo Support, recommend **Support-Aware Stop-Loss**. If holding at support with bounce potential, maintain **Hold**.
+   - **Hold (Accumulate):** If position is healthy with "Rising" OBV + "Bullish" MACD at support, recommend **Hold (Accumulate)**.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 1. You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions.
@@ -357,8 +357,8 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, paddi
         
         # Base cells
         row.cell(ticker)
-        cost_val = stock.get("cost", "")
-        display_cost = str(cost_val) if cost_val not in ["", None, "N/A"] else str(market_metrics.get("latest_price", "N/A"))
+        cost_val = str(stock.get("cost", "")).strip()
+        display_cost = "-" if cost_val in ["0", "0.0", "0.00", "", "None", "N/A"] else cost_val
         row.cell(display_cost)
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
