@@ -7,7 +7,7 @@ from fpdf import FPDF
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 
-DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for live runs
+DRY_RUN = True  # Set to True when testing layout/code for $0.00; False for live runs
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
 my_costs = {
@@ -416,7 +416,7 @@ with pdf.table(col_widths=col_widths, borders_layout="HORIZONTAL_LINES", line_he
         # --- FIX UNICODE ENCODING CRASH ---
         important_note_clean = str(stock.get("important_note", "")).replace("–", "-")
         important_note_clean = important_note_clean.encode('latin-1', 'replace').decode('latin-1')
-        row.cell(important_note_clean)
+        row.cell(important_note_clean, align="L")
 
 filename = "thai_market_analysis.pdf"
 pdf.output(filename)
