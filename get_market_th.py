@@ -121,10 +121,10 @@ for ticker in tickers:
         raw_cost = my_costs.get(ticker, 0.0)
         if not raw_cost or raw_cost == 0:
             actual_cost = "0.00"
-            is_profitable = "N/A (Watchlist)"
+            position_status = "Watchlist (No Position)"
         else:
             actual_cost = f"{float(raw_cost):.2f}"
-            is_profitable = "Yes" if latest_close >= float(raw_cost) else "No"
+            position_status = "Profitable" if latest_close >= float(raw_cost) else "Unprofitable"
         
         # Support and Resistance levels
         hist_1m = hist.tail(21)
