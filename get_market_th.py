@@ -7,6 +7,8 @@ from fpdf import FPDF
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 
+DRY_RUN = True  # Set to True when testing layout/code for $0.00; False for live runs
+
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
 my_costs = {
     "BH.BK": 190.69,       # Custom entries configured in THB
@@ -225,56 +227,66 @@ Each object in the JSON array must follow this exact schema:
 }}
 """
 
-print("Generating structured technical analysis via Gemini API...")
-response = client.models.generate_content(
-  # model='gemini-3.5-flash-lite',
-    model='gemini-3.6-flash',
-    contents=prompt,
-    config=types.GenerateContentConfig(
-        temperature=0.15
-    )
-)
-
-
-raw_json = response.text.strip()
-if raw_json.startswith("```"):
-    lines = raw_json.splitlines()
-    if lines[0].startswith("```"):
-        lines = lines[1:]
-    if lines[-1].startswith("```"):
-        lines = lines[:-1]
-    raw_json = "\n".join(lines).strip()
-
-try:
-    analysis_data = json.loads(raw_json)
-except Exception as e:
-    print("Failed to parse JSON. Falling back to template table structure.")
+if DRY_RUN:
+    print("--- DRY RUN MODE ACTIVE: Skipping paid Gemini API call ---")
     analysis_data = [
         {
             "stock_name": t,
-            "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
-            "obv_status": "Error",
-            "macd_status": "Error",
-            "trend": "Error",
-            "recommendation": "Error",
-            "important_note": "Failed to parse data payload safely."
-        } for t in tickers
+            "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "0.00",
+            "obv_status": "Rising",
+            "macd_status": "Bullish Territory",
+            "trend": "Bullish",
+            "recommendation": "Buy" if my_costs.get(t, 0.0) == 0 else "Hold (Accumulate)",
+            "important_note": "Mock validation test: Checking table layout and cost alignment."
+        }
+        for t in tickers
     ]
+    token_cost_display = "Tokens: In 0 / Out 0 | Cost: $0.000000 (0.00 THB) [DRY RUN]"
+else:
+    print("Generating structured technical analysis via Gemini API...")
+    response = client.models.generate_content(
+        model='gemini-3.6-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(temperature=0.15)
+    )
 
-# --- 3. Calculate LLM Token Costs ---
-input_tokens = response.usage_metadata.prompt_token_count
-output_tokens = response.usage_metadata.candidates_token_count
-# cost_usd = ((input_tokens * 0.3) / 1000000) + ((output_tokens * 2.5) / 1000000)
-cost_usd = ((input_tokens * 1.5) / 1000000) + ((output_tokens * 7.5) / 1000000)
+    raw_json = response.text.strip()
+    if raw_json.startswith("```"):
+        lines = raw_json.splitlines()
+        if lines[0].startswith("```"): lines = lines[1:]
+        if lines[-1].startswith("```"): lines = lines[:-1]
+        raw_json = "\n".join(lines).strip()
 
-try:
-    thb_ticker = yf.Ticker("THB=X")
-    usd_to_thb_rate = thb_ticker.fast_info['last_price']
-except Exception:
-    usd_to_thb_rate = 35.00
+    try:
+        analysis_data = json.loads(raw_json)
+    except Exception as e:
+        print("Failed to parse JSON. Falling back to template table structure.")
+        analysis_data = [
+            {
+                "stock_name": t,
+                "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
+                "obv_status": "Error",
+                "macd_status": "Error",
+                "trend": "Error",
+                "recommendation": "Error",
+                "important_note": "Failed to parse data payload safely."
+            }
+            for t in tickers
+        ]
 
-cost_thb = cost_usd * usd_to_thb_rate
-token_cost_display = f"Tokens: In {input_tokens:,} / Out {output_tokens:,} | Cost: ${cost_usd:.6f} (~{cost_thb:.2f} THB)"
+    # --- 3. Calculate LLM Token Costs ---
+    input_tokens = response.usage_metadata.prompt_token_count
+    output_tokens = response.usage_metadata.candidates_token_count
+    cost_usd = ((input_tokens * 1.5) / 1000000) + ((output_tokens * 7.5) / 1000000)
+
+    try:
+        thb_ticker = yf.Ticker("THB=X")
+        usd_to_thb_rate = thb_ticker.fast_info['last_price']
+    except Exception:
+        usd_to_thb_rate = 35.00
+
+    cost_thb = cost_usd * usd_to_thb_rate
+    token_cost_display = f"Tokens: In {input_tokens:,} / Out {output_tokens:,} | Cost: ${cost_usd:.6f} (~{cost_thb:.2f} THB)"
 
 # 4. COMPILE REPORT INTO PDF TABLE LAYOUT
 class CorporatePDF(FPDF):
