@@ -323,11 +323,12 @@ pdf = CorporatePDF(macro_regime=macro_regime, token_cost_str=token_cost_display)
 pdf.add_page()
 
 # Setup Table Styles (Exactly 10 Columns adding up to 190mm printable width)
-pdf.set_font("Helvetica", "", 8)
-column_widths = (18, 14, 14, 14, 14, 15, 18, 15, 13, 55)
+pdf.set_font("Helvetica", "", 6.5)
+col_widths = (11, 7, 7, 8, 8, 8, 8, 8, 10, 25)
 
 # Removed invalid 'cell_alignment' kwarg to resolve fpdf.py structural initializer crash
-with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, padding=2, outer_border_width=0.5) as table:
+with pdf.table(col_widths=col_widths, borders_layout="HORIZONTAL_LINES", line_height=4) as table:
+    
     # --- HEADER ROW ---
     pdf.set_font("Helvetica", "B", 8)
     pdf.set_text_color(255, 255, 255) # White text for header
@@ -357,14 +358,14 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, paddi
         pdf.set_text_color(51, 65, 85)
         
         # Base cells
-        ticker_raw = stock.get("ticker", "")
-        cost_num = my_costs.get(ticker_raw, 0.0)
+        cost_num = my_costs.get(ticker, 0.0)
         
         if not cost_num or float(cost_num) == 0.0:
             display_cost = "-"
         else:
             display_cost = f"{float(cost_num):.2f}"
-        
+
+        row.cell(ticker)
         row.cell(display_cost)
         
         row.cell(market_metrics["latest_price"])
