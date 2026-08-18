@@ -357,10 +357,16 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=5, paddi
         pdf.set_text_color(51, 65, 85)
         
         # Base cells
-        row.cell(ticker)
-        cost_val = str(stock.get("cost", "")).strip()
-        display_cost = "-" if cost_val in ["0", "0.0", "0.00", "", "None", "N/A"] else cost_val
+        ticker_raw = stock.get("ticker", "")
+        cost_num = my_costs.get(ticker_raw, 0.0)
+        
+        if not cost_num or float(cost_num) == 0.0:
+            display_cost = "-"
+        else:
+            display_cost = f"{float(cost_num):.2f}"
+        
         row.cell(display_cost)
+        
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
         row.cell(market_metrics["resistance"])
