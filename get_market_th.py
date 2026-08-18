@@ -383,7 +383,8 @@ with pdf.table(col_widths=col_widths, borders_layout="HORIZONTAL_LINES", line_he
         else:
             display_cost = f"{float(cost_num):.2f}"
 
-        row.cell(ticker)
+        display_ticker = ticker.replace(".BK", "")
+        row.cell(display_ticker)
         row.cell(display_cost)
         
         row.cell(market_metrics["latest_price"])
