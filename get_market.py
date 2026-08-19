@@ -14,23 +14,23 @@ import pandas_ta as ta
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "SNDK": 1792.24, 
+    "SNDK": 1707.49, 
     "ORCL": 143.83, 
     "AMZN": 0, 
     "NVDA": 209.96, 
-    "AVGO": 421.29, 
+    "AVGO": 0, 
     "SHOP": 0, 
     "ETN": 449.20, 
     "GOOG": 0, 
-    "LRCX": 343.06,
-    "VRT": 293.93,
+    "LRCX": 337.83,
+    "VRT": 289.18,
     "MSFT": 412.47, 
     "ISRG": 0,
-    "NFLX": 77.41,
-    "GEV": 1098.36, 
-    "TSM": 433.33,
+    "NFLX": 0,
+    "GEV": 1076.83, 
+    "TSM": 429.18,
     "CCJ": 0, 
-    "GLW": 161.13    
+    "GLW": 160.96    
 }
 
 tickers = list(my_costs.keys())
