@@ -14,22 +14,21 @@ import pandas_ta as ta
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "SNDK": 1701.08, 
+    "SNDK": 1681.42, 
     "ORCL": 143.83, 
     "AMZN": 0, 
     "NVDA": 209.96, 
     "AVGO": 0, 
     "SHOP": 0, 
-    "DIS": 0, 
+    "DIS": 107.38, 
     "GOOG": 0, 
-    "LRCX": 333.77,
-    "VRT": 287.11,
+    "LRCX": 332.64,
+    "VRT": 0,
     "MSFT": 0, 
-    "ISRG": 0,
-    "NFLX": 0,
-    "GEV": 1067.42, 
-    "TSM": 427.94,
-    "UBER": 0, 
+    "ISRG": 391.81,
+    "NFLX": 80.51,
+    "TSM": 425.95,
+    "UBER": 78.90, 
     "GLW": 160.15    
 }
 
