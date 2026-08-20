@@ -20,7 +20,7 @@ my_costs = {
     "NVDA": 209.96, 
     "AVGO": 0, 
     "SHOP": 0, 
-    "ETN": 0, 
+    "DIS": 0, 
     "GOOG": 0, 
     "LRCX": 333.77,
     "VRT": 287.11,
@@ -29,7 +29,7 @@ my_costs = {
     "NFLX": 0,
     "GEV": 1067.42, 
     "TSM": 427.94,
-    "CCJ": 0, 
+    "UBER": 0, 
     "GLW": 160.15    
 }
 
