@@ -26,7 +26,7 @@ my_costs = {
 
     "ADVANC.BK": 0,
     "PTTEP.BK": 0,
-    "PRM.BK": 0,
+    "OR.BK": 0,
     "PTTGC.BK": 0,
     "KBANK.BK": 0
         
