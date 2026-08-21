@@ -56,16 +56,27 @@ raw_market_payload = {}
 
 for ticker in ["QQQ"] + tickers:
     try:
-        hist = yf.Ticker(ticker).history(period="2mo", auto_adjust=True)
+        t_obj = yf.Ticker(ticker)
+        hist = t_obj.history(period="2mo", auto_adjust=True)
         if hist.empty:
             continue
         
         # Keep clean recent OHLCV data for Gemini to analyze
         recent = hist.tail(25)[["Open", "High", "Low", "Close", "Volume"]].round(2)
         recent.index = recent.index.strftime('%Y-%m-%d')
+
+        # Extract latest real-time news headlines from Yahoo Finance
+        raw_news = t_obj.news or []
+        news_titles = [
+            n.get("content", {}).get("title", n.get("title", ""))
+            for n in raw_news[:3]
+            if n.get("content", {}).get("title") or n.get("title")
+        ]
+
         raw_market_payload[ticker] = {
             "my_cost": my_costs.get(ticker, 0.0),
             "recent_ohlcv": recent.to_dict(orient="index"),
+            "latest_news": news_titles,
         }
     except Exception as e:
         print(f"Error fetching data for {ticker}: {e}")
@@ -78,7 +89,7 @@ You are provided raw OHLCV price and volume history for the Nasdaq-100 (QQQ) and
 YOUR RESPONSIBILITIES:
 1. **Macro Regime**: Analyze QQQ's price structure, trend momentum, and determine if the Tech Market Regime is BULLISH, BEARISH, or NEUTRAL.
 2. **Technical Indicator Calculation**: Ingest the raw OHLCV data for each stock and determine all key technical indicators (Support, Resistance, ATR/Volatility Stops, RSI, MACD state, and Volume/OBV divergence).
-3. **Live News & Catalyst Search**: Use Google Search grounding to retrieve the latest real-time news, earnings reports, analyst revisions, or market catalysts for each stock.
+3. **News & Catalyst Assessment**: Synthesize the provided Yahoo Finance news headlines (`latest_news`) into a concise summary of the primary catalyst or sentiment (strictly under 12 words).
 4. **Actionable Decision**:
    - Compare current price to the user's cost basis (if cost > 0).
    - If profitable and showing bearish divergence or momentum breakdown, prioritize 'Take Profit' or 'Sell'.
@@ -96,7 +107,6 @@ try:
         model="gemini-3.7-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
-            tools=[types.Tool(google_search=types.GoogleSearch())],
             response_mime_type="application/json",
             response_schema=StockAnalysisList,
             temperature=0.15,
