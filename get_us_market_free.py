@@ -104,7 +104,7 @@ Raw Market Data:
 print("Sending data to Gemini with real-time Google Search grounding...")
 try:
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.6-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
