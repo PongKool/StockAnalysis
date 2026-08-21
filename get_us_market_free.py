@@ -156,10 +156,16 @@ pdf.add_page()
 column_widths = (14, 15, 15, 16, 16, 16, 30, 16, 18, 48, 73)
 headers = ["Ticker", "Cost", "Price", "Support", "Resist", "ATR Stop", "Key Indicators", "Trend", "Rec.", "Latest News / Catalyst", "Rationale"]
 
-with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, padding=2, outer_border_width=0.5) as table:
-    pdf.set_font("Helvetica", "B", 7)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_fill_color(30, 41, 59)
+header_style = FontFace(emphasis="B", color=(255, 255, 255), fill_color=(30, 41, 59), size_pt=7)
+
+with pdf.table(
+    col_widths=column_widths, 
+    text_align="LEFT", 
+    line_height=4.5, 
+    padding=2, 
+    outer_border_width=0.5,
+    headings_style=header_style
+) as table:
     header_row = table.row()
     for h in headers:
         header_row.cell(h)
@@ -173,36 +179,31 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
         trend = str(item.get("trend", "")).lower()
         bg_color = (255, 255, 255) if idx % 2 == 0 else (248, 250, 252)
 
-        pdf.set_font("Helvetica", "", 7)
-        pdf.set_text_color(51, 65, 85)
-        
-        row.cell(ticker)
-        row.cell(cost_str)
-        row.cell(str(item.get("latest_price", "")))
-        row.cell(str(item.get("support_level", "")))
-        row.cell(str(item.get("resistance_level", "")))
-        row.cell(str(item.get("volatility_stop", "")))
-        row.cell(str(item.get("primary_indicators", "")))
+        # Style for standard data cells with alternating light background
+        cell_style = FontFace(size_pt=7, color=(51, 65, 85), fill_color=bg_color)
 
-        # Dynamic Trend Color
-        if "bullish" in trend:
-            pdf.set_text_color(21, 128, 61)
-        elif "bearish" in trend:
-            pdf.set_text_color(185, 28, 28)
-        else:
-            pdf.set_text_color(51, 65, 85)
-        row.cell(str(item.get("trend", "")))
+        row.cell(ticker, style=cell_style)
+        row.cell(cost_str, style=cell_style)
+        row.cell(str(item.get("latest_price", "")), style=cell_style)
+        row.cell(str(item.get("support_level", "")), style=cell_style)
+        row.cell(str(item.get("resistance_level", "")), style=cell_style)
+        row.cell(str(item.get("volatility_stop", "")), style=cell_style)
+        row.cell(str(item.get("primary_indicators", "")), style=cell_style)
 
-        # Dynamic Rec Color
+        # Dynamic Trend Color Cell
+        trend_color = (21, 128, 61) if "bullish" in trend else ((185, 28, 28) if "bearish" in trend else (51, 65, 85))
+        row.cell(str(item.get("trend", "")), style=FontFace(size_pt=7, color=trend_color, fill_color=bg_color))
+
+        # Dynamic Recommendation Color Cell
         if "buy" in rec or "accumulate" in rec:
-            pdf.set_text_color(21, 128, 61)
+            rec_color = (21, 128, 61)
         elif "sell" in rec or "cut" in rec:
-            pdf.set_text_color(185, 28, 28)
+            rec_color = (185, 28, 28)
         else:
-            pdf.set_text_color(180, 83, 9)
-        row.cell(str(item.get("recommendation", "")))
+            rec_color = (180, 83, 9)
+        row.cell(str(item.get("recommendation", "")), style=FontFace(size_pt=7, color=rec_color, fill_color=bg_color))
 
-        # News and Important Note Styled Cells
+        # News and Rationale Cells
         row.cell(str(item.get("news_catalyst", "")), style=FontFace(size_pt=6.5, color=(30, 41, 59), fill_color=bg_color))
         row.cell(str(item.get("important_note", "")), style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_color))
 
