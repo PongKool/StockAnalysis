@@ -62,6 +62,7 @@ for ticker in ["QQQ"] + tickers:
         
         # Keep clean recent OHLCV data for Gemini to analyze
         recent = hist.tail(25)[["Open", "High", "Low", "Close", "Volume"]].round(2)
+        recent.index = recent.index.strftime('%Y-%m-%d')
         raw_market_payload[ticker] = {
             "my_cost": my_costs.get(ticker, 0.0),
             "recent_ohlcv": recent.to_dict(orient="index"),
