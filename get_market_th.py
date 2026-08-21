@@ -252,7 +252,7 @@ if DRY_RUN:
 else:
     print("Generating structured technical analysis via Gemini API...")
     response = client.models.generate_content(
-        model='gemini-3.6-flash',
+        model='gemini-3.7-flash',
         contents=prompt,
         config=types.GenerateContentConfig(temperature=0.15)
     )
@@ -284,7 +284,7 @@ else:
     # --- 3. Calculate LLM Token Costs ---
     input_tokens = response.usage_metadata.prompt_token_count
     output_tokens = response.usage_metadata.candidates_token_count
-    cost_usd = ((input_tokens * 1.5) / 1000000) + ((output_tokens * 7.5) / 1000000)
+    cost_usd = ((input_tokens * 0.75) / 1000000) + ((output_tokens * 3.75) / 1000000)
 
     try:
         thb_ticker = yf.Ticker("THB=X")
