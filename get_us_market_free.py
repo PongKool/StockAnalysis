@@ -13,7 +13,7 @@ my_costs = {
     "SNDK": 1681.42,
     "ORCL": 143.83,
     "AMZN": 0,
-    "NVDA": 209.96,
+    "NVDA": 215.81,
     "AVGO": 0,
     "SHOP": 0,
     "DIS": 107.38,
