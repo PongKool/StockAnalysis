@@ -1,7 +1,10 @@
 name: US Market AI Free Analysis
 
 on:
-  workflow_dispatch: # Allows manual trigger from the GitHub "Actions" tab
+  workflow_dispatch:
+
+permissions:
+  contents: write # Grants the workflow permission to commit and push changes
 
 jobs:
   run-analysis:
@@ -28,9 +31,10 @@ jobs:
         run: |
           python get_us_market_free.py
 
-      - name: Upload PDF Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: us-market-ai-report
-          path: us_market_ai_free.pdf
-          retention-days: 7
+      - name: Commit and Push Generated PDF
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add us_market_ai_free.pdf
+          git commit -m "Auto-generate latest market analysis PDF [skip ci]" || echo "No changes to commit"
+          git push
