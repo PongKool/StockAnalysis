@@ -253,7 +253,7 @@ print("Generating structured technical analysis via Gemini API...")
 try:
     response = client.models.generate_content(
       # model='gemini-3.5-flash-lite',
-        model='gemini-3.6-flash',
+        model='gemini-3.7-flash',
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -278,7 +278,7 @@ except Exception as e:
 input_tokens = response.usage_metadata.prompt_token_count
 output_tokens = response.usage_metadata.candidates_token_count
 # cost_usd = ((input_tokens * 0.3) / 1000000) + ((output_tokens * 2.5) / 1000000)
-cost_usd = ((input_tokens * 1.5) / 1000000) + ((output_tokens * 7.5) / 1000000)
+cost_usd = ((input_tokens * 0.75) / 1000000) + ((output_tokens * 3.75) / 1000000)
 
 # --- Fetch Real-time Exchange Rate ---
 try:
