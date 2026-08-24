@@ -150,7 +150,7 @@ for ticker in tickers:
             rr_ratio_str = "Breakdown"
         elif latest_close > resistance_level:
             rr_ratio_str = "Breakout (Above Resistance)" if macro_regime != "Bearish/Cautious" else "Fakeout Risk"
-        # USED HERE: Checks if the price is safely hovering within your dynamic buffer zone
+        # Checks if the price is safely hovering within your dynamic buffer zone
         elif risk_distance <= support_buffer:
             if macro_regime == "Bullish":
                 rr_ratio_str = "High-Conviction Bounce"
@@ -160,6 +160,8 @@ for ticker in tickers:
                 rr_ratio_str = "Testing Support (Bounce Potential)"
         elif reward_distance <= 0:
             rr_ratio_str = "Poor (At Resistance)"
+        elif risk_distance <= 0:
+            rr_ratio_str = "At Support"
         else:
             calculated_ratio = reward_distance / risk_distance
             rr_ratio_str = f"1:{calculated_ratio:.2f}"
