@@ -202,7 +202,12 @@ CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
 
 2. **TESTING RESISTANCE / EXTENDED MOVE (PRICE AT OR BELOW RESISTANCE):**
    - Condition: Price is near or testing resistance (`Latest Close <= 1Mo Resistance`) with an unfavorable Risk/Reward ratio (< 1:1.0):
-     - For **Held Positions (`Entry Cost > 0`)**: If still bullish/momentum intact, recommend **Hold** (ride current shares without adding new risk at the ceiling). If showing exhaustion (MACD bearish cross or falling OBV), recommend **Take-Profit Exit**.
+     - For **Held Positions (`Entry Cost > 0`)**:
+       - **If Profitable (`Latest Close >= Entry Cost`)**:
+         - If showing exhaustion (MACD bearish cross or falling OBV), recommend **Take-Profit Exit**.
+         - If momentum remains intact (Rising OBV + Bullish MACD), recommend **Hold** (ride gains, do not add new risk at ceiling).
+       - **If Unprofitable (`Latest Close < Entry Cost`)**:
+         - Recommend **Hold** (maintain position for recovery/breakout without adding new capital near resistance, unless structural support is broken).
      - For **Watchlist Stocks (`Entry Cost: 0.00`)**: Recommend **Hold** (or **Watch**) to wait for either a confirmed breakout above resistance or a pullback to support.
 
 3. **WATCHLIST / NEW POSITION ENTRY (`Entry Cost: 0.00`):**
