@@ -193,8 +193,6 @@ You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Ind
 
 CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
 
-CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
-
 1. **CONFIRMED BREAKOUT (PRICE ABOVE RESISTANCE):**
    - Condition: Latest Close is strictly breaking out ABOVE 1Mo Resistance (`Latest Close > 1Mo Resistance`), accompanied by a "Rising" OBV trend and a "Bullish" MACD profile:
      - For **Watchlist Stocks** (`Entry Cost: 0.00`): Recommend **Buy (Breakout)** to enter expanding volume momentum.
