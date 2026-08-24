@@ -70,45 +70,60 @@ except Exception as e:
     print(f"Warning: Could not calculate Thai macro regime: {e}")
     
 print(f"Current Thai Market Regime: {macro_regime}")
-print("Fetching technical data from Yahoo Finance for Thai Equities...")
+
+print("Fetching technical data in batch from Yahoo Finance for Thai Equities...")
 data_summary = ""
 
-# 2. DATA GATHERING LOOP
+# 1. Batch download all tickers in a single network call
+try:
+    batch_df = yf.download(
+        tickers=tickers,
+        period="3mo",
+        auto_adjust=False,
+        group_by="column",
+        progress=False
+    )
+except Exception as e:
+    print(f"Error during batch download: {e}")
+    batch_df = pd.DataFrame()
+
+# 2. DATA PROCESSING LOOP
 for ticker in tickers:
     try:
-        stock = yf.Ticker(ticker)
-        # Pull unadjusted historical matrix data
-        hist = stock.history(period="3mo", auto_adjust=False)
+        # Extract single-ticker slice if available
+        if batch_df.empty or ticker not in batch_df['Close']:
+            print(f"Warning: No batch data returned for {ticker}")
+            continue
+
+        hist = pd.DataFrame({
+            'Open': batch_df['Open'][ticker],
+            'High': batch_df['High'][ticker],
+            'Low': batch_df['Low'][ticker],
+            'Close': batch_df['Close'][ticker],
+            'Volume': batch_df['Volume'][ticker]
+        }).dropna(subset=['Close'])
+
         if hist.empty or len(hist) < 26:
             continue
-            
-        # Clean out any incomplete live/placeholder rows containing NaN
-        hist = hist.dropna(subset=['Close'])
-        
-        # Grab the absolute real quote closing price from summary info metadata
-        try:
-            info = stock.info
-            latest_close = info.get('regularMarketPrice') or info.get('currentPrice') or hist['Close'].iloc[-1]
-        except Exception:
-            latest_close = hist['Close'].iloc[-1]
-            
+
+        latest_close = hist['Close'].iloc[-1]
+
         # --- CALCULATE OBV ---
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
         obv_trend = "Rising" if obv.tail(5).diff().mean() > 0 else "Falling"
-        
+
         # --- CALCULATE MACD ---
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
         exp26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = exp12 - exp26
         signal_line = macd_line.ewm(span=9, adjust=False).mean()
-        
         latest_macd = macd_line.iloc[-1]
         latest_signal = signal_line.iloc[-1]
         prev_macd = macd_line.iloc[-2]
         prev_signal = signal_line.iloc[-2]
-        
+
         if latest_macd > latest_signal:
             if prev_macd <= prev_signal:
                 macd_status = "Bullish Crossover"
@@ -119,7 +134,7 @@ for ticker in tickers:
                 macd_status = "Bearish Crossover"
             else:
                 macd_status = "Bearish Territory"
-                
+
         # Get cost from dictionary; default to 0.0 if not found
         raw_cost = my_costs.get(ticker, 0.0)
         if not raw_cost or raw_cost == 0:
@@ -128,7 +143,7 @@ for ticker in tickers:
         else:
             actual_cost = f"{float(raw_cost):.2f}"
             position_status = "Profitable" if latest_close >= float(raw_cost) else "Unprofitable"
-        
+
         # Support and Resistance levels
         hist_1m = hist.tail(21)
         support_level = hist_1m['Low'].min()
@@ -150,7 +165,6 @@ for ticker in tickers:
             rr_ratio_str = "Breakdown"
         elif latest_close > resistance_level:
             rr_ratio_str = "Breakout (Above Resistance)" if macro_regime != "Bearish/Cautious" else "Fakeout Risk"
-        # Checks if the price is safely hovering within your dynamic buffer zone
         elif risk_distance <= support_buffer:
             if macro_regime == "Bullish":
                 rr_ratio_str = "High-Conviction Bounce"
@@ -165,17 +179,17 @@ for ticker in tickers:
         else:
             calculated_ratio = reward_distance / risk_distance
             rr_ratio_str = f"1:{calculated_ratio:.2f}"
-            
+
         recent_closes = hist_1m.tail(14)
         trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
-        
+
         # Save exact programmatic calculations to map directly into the PDF table row builder later
         calculated_market_data[ticker] = {
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
             "resistance": f"{resistance_level:.2f}"
         }
-        
+
         # Pack structured indicators and profit-states into the text stream context (THB Focus)
         data_summary += (
             f"Ticker: {ticker} | Entry Cost (THB): {actual_cost} | Latest Close (THB): {latest_close:.2f} | "
