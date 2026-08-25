@@ -17,19 +17,19 @@ my_costs = {
     "SNDK": 1658.69, 
     "ORCL": 143.83, 
     "AMZN": 0, 
-    "NVDA": 216.98, 
+    "NVDA": 216.49, 
     "AVGO": 0, 
     "SHOP": 0, 
-    "DIS": 107.74, 
+    "DIS": 108.26, 
     "GOOG": 0, 
     "LRCX": 332.64,
     "VRT": 0,
-    "MSFT": 488.37, 
-    "ISRG": 386.18,
-    "NFLX": 80.51,
+    "MSFT": 489.50, 
+    "ISRG": 0,
+    "NFLX": 81.10,
     "TSM": 425.95,
     "UBER": 78.74, 
-    "GLW": 160.15    
+    "GLW": 0    
 }
 
 tickers = list(my_costs.keys())
