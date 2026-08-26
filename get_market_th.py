@@ -273,7 +273,9 @@ else:
     response = client.models.generate_content(
         model='gemini-3.7-flash',
         contents=prompt,
-        config=types.GenerateContentConfig(temperature=0.15)
+        config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_level="low")
+        )
     )
 
     raw_json = response.text.strip()
