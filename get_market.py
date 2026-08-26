@@ -19,7 +19,7 @@ my_costs = {
     "AMZN": 0, 
     "NVDA": 216.49, 
     "AVGO": 0, 
-    "SHOP": 0, 
+    "SHOP": 152.98, 
     "DIS": 108.26, 
     "GOOG": 0, 
     "LRCX": 332.64,
