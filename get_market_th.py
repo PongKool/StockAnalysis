@@ -26,8 +26,8 @@ my_costs = {
 
     "ADVANC.BK": 0,
     "PTTEP.BK": 0,
-    "OR.BK": 12.61,
-    "PTTGC.BK": 0,
+    "OR.BK": 12.64,
+    "IVL.BK": 22.24,
     "KBANK.BK": 0
         
 }
@@ -271,7 +271,7 @@ if DRY_RUN:
 else:
     print("Generating structured technical analysis via Gemini API...")
     response = client.models.generate_content(
-        model='gemini-3.6-flash',
+        model='gemini-3.7-flash',
         contents=prompt,
         config=types.GenerateContentConfig(temperature=0.15)
     )
