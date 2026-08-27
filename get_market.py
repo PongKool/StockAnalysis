@@ -256,45 +256,35 @@ Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 """
 
-# Initialize defaults
-input_tokens = 0
-output_tokens = 0
-cost_usd = 0.0
-
+print("Generating structured technical analysis via Gemini API...")
 try:
-    print("Generating structured technical analysis via Gemini API...")
     response = client.models.generate_content(
-        model='gemini-3.7-flash',
+        model='gemini-3.6-flash',
+      #  model='gemini-3.7-flash',
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
-            # Remove system_instruction if you didn't define a variable for it,
-            # or ensure system_instruction = "..." is defined above this block.
+            response_schema=StockAnalysisList,
+            temperature=0.15
         )
     )
-    input_tokens = response.usage_metadata.prompt_token_count
-    output_tokens = response.usage_metadata.candidates_token_count
-    
-    # Store in analysis_data (matching line 364)
-    analysis_data = json.loads(response.text)
-
+    analysis_data = json.loads(response.text.strip())["analyses"]
 except Exception as e:
     print(f"API Error: {e}. Utilizing fallback strategy.")
-    
-    # Provide the fallback as a list/dict structure matching analysis_data
-    analysis_data = [
-        {
-            "Ticker": ticker,
-            "MACD_Analysis": "Error",
-            "OBV_Analysis": "Error",
-            "Trend_Alignment": "Error",
-            "Actionable_Recommendation": "Error",
-            "Important_Note": "Failed to parse data payload safely."
-        }
-        for ticker in my_portfolio_tickers  # or your list of tickers
-    ]
+    analysis_data = [{
+        "stock_name": t,
+        "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
+        "obv_status": "Error",
+        "macd_status": "Error",
+        "trend": "Error",
+        "recommendation": "Error",
+        "important_note": "System extraction failure."
+    } for t in tickers]
 
-# Safe cost calculation
+# --- 3. Calculate LLM Token Costs ---
+input_tokens = response.usage_metadata.prompt_token_count
+output_tokens = response.usage_metadata.candidates_token_count
+# cost_usd = ((input_tokens * 0.3) / 1000000) + ((output_tokens * 2.5) / 1000000)
 cost_usd = ((input_tokens * 0.75) / 1000000) + ((output_tokens * 3.75) / 1000000)
 
 # --- Fetch Real-time Exchange Rate ---
