@@ -112,7 +112,13 @@ for ticker in tickers:
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
-        obv_trend = "Rising" if obv.tail(5).diff().mean() > 0 else "Falling"
+        
+        # Compare OBV against its 14-day EMA to catch early volume in slow markets
+        obv_ema14 = obv.ewm(span=14, adjust=False).mean()
+        if pd.isna(latest_obv) or pd.isna(obv_ema14.iloc[-1]):
+            obv_trend = "Flat"
+        else:
+            obv_trend = "Rising" if latest_obv > obv_ema14.iloc[-1] else "Falling"
 
         # --- CALCULATE MACD ---
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
