@@ -256,35 +256,36 @@ Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 """
 
-print("Generating structured technical analysis via Gemini API...")
+# Initialize defaults first so response failure never throws NameError
+input_tokens = 0
+output_tokens = 0
+cost_usd = 0.0
+
 try:
+    print("Generating structured technical analysis via Gemini API...")
     response = client.models.generate_content(
-      #  model='gemini-3.6-flash',
         model='gemini-3.7-flash',
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
-            response_schema=StockAnalysisList,
-            temperature=0.15
+            system_instruction=system_instruction,
         )
     )
-    analysis_data = json.loads(response.text.strip())["analyses"]
+    input_tokens = response.usage_metadata.prompt_token_count
+    output_tokens = response.usage_metadata.candidates_token_count
+    ai_analysis = json.loads(response.text)
+
 except Exception as e:
     print(f"API Error: {e}. Utilizing fallback strategy.")
-    analysis_data = [{
-        "stock_name": t,
-        "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
-        "obv_status": "Error",
-        "macd_status": "Error",
-        "trend": "Error",
-        "recommendation": "Error",
-        "important_note": "System extraction failure."
-    } for t in tickers]
+    ai_analysis = {
+        "MACD_Analysis": "Error",
+        "OBV_Analysis": "Error",
+        "Trend_Alignment": "Error",
+        "Actionable_Recommendation": "Error",
+        "Important_Note": "Failed to parse data payload safely."
+    }
 
-# --- 3. Calculate LLM Token Costs ---
-input_tokens = response.usage_metadata.prompt_token_count
-output_tokens = response.usage_metadata.candidates_token_count
-# cost_usd = ((input_tokens * 0.3) / 1000000) + ((output_tokens * 2.5) / 1000000)
+# Safe calculation outside try/except
 cost_usd = ((input_tokens * 0.75) / 1000000) + ((output_tokens * 3.75) / 1000000)
 
 # --- Fetch Real-time Exchange Rate ---
