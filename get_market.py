@@ -256,7 +256,7 @@ Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 """
 
-# Initialize defaults first so response failure never throws NameError
+# Initialize defaults
 input_tokens = 0
 output_tokens = 0
 cost_usd = 0.0
@@ -268,24 +268,33 @@ try:
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
-            system_instruction=system_instruction,
+            # Remove system_instruction if you didn't define a variable for it,
+            # or ensure system_instruction = "..." is defined above this block.
         )
     )
     input_tokens = response.usage_metadata.prompt_token_count
     output_tokens = response.usage_metadata.candidates_token_count
-    ai_analysis = json.loads(response.text)
+    
+    # Store in analysis_data (matching line 364)
+    analysis_data = json.loads(response.text)
 
 except Exception as e:
     print(f"API Error: {e}. Utilizing fallback strategy.")
-    ai_analysis = {
-        "MACD_Analysis": "Error",
-        "OBV_Analysis": "Error",
-        "Trend_Alignment": "Error",
-        "Actionable_Recommendation": "Error",
-        "Important_Note": "Failed to parse data payload safely."
-    }
+    
+    # Provide the fallback as a list/dict structure matching analysis_data
+    analysis_data = [
+        {
+            "Ticker": ticker,
+            "MACD_Analysis": "Error",
+            "OBV_Analysis": "Error",
+            "Trend_Alignment": "Error",
+            "Actionable_Recommendation": "Error",
+            "Important_Note": "Failed to parse data payload safely."
+        }
+        for ticker in my_portfolio_tickers  # or your list of tickers
+    ]
 
-# Safe calculation outside try/except
+# Safe cost calculation
 cost_usd = ((input_tokens * 0.75) / 1000000) + ((output_tokens * 3.75) / 1000000)
 
 # --- Fetch Real-time Exchange Rate ---
