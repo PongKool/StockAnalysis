@@ -120,14 +120,21 @@ for ticker in tickers:
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
-
-        # Keep your 14-day macro trend        
-        obv_mean_change = obv.diff().tail(14).mean()
-        obv_trend = "Flat" if pd.isna(obv_mean_change) or obv_mean_change == 0 else ("Rising" if obv_mean_change > 0 else "Falling")
-        
-        # NEW: Explicit 5-day short-term trend calculation
-        obv_5d_change = obv.diff().tail(5).mean()
-        obv_5d_trend = "Flat" if pd.isna(obv_5d_change) or obv_5d_change == 0 else ("Rising" if obv_5d_change > 0 else "Falling")
+    
+        # REVISED: Compare OBV against its Moving Average (mimicking TradingView)
+        # 14-day macro trend
+        obv_ema14 = obv.ewm(span=14, adjust=False).mean()
+        if pd.isna(latest_obv) or pd.isna(obv_ema14.iloc[-1]):
+            obv_trend = "Flat"
+        else:
+            obv_trend = "Rising" if latest_obv > obv_ema14.iloc[-1] else "Falling"
+    
+        # REVISED: 5-day short-term trend calculation
+        obv_ema5 = obv.ewm(span=5, adjust=False).mean()
+        if pd.isna(latest_obv) or pd.isna(obv_ema5.iloc[-1]):
+            obv_5d_trend = "Flat"
+        else:
+            obv_5d_trend = "Rising" if latest_obv > obv_ema5.iloc[-1] else "Falling"
         
             
         # --- CALCULATE MACD ---
