@@ -20,16 +20,16 @@ my_costs = {
     "NVDA": 216.49, 
     "AVGO": 0, 
     "SHOP": 152.98, 
-    "DIS": 108.26, 
+    "DIS": 108.40, 
     "GOOG": 0, 
     "LRCX": 332.64,
     "VRT": 0,
-    "MSFT": 489.50, 
-    "ISRG": 0,
-    "NFLX": 81.10,
+    "MSFT": 489.99, 
+    "CEG": 0,
+    "NFLX": 81.17,
     "TSM": 425.95,
-    "UBER": 78.74, 
-    "GLW": 0    
+    "UBER": 78.78, 
+    "CRDO": 0    
 }
 
 tickers = list(my_costs.keys())
