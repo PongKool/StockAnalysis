@@ -57,18 +57,25 @@ To minimize API latency and maximize token efficiency, tasks are heavily isolate
 
 ## ⏱️ Technical Matrix Parameters
 
-The pipeline standardizes indicators across both execution streams:
+The pipeline utilizes customized indicators for each specific market to optimize risk management and entry precision.
 
+### 🇺🇸 US Tech Engine Parameters (High-Beta)
 | **Metric** | **Evaluation Window** | **Technical Function / Mechanics** |
 | :--- | :--- | :--- |
 | **Pricing Engine** | `auto_adjust=True` | Extracts split/dividend-adjusted historical bars for live intraday calculations. |
-| **US Volatility Scaling** | 14-Day ATR | Estimates daily tech trading ranges to identify extreme momentum extensions. |
-| **US Macro Regime** | 20-Day EMA | Tracks `QQQ` price posture to map global tech sector velocity. |
-| **Thai Macro Regime** | 100-Day SMA | Tracks `TDEX.BK` price posture to map a slow, structural domestic blue-chip market filter. |
-| **Support & Resistance** | 3-Month (63-Day) Lookback | Scans a full financial quarter to isolate structural floor and ceiling zones using high-volume Point of Control (POC) and 50-Day SMA boundaries. |
+| **Macro Regime** | 20-Day EMA | Tracks `QQQ` price posture to map global tech sector velocity and system risk. |
+| **Volatility Scaling** | 14-Day ATR | Estimates daily tech trading ranges to identify extreme momentum extensions. |
 | **Volume Velocity** | 5-Day OBV Trend | Computes directional volume accumulation to flag institutional buying vs. distribution. |
 | **Trend Continuity** | 14-Day Sparkline | Grabs recent close prices to supply the AI with immediate, short-term momentum context. |
 
+### 🇹🇭 Thai Blue-Chip Engine Parameters (Value)
+| **Metric** | **Evaluation Window** | **Technical Function / Mechanics** |
+| :--- | :--- | :--- |
+| **Pricing Engine** | `auto_adjust=True` | Extracts split/dividend-adjusted historical bars for live intraday calculations. |
+| **Macro Regime** | 100-Day SMA | Tracks `TDEX.BK` price posture to map a slow, structural domestic blue-chip market filter. |
+| **Support & Resistance** | 3-Month (63-Day) Lookback | Scans a full financial quarter to isolate structural floor/ceiling zones using Point of Control (POC) and 50-Day SMA. |
+| **Volume Velocity** | 5-Day OBV Trend | Computes directional volume accumulation to flag institutional buying vs. distribution. |
+| **Trend Continuity** | 14-Day Sparkline | Grabs recent close prices to supply the AI with immediate, short-term momentum context. |
 ---
 
 ## 📥 Generated Artifacts
