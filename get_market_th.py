@@ -151,30 +151,32 @@ for ticker in tickers:
             position_status = "Profitable" if latest_close >= float(raw_cost) else "Unprofitable"
 
         # --- INSTITUTIONAL SUPPORT & RESISTANCE (SMA 50 + Volume Profile) ---
-        # 1. Safely calculate 50-Day SMA (Fall back to average if data is less than 50 days)
+        # 1. Explicitly grab the current close price to prevent NameError crashes
+        current_price_val = float(hist['Close'].iloc[-1])
+        
+        # 2. Safely calculate 50-Day SMA
         if len(hist) >= 50:
-            sma_50 = hist['Close'].rolling(window=50).mean().iloc[-1]
+            sma_50 = float(hist['Close'].rolling(window=50).mean().iloc[-1])
         else:
-            sma_50 = hist['Close'].mean()
+            sma_50 = float(hist['Close'].mean())
         
-        # 2. Calculate Volume Profile over a 3-month window
+        # 3. Calculate Volume Profile over a 3-month window
         hist_macro = hist.tail(63).copy()
-        hist_macro.loc[:, 'Price_Bin'] = pd.cut(hist_macro['Close'], bins=10)
         
-        # CRITICAL FIX: Removed 'observed=False' to prevent GitHub Actions crash
-        volume_by_bin = hist_macro.groupby('Price_Bin')['Volume'].sum()
+        # Safely group by price bins without triggering Pandas version errors
+        price_bins = pd.cut(hist_macro['Close'], bins=10)
+        volume_by_bin = hist_macro.groupby(price_bins)['Volume'].sum()
         
-        # Identify the price bin with the highest traded volume
         poc_bin = volume_by_bin.idxmax()
-        poc_midpoint = poc_bin.mid
+        poc_midpoint = float(poc_bin.mid)
         
-        # 3. Assign Support and Resistance based on current price action
-        if latest_close > poc_midpoint:
-            support_level = float(poc_midpoint)
-            resistance_level = float(sma_50 if (pd.notna(sma_50) and sma_50 > latest_close) else hist_macro['High'].max())
+        # 4. Assign Support and Resistance 
+        if current_price_val > poc_midpoint:
+            support_level = poc_midpoint
+            resistance_level = float(sma_50 if sma_50 > current_price_val else hist_macro['High'].max())
         else:
-            resistance_level = float(poc_midpoint)
-            support_level = float(sma_50 if (pd.notna(sma_50) and sma_50 < latest_close) else hist_macro['Low'].min())
+            resistance_level = poc_midpoint
+            support_level = float(sma_50 if sma_50 < current_price_val else hist_macro['Low'].min())
             
         # --- DYNAMIC BUFFER BASED ON MACRO REGIME ---
         if macro_regime == "Bullish":
