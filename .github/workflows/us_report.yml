@@ -1,9 +1,8 @@
 name: US Market Analysis Engine
 
 on:
-  workflow_dispatch: # Allows manual triggers
+  workflow_dispatch:
 
-# ADD THIS PERMISSIONS BLOCK TO GRANT WRITE ACCESS
 permissions:
   contents: write
 
@@ -26,17 +25,16 @@ jobs:
 
       - name: Execute US Market Script
         env:
-         # GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_FREE }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python get_market.py
 
       - name: Commit and Push Generated PDF
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git stash
-        git pull origin main --rebase
-        git stash pop || true
-        git add us_market_analysis.pdf
-        git commit -m "Automated US PDF Update [skip ci]" || exit 0
-        git push origin main
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git stash
+          git pull origin main --rebase
+          git stash pop || true
+          git add us_market_analysis.pdf
+          git commit -m "Automated US PDF Update [skip ci]" || exit 0
+          git push origin main
