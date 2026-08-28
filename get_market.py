@@ -178,21 +178,28 @@ for ticker in tickers:
         swing_low_10d = float(hist['Low'].tail(10).min())
         swing_high_10d = float(hist['High'].tail(10).max())
         
-        # 3. Assign Support and Resistance with Proximity Logic
-        if latest_close > poc_midpoint:
-            # If the macro POC is more than 5% away, prioritize near-term structural support
-            if (latest_close - poc_midpoint) / latest_close > 0.05:
-                # Filter for near-term levels that are actually below the current price
-                valid_supports = [lvl for lvl in [sma_trend, swing_low_10d] if lvl < latest_close]
-                support_level = float(max(valid_supports)) if valid_supports else float(poc_midpoint)
-            else:
-                support_level = float(poc_midpoint)
-                
-            # Set resistance to SMA20 (if above) or the recent 10-day high
-            resistance_level = float(sma_trend if (pd.notna(sma_trend) and sma_trend > latest_close) else swing_high_10d)
-        else:
-            resistance_level = float(poc_midpoint)
-            support_level = float(sma_trend if (pd.notna(sma_trend) and sma_trend < latest_close) else hist_1m['Low'].min())
+        # Calculate Average True Range (ATR) for volatility context
+        tr = np.maximum(
+            hist['High'] - hist['Low'],
+            np.maximum(
+                abs(hist['High'] - hist['Close'].shift(1)),
+                abs(hist['Low'] - hist['Close'].shift(1))
+            )
+        )
+        atr_14 = float(tr.rolling(14).mean().iloc[-1])
+    
+        # Hybrid Support & Resistance with ATR and Volume Profile
+        at_least_support = latest_close - (1.5 * atr_14)
+        structural_support = max(swing_low_10d, poc_midpoint if poc_midpoint < latest_close else 0)
+        support_level = float(max(structural_support, at_least_support))
+        if support_level >= latest_close:
+            support_level = float(swing_low_10d)
+    
+        at_least_resistance = latest_close + (1.5 * atr_14)
+        structural_resistance = min(swing_high_10d, poc_midpoint if poc_midpoint > latest_close else float('inf'))
+        resistance_level = float(min(structural_resistance, at_least_resistance))
+        if resistance_level <= latest_close:
+            resistance_level = float(swing_high_10d)
 
         # HIGH-BETA MILESTONE OPTIMIZATION (14-day history windowed into key nodes)
         # Moved up here so closes_14d is defined before it's used in the conditional block below
