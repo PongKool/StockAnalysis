@@ -13,10 +13,10 @@ The system executes automatically across two isolated workflows: US Equities (`g
 
 * **High-Speed Bulk Data Downloading:** Replaced slow, sequential ticker-by-ticker network queries with a singular multi-index bulk payload download via `yf.download()`. This eliminates sequential network lag and cuts data-gathering times by up to **80%**.
 * **Dual Macro Regime Filtering:** * **US Engine:** Integrates index tracking on the Invesco NASDAQ-100 ETF (`QQQ`) using a 20-day EMA to map global sector momentum.
-  * **Thai Engine:** Integrates benchmark tracking on the SET50 Index ETF (`TDEX.BK`) using a 20-day EMA to track domestic blue-chip liquidity.
+  *   **Thai Engine:** Integrates benchmark tracking on the SET50 Index ETF (`TDEX.BK`) using a slow 100-day SMA to track structural, long-term domestic blue-chip liquidity.
 * **Targeted Risk Profiles:**
   * **US Tech Volatility:** Incorporates a 14-day **Average True Range (ATR)** to scale dynamic stop boundaries customized to aggressive intraday tech swings (*NVDA, AMD, AVGO*).
-  * **Thai Value Structural Maps:** Relies strictly on raw horizontal **1-Month Support/Resistance boundaries** to locate structural entry floors for heavy cash-flow blue chips (*BBL, ADVANC, PTT*).
+  *   **Thai Value Structural Maps:** Relies strictly on quarterly 3-Month (63-Day) Support/Resistance boundaries (using Point of Control and 50 SMA) to locate structural entry floors for heavy cash-flow blue chips (*BBL, ADVANC, PTT*).
 * **Strict JSON Type-Safety (Pydantic):** Employs Pydantic's `BaseModel` injected directly into Gemini's native `response_schema`. This forces the AI to output pure structured JSON with zero markdown code blocks, eliminating pipeline runtime parsing exceptions.
 * **Unicode Table Sanitization:** Hardened text parsing channels automatically intercept and convert problematic hidden Unicode marks (like long en-dashes `–`) into standard safe hyphens to guarantee headless `fpdf2` rendering success.
 
@@ -31,7 +31,7 @@ The Gemini AI processes each portfolio through custom financial lenses, explicit
 * **ATR Volatility Slicing:** Uses ATR to ensure entries are not initiated at overextended price peaks, requiring clear risk-asymmetry relative to the 1-month range before declaring a trade valid.
 
 ### 2. Thai Blue-Chip Framework (Value & Capital Preservation)
-* **SET50 Liquidity Filter:** Uses the `TDEX.BK` 20-day EMA to gauge institutional capital flows in Bangkok. If the broader market is in a structural markdown, the AI stops "Buy" recommendations on value pullbacks to keep from catching falling knives.
+*   **SET50 Liquidity Filter:** Uses the TDEX.BK 100-day SMA to gauge structural institutional capital flows in Bangkok. If the broader market is in a structural markdown, the AI stops "Buy" recommendations on value pullbacks to keep from catching falling knives.
 * **Explicit Dynamic Buffer (Backend `get_market_th.py`):** The batch processor uses a deterministic engine that applies hard-coded multipliers to individual stock support levels based on the current TDEX market regime:
     - **Bullish:** 2.5% buffer (allows room for healthy pullbacks).
     - **Neutral:** 1.5% buffer (standard consolidation tracking).
@@ -46,7 +46,7 @@ To minimize API latency and maximize token efficiency, tasks are heavily isolate
 
 ### 1. What Local Python Handles (Deterministic Calculation)
 * **Data Aggregation:** Bulk-downloads historical matrices to allow EMA calculation smoothing to perfectly stabilize.
-* **Technical Metrics:** Computationally derives standard Support/Resistance boundaries locked to a trailing 1-Month (21 trading days) window, computes running On-Balance Volume (OBV), and traces MACD historical crossovers.
+*   **Technical Metrics:** Computationally derives standard Support/Resistance boundaries locked to a trailing 3-Month (63 trading days) window, computes running On-Balance Volume (OBV), and traces MACD historical crossovers.
 * **Immutable PDF Generation:** Assembles a highly scannable, math-aligned data table utilizing `fpdf2` ($190\text{ mm}$ printable width grid), complete with conditional green/red status highlighting.
 
 ### 2. What the Gemini AI Agent Handles (Financial Reasoning)
