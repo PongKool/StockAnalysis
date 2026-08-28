@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
-
+import time
 
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
@@ -296,35 +296,50 @@ Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 """
 
-print("Generating structured technical analysis via Gemini API...")
-try:
-    response = client.models.generate_content(
-        model='gemini-3.6-flash',
-      #  model='gemini-3.7-flash',
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=StockAnalysisList,
-            temperature=0.15
-        )
-    )
-    analysis_data = json.loads(response.text.strip())["analyses"]
-except Exception as e:
-    print(f"API Error: {e}. Utilizing fallback strategy.")
-    analysis_data = [{
-        "stock_name": t,
-        "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
-        "obv_status": "Error",
-        "macd_status": "Error",
-        "trend": "Error",
-        "recommendation": "Error",
-        "important_note": "System extraction failure."
-    } for t in tickers]
+max_retries = 3
+retry_delay = 5
+response = None
 
-# --- 3. Calculate LLM Token Costs ---
-input_tokens = response.usage_metadata.prompt_token_count
-output_tokens = response.usage_metadata.candidates_token_count
-# cost_usd = ((input_tokens * 0.3) / 1000000) + ((output_tokens * 2.5) / 1000000)
+for attempt in range(max_retries):
+    try:
+        print(f"Generating structured technical analysis via Gemini API (Attempt {attempt + 1}/{max_retries})...")
+        response = client.models.generate_content(
+            model='gemini-3.7-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=StockAnalysisList,
+                temperature=0.15
+            )
+        )
+        analysis_data = json.loads(response.text.strip())["analyses"]
+        break
+    except Exception as e:
+        print(f"API Error: {e}")
+        if attempt < max_retries - 1:
+            print(f"Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+            retry_delay *= 2
+        else:
+            print("Max retries reached. Utilizing fallback strategy.")
+            analysis_data = [{
+                "stock_name": t, 
+                "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A", 
+                "obv_status": "Error", 
+                "macd_status": "Error", 
+                "trend": "Error", 
+                "recommendation": "Error", 
+                "important_note": "System extraction failure."
+            } for t in tickers]
+
+# --- 3. Calculate LLM Token Costs Safely ---
+if response and hasattr(response, 'usage_metadata') and response.usage_metadata:
+    input_tokens = response.usage_metadata.prompt_token_count
+    output_tokens = response.usage_metadata.candidates_token_count
+else:
+    input_tokens = 0
+    output_tokens = 0
+
 cost_usd = ((input_tokens * 0.75) / 1000000) + ((output_tokens * 3.75) / 1000000)
 
 # --- Fetch Real-time Exchange Rate ---
