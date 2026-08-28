@@ -15,19 +15,19 @@ import pandas_ta as ta
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
     "SNDK": 1658.69, 
-    "ORCL": 143.83, 
+    "ORCL": 144.39, 
     "AMZN": 0, 
     "NVDA": 216.49, 
     "AVGO": 0, 
     "SHOP": 152.98, 
-    "DIS": 108.40, 
+    "DIS": 108.31, 
     "GOOG": 0, 
-    "LRCX": 332.64,
+    "LRCX": 331.22,
     "VRT": 0,
-    "MSFT": 489.99, 
-    "CEG": 0,
+    "MSFT": 491.01, 
+    "CEG": 281.74,
     "NFLX": 81.17,
-    "TSM": 425.95,
+    "TSM": 425.85,
     "UBER": 78.78, 
     "CRDO": 0    
 }
