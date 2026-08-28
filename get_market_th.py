@@ -46,13 +46,13 @@ macro_regime = "Bullish" # Keep this default fallback!
 try:
     # TDEX tracks the SET50 Index (Thailand's top 50 blue chips)
     macro_stock = yf.Ticker("TDEX.BK")
-    macro_hist = macro_stock.history(period="3mo", auto_adjust=False)
+    macro_hist = macro_stock.history(period="6mo", auto_adjust=False)
     macro_hist = macro_hist.dropna(subset=['Close'])
-
-    # Calculate 20-Day EMA to determine overall market posture
-    macro_ema20 = macro_hist['Close'].ewm(span=20, adjust=False).mean()
-    latest_macro_close = macro_hist['Close'].iloc[-1]
-    latest_macro_ema = macro_ema20.iloc[-1]
+    
+    # Calculate 100-Day SMA for slow, structural market posture
+    macro_trend = macro_hist['Close'].rolling(window=100).mean()
+    latest_macro_close = float(macro_hist['Close'].iloc[-1])
+    latest_macro_ema = float(macro_trend.iloc[-1])
 
     # Define a tight 0.5% buffer zone around the EMA
     upper_buffer = latest_macro_ema * 1.005
