@@ -9,6 +9,7 @@ from fpdf.fonts import FontFace
 from datetime import datetime, timezone, timedelta
 import pandas as pd
 import pandas_ta as ta
+import numpy as np
 
 
 
