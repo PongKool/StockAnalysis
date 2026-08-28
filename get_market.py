@@ -304,7 +304,7 @@ for attempt in range(max_retries):
     try:
         print(f"Generating structured technical analysis via Gemini API (Attempt {attempt + 1}/{max_retries})...")
         response = client.models.generate_content(
-            model='gemini-3.7-flash',
+            model='gemini-3.6-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
