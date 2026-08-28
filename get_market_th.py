@@ -209,7 +209,7 @@ for ticker in tickers:
             calculated_ratio = reward_distance / risk_distance
             rr_ratio_str = f"1:{calculated_ratio:.2f}"
 
-        recent_closes = hist_1m.tail(14)
+        recent_closes = hist.tail(14)
         trend_string = ", ".join([f"{row['Close']:.2f}" for _, row in recent_closes.iterrows()])
 
         # Save exact programmatic calculations to map directly into the PDF table row builder later
