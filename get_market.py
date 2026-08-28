@@ -174,10 +174,22 @@ for ticker in tickers:
         poc_bin = volume_by_bin.idxmax()
         poc_midpoint = float(poc_bin.mid)
         
-        # 3. Assign Support and Resistance based on current price action
+        # Define near-term swing levels (10 days)
+        swing_low_10d = float(hist['Low'].tail(10).min())
+        swing_high_10d = float(hist['High'].tail(10).max())
+        
+        # 3. Assign Support and Resistance with Proximity Logic
         if latest_close > poc_midpoint:
-            support_level = float(poc_midpoint)
-            resistance_level = float(sma_trend if (pd.notna(sma_trend) and sma_trend > latest_close) else hist_1m['High'].max())
+            # If the macro POC is more than 5% away, prioritize near-term structural support
+            if (latest_close - poc_midpoint) / latest_close > 0.05:
+                # Filter for near-term levels that are actually below the current price
+                valid_supports = [lvl for lvl in [sma_trend, swing_low_10d] if lvl < latest_close]
+                support_level = float(max(valid_supports)) if valid_supports else float(poc_midpoint)
+            else:
+                support_level = float(poc_midpoint)
+                
+            # Set resistance to SMA20 (if above) or the recent 10-day high
+            resistance_level = float(sma_trend if (pd.notna(sma_trend) and sma_trend > latest_close) else swing_high_10d)
         else:
             resistance_level = float(poc_midpoint)
             support_level = float(sma_trend if (pd.notna(sma_trend) and sma_trend < latest_close) else hist_1m['Low'].min())
