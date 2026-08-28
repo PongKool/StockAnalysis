@@ -297,7 +297,7 @@ if DRY_RUN:
 else:
     print("Generating structured technical analysis via Gemini API...")
     response = client.models.generate_content(
-        model='gemini-3.6-flash',
+        model='gemini-3.7-flash',
         contents=prompt,
         config=types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(thinking_level="low")
