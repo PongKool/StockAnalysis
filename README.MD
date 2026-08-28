@@ -12,8 +12,9 @@ The system executes automatically across two isolated workflows: US Equities (`g
 ## 🚀 Key Architectural Upgrades
 
 * **High-Speed Bulk Data Downloading:** Replaced slow, sequential ticker-by-ticker network queries with a singular multi-index bulk payload download via `yf.download()`. This eliminates sequential network lag and cuts data-gathering times by up to **80%**.
-* **Dual Macro Regime Filtering:** * **US Engine:** Integrates index tracking on the Invesco NASDAQ-100 ETF (`QQQ`) using a 20-day EMA to map global sector momentum.
-  *   **Thai Engine:** Integrates benchmark tracking on the SET50 Index ETF (`TDEX.BK`) using a slow 100-day SMA to track structural, long-term domestic blue-chip liquidity.
+* **Dual Macro Regime Filtering:** 
+  * **US Engine:** Integrates index tracking on the Invesco NASDAQ-100 ETF (`QQQ`) using a 20-day EMA to map global sector momentum.
+  * **Thai Engine:** Integrates benchmark tracking on the SET50 Index ETF (`TDEX.BK`) using a slow 100-day SMA to track structural, long-term domestic blue-chip liquidity.
 * **Targeted Risk Profiles:**
   * **US Tech Volatility:** Incorporates a 14-day **Average True Range (ATR)** to scale dynamic stop boundaries customized to aggressive intraday tech swings (*NVDA, AMD, AVGO*).
   *   **Thai Value Structural Maps:** Relies strictly on quarterly 3-Month (63-Day) Support/Resistance boundaries (using Point of Control and 50 SMA) to locate structural entry floors for heavy cash-flow blue chips (*BBL, ADVANC, PTT*).
