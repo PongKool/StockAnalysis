@@ -157,10 +157,30 @@ for ticker in tickers:
         actual_cost = f"{cost_val:.2f}"
         is_profitable = "Yes" if latest_close >= cost_val else "No"
         
-        # --- SUPPORT/RESISTANCE TO 21-DAY WINDOW ---
-        hist_1m = hist.tail(21)
-        support_level = hist_1m['Low'].min()
-        resistance_level = hist_1m['High'].max()
+        # --- FAST INSTITUTIONAL SUPPORT & RESISTANCE (SMA 20 + 1-Month Volume Profile) ---
+        # 1. Safely calculate fast 20-Day SMA for US Tech stocks
+        if len(hist) >= 20:
+            sma_trend = float(hist['Close'].rolling(window=20).mean().iloc[-1])
+        else:
+            sma_trend = float(hist['Close'].mean())
+        
+        # 2. Calculate Volume Profile over a tight 1-month window (21 days)
+        hist_1m = hist.tail(21).copy()
+        
+        # Safely group by price bins without triggering Pandas version errors
+        price_bins = pd.cut(hist_1m['Close'], bins=10)
+        volume_by_bin = hist_1m.groupby(price_bins)['Volume'].sum()
+        
+        poc_bin = volume_by_bin.idxmax()
+        poc_midpoint = float(poc_bin.mid)
+        
+        # 3. Assign Support and Resistance based on current price action
+        if latest_close > poc_midpoint:
+            support_level = float(poc_midpoint)
+            resistance_level = float(sma_trend if (pd.notna(sma_trend) and sma_trend > latest_close) else hist_1m['High'].max())
+        else:
+            resistance_level = float(poc_midpoint)
+            support_level = float(sma_trend if (pd.notna(sma_trend) and sma_trend < latest_close) else hist_1m['Low'].min())
 
         # HIGH-BETA MILESTONE OPTIMIZATION (14-day history windowed into key nodes)
         # Moved up here so closes_14d is defined before it's used in the conditional block below
