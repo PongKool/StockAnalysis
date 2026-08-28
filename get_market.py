@@ -175,10 +175,10 @@ for ticker in tickers:
         poc_bin = volume_by_bin.idxmax()
         poc_midpoint = float(poc_bin.mid)
         
-        # Define near-term swing levels (10 days)
+        # Define near-term swing levels (10 days) first
         swing_low_10d = float(hist['Low'].tail(10).min())
         swing_high_10d = float(hist['High'].tail(10).max())
-        
+    
         # Calculate Average True Range (ATR) for volatility context
         tr = np.maximum(
             hist['High'] - hist['Low'],
@@ -201,7 +201,7 @@ for ticker in tickers:
         resistance_level = float(min(structural_resistance, at_least_resistance))
         if resistance_level <= latest_close:
             resistance_level = float(swing_high_10d)
-
+        
         # HIGH-BETA MILESTONE OPTIMIZATION (14-day history windowed into key nodes)
         # Moved up here so closes_14d is defined before it's used in the conditional block below
         closes_14d = hist_1m['Close'].tail(14).tolist()
