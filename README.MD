@@ -65,6 +65,7 @@ The pipeline utilizes customized indicators for each specific market to optimize
 | :--- | :--- | :--- |
 | **Pricing Engine** | `auto_adjust=True` | Extracts split/dividend-adjusted historical bars for live intraday calculations. |
 | **Macro Regime** | 20-Day EMA | Tracks `QQQ` price posture to map global tech sector velocity and system risk. |
+| **Support & Resistance** | 1-Month (21-Day) Lookback | Isolates fast, short-term absolute highs and lows to map immediate tech breakout and breakdown levels. |
 | **Volatility Scaling** | 14-Day ATR | Estimates daily tech trading ranges to identify extreme momentum extensions. |
 | **Volume Velocity** | 5-Day OBV Trend | Computes directional volume accumulation to flag institutional buying vs. distribution. |
 | **Trend Continuity** | 14-Day Sparkline | Grabs recent close prices to supply the AI with immediate, short-term momentum context. |
