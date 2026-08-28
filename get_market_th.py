@@ -150,11 +150,31 @@ for ticker in tickers:
             actual_cost = f"{float(raw_cost):.2f}"
             position_status = "Profitable" if latest_close >= float(raw_cost) else "Unprofitable"
 
-        # Support and Resistance levels
-        hist_1m = hist.tail(21)
-        support_level = hist_1m['Low'].min()
-        resistance_level = hist_1m['High'].max()
-
+        # --- INSTITUTIONAL SUPPORT & RESISTANCE (SMA 50 + Volume Profile) ---
+        # 1. Calculate 50-Day SMA for structural trend
+        sma_50 = hist['Close'].rolling(window=50).mean().iloc[-1]
+        
+        # 2. Calculate Volume Profile (Point of Control) over the 1-month window
+        hist_1m = hist.tail(21).copy()
+        hist_1m.loc[:, 'Price_Bin'] = pd.cut(hist_1m['Close'], bins=10)
+        volume_by_bin = hist_1m.groupby('Price_Bin', observed=False)['Volume'].sum()
+        
+        # Identify the price bin with the highest traded volume
+        poc_bin = volume_by_bin.idxmax()
+        poc_midpoint = poc_bin.mid
+        
+        # 3. Assign Support and Resistance based on current price action
+        if latest_close > poc_midpoint:
+            # Price is above the high-volume node, treating it as support
+            support_level = float(poc_midpoint)
+            # Next resistance is either the 50 SMA (if above price) or absolute recent high
+            resistance_level = float(sma_50 if sma_50 > latest_close else hist_1m['High'].max())
+        else:
+            # Price is below the high-volume node, treating it as heavy resistance
+            resistance_level = float(poc_midpoint)
+            # Next support is either the 50 SMA (if below price) or absolute recent low
+            support_level = float(sma_50 if sma_50 < latest_close else hist_1m['Low'].min())
+            
         # --- DYNAMIC BUFFER BASED ON MACRO REGIME ---
         if macro_regime == "Bullish":
             support_buffer = support_level * 0.025  # Wider buffer (buy earlier)
