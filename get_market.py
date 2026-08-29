@@ -297,14 +297,14 @@ Data Input: {data_summary}
 """
 
 max_retries = 3
-retry_delay = 5
+retry_delay = 5  # Initial delay in seconds
 response = None
 
 for attempt in range(max_retries):
     try:
         print(f"Generating structured technical analysis via Gemini API (Attempt {attempt + 1}/{max_retries})...")
         response = client.models.generate_content(
-            model='gemini-3.6-flash',
+            model='gemini-3.7-flash',  # Ensure your model ID is up to date
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -315,20 +315,20 @@ for attempt in range(max_retries):
         analysis_data = json.loads(response.text.strip())["analyses"]
         break
     except Exception as e:
-        print(f"API Error: {e}")
+        print(f"API Error on attempt {attempt + 1}: {e}")
         if attempt < max_retries - 1:
             print(f"Retrying in {retry_delay} seconds...")
             time.sleep(retry_delay)
-            retry_delay *= 2
+            retry_delay *= 2  # Exponential backoff multiplier
         else:
             print("Max retries reached. Utilizing fallback strategy.")
             analysis_data = [{
-                "stock_name": t, 
-                "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A", 
-                "obv_status": "Error", 
-                "macd_status": "Error", 
-                "trend": "Error", 
-                "recommendation": "Error", 
+                "stock_name": t,
+                "cost": f"{my_costs.get(t, 0.0):.2f}" if my_costs.get(t, 0.0) > 0 else "N/A",
+                "obv_status": "Error",
+                "macd_status": "Error",
+                "trend": "Error",
+                "recommendation": "Error",
                 "important_note": "System extraction failure."
             } for t in tickers]
 
