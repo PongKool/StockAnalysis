@@ -165,15 +165,19 @@ for ticker in tickers:
         else:
             sma_trend = float(hist['Close'].mean())
         
-        # 2. Calculate Volume Profile across 12 days (Recent Consolidation)
-        hist_1m = hist.tail(12).copy()
+        # 2. Calculate Volume Profile across 21 days with Mild Recency Weighting
+        hist_1m = hist.tail(21).copy()
         min_price = hist_1m['Low'].min()
         max_price = hist_1m['High'].max()
         bins = np.linspace(min_price, max_price, 51)
         bin_volume = np.zeros(len(bins) - 1)
         
-        for _, row in hist_1m.iterrows():
-            day_low, day_high, day_vol = row['Low'], row['High'], row['Volume']
+        # Mild linear weight from 0.7 (oldest day) to 1.0 (most recent day)
+        weights = np.linspace(0.7, 1.0, len(hist_1m))
+        
+        for i, (_, row) in enumerate(hist_1m.iterrows()):
+            # Apply the weight to the day's volume
+            day_low, day_high, day_vol = row['Low'], row['High'], row['Volume'] * weights[i]
             slices = np.linspace(day_low, day_high, 10) if day_high != day_low else np.array([day_low])
             vol_per_slice = day_vol / len(slices)
             for price_point in slices:
