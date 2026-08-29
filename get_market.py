@@ -268,10 +268,12 @@ for ticker in tickers:
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
         
-# ADD THIS TO STOP EXECUTION HERE
-print("Stopping script early to test POC...")
-import sys
-sys.exit(0)
+# Start: ADD THIS TO STOP EXECUTION HERE
+# print("Stopping script early to test POC...")
+# import sys
+# sys.exit(0)
+# Stop: ADD THIS TO STOP EXECUTION HERE
+
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI
 prompt = f"""
