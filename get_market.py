@@ -165,16 +165,33 @@ for ticker in tickers:
         else:
             sma_trend = float(hist['Close'].mean())
         
-        # 2. Calculate Volume Profile over a tight 1-month window (21 days)
+        # 2. Calculate Volume Profile across 21 days with High-Low distribution
         hist_1m = hist.tail(21).copy()
         
-        typical_price = (hist_1m['High'] + hist_1m['Low'] + hist_1m['Close']) / 3
-        price_bins = pd.cut(typical_price, bins=24)
-        volume_by_bin = hist_1m.groupby(price_bins, observed=False)['Volume'].sum()
+        # Create 50 fine-grained price bins across the 21-day range
+        min_price = hist_1m['Low'].min()
+        max_price = hist_1m['High'].max()
+        bins = np.linspace(min_price, max_price, 51)
+        bin_volume = np.zeros(len(bins) - 1)
         
-        poc_bin = volume_by_bin.idxmax()
-        poc_midpoint = float(poc_bin.mid)
-        print(f"{ticker} POC Midpoint: {poc_midpoint}")
+        # Distribute each day's volume evenly across 10 slices between its Low and High
+        for _, row in hist_1m.iterrows():
+            day_low, day_high, day_vol = row['Low'], row['High'], row['Volume']
+            if day_high == day_low:
+                slices = np.array([day_low])
+            else:
+                slices = np.linspace(day_low, day_high, 10)
+            
+            vol_per_slice = day_vol / len(slices)
+            for price_point in slices:
+                idx = np.digitize(price_point, bins) - 1
+                idx = max(0, min(idx, len(bin_volume) - 1))
+                bin_volume[idx] += vol_per_slice
+        
+        # Find the bin with the highest accumulated volume
+        poc_idx = np.argmax(bin_volume)
+        poc_midpoint = float((bins[poc_idx] + bins[poc_idx + 1]) / 2)
+        print(f"{ticker} POC Midpoint: {poc_midpoint:.2f}")
         
         # Define near-term swing levels (21 days) first
         swing_low_21d = float(hist['Low'].tail(21).min())
@@ -257,6 +274,10 @@ for ticker in tickers:
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
         
+# ADD THIS TO STOP EXECUTION HERE
+print("Stopping script early to test POC...")
+import sys
+sys.exit(0)
 
 # 3. REQUEST STRUCTURED ANALYSIS FROM GEMINI
 prompt = f"""
