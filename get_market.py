@@ -165,30 +165,24 @@ for ticker in tickers:
         else:
             sma_trend = float(hist['Close'].mean())
         
-        # 2. Calculate Volume Profile across 21 days with High-Low distribution
+        # 2. Calculate Volume Profile across 21 days with Recency Weighting
         hist_1m = hist.tail(21).copy()
-        
-        # Create 50 fine-grained price bins across the 21-day range
         min_price = hist_1m['Low'].min()
         max_price = hist_1m['High'].max()
         bins = np.linspace(min_price, max_price, 51)
         bin_volume = np.zeros(len(bins) - 1)
         
-        # Distribute each day's volume evenly across 10 slices between its Low and High
-        for _, row in hist_1m.iterrows():
-            day_low, day_high, day_vol = row['Low'], row['High'], row['Volume']
-            if day_high == day_low:
-                slices = np.array([day_low])
-            else:
-                slices = np.linspace(day_low, day_high, 10)
-            
+        # Linear weight scaling from 0.4 (oldest day) to 1.0 (most recent day)
+        weights = np.linspace(0.4, 1.0, len(hist_1m))
+        
+        for i, (_, row) in enumerate(hist_1m.iterrows()):
+            day_low, day_high, day_vol = row['Low'], row['High'], row['Volume'] * weights[i]
+            slices = np.linspace(day_low, day_high, 10) if day_high != day_low else np.array([day_low])
             vol_per_slice = day_vol / len(slices)
             for price_point in slices:
-                idx = np.digitize(price_point, bins) - 1
-                idx = max(0, min(idx, len(bin_volume) - 1))
+                idx = max(0, min(np.digitize(price_point, bins) - 1, len(bin_volume) - 1))
                 bin_volume[idx] += vol_per_slice
         
-        # Find the bin with the highest accumulated volume
         poc_idx = np.argmax(bin_volume)
         poc_midpoint = float((bins[poc_idx] + bins[poc_idx + 1]) / 2)
         print(f"{ticker} POC Midpoint: {poc_midpoint:.2f}")
