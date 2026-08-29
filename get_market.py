@@ -165,8 +165,8 @@ for ticker in tickers:
         else:
             sma_trend = float(hist['Close'].mean())
         
-        # 2. Calculate Volume Profile across 21 days (Uniform Distribution across 50 bins)
-        hist_1m = hist.tail(21).copy()
+        # 2. Calculate Volume Profile across 12 days (Recent Consolidation)
+        hist_1m = hist.tail(12).copy()
         min_price = hist_1m['Low'].min()
         max_price = hist_1m['High'].max()
         bins = np.linspace(min_price, max_price, 51)
