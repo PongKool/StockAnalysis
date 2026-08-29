@@ -168,9 +168,9 @@ for ticker in tickers:
         # 2. Calculate Volume Profile over a tight 1-month window (21 days)
         hist_1m = hist.tail(21).copy()
         
-        # Safely group by price bins without triggering Pandas version errors
-        price_bins = pd.cut(hist_1m['Close'], bins=10)
-        volume_by_bin = hist_1m.groupby(price_bins)['Volume'].sum()
+        typical_price = (hist_1m['High'] + hist_1m['Low'] + hist_1m['Close']) / 3
+        price_bins = pd.cut(typical_price, bins=24)
+        volume_by_bin = hist_1m.groupby(price_bins, observed=False)['Volume'].sum()
         
         poc_bin = volume_by_bin.idxmax()
         poc_midpoint = float(poc_bin.mid)
