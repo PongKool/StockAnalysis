@@ -296,7 +296,7 @@ Stocks to analyze: {', '.join(tickers)}
 Data Input: {data_summary}
 """
 
-max_retries = 3
+max_retries = 5
 retry_delay = 5  # Initial delay in seconds
 response = None
 
