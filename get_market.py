@@ -176,9 +176,9 @@ for ticker in tickers:
         poc_midpoint = float(poc_bin.mid)
         print(f"{ticker} POC Midpoint: {poc_midpoint}")
         
-        # Define near-term swing levels (10 days) first
-        swing_low_10d = float(hist['Low'].tail(10).min())
-        swing_high_10d = float(hist['High'].tail(10).max())
+        # Define near-term swing levels (21 days) first
+        swing_low_21d = float(hist['Low'].tail(21).min())
+        swing_high_21d = float(hist['High'].tail(21).max())
     
         # Calculate Average True Range (ATR) for volatility context
         tr = np.maximum(
@@ -192,16 +192,16 @@ for ticker in tickers:
     
         # Hybrid Support & Resistance with ATR and Volume Profile
         at_least_support = latest_close - (1.5 * atr_14)
-        structural_support = max(swing_low_10d, poc_midpoint if poc_midpoint < latest_close else 0)
+        structural_support = max(swing_low_21d, poc_midpoint if poc_midpoint < latest_close else 0)
         support_level = float(max(structural_support, at_least_support))
         if support_level >= latest_close:
-            support_level = float(swing_low_10d)
+            support_level = float(swing_low_21d)
     
         at_least_resistance = latest_close + (1.5 * atr_14)
-        structural_resistance = min(swing_high_10d, poc_midpoint if poc_midpoint > latest_close else float('inf'))
+        structural_resistance = min(swing_high_21d, poc_midpoint if poc_midpoint > latest_close else float('inf'))
         resistance_level = float(min(structural_resistance, at_least_resistance))
         if resistance_level <= latest_close:
-            resistance_level = float(swing_high_10d)
+            resistance_level = float(swing_high_21d)
         
         # HIGH-BETA MILESTONE OPTIMIZATION (14-day history windowed into key nodes)
         # Moved up here so closes_14d is defined before it's used in the conditional block below
