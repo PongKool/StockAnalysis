@@ -174,6 +174,7 @@ for ticker in tickers:
         
         poc_bin = volume_by_bin.idxmax()
         poc_midpoint = float(poc_bin.mid)
+        print(f"{ticker} POC Midpoint: {poc_midpoint}")
         
         # Define near-term swing levels (10 days) first
         swing_low_10d = float(hist['Low'].tail(10).min())
