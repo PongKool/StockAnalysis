@@ -42,7 +42,7 @@ calculated_market_data = {}
 # Initialize the Gemini Client with Vertex AI
 client = genai.Client(
     vertexai=True, 
-    project="YOUR_GCP_PROJECT_ID", 
+    project="gen-lang-client-0269994069", 
     location="us-central1"
 )
 
