@@ -32,7 +32,7 @@ jobs:
         env:
           VERTEXAI: "true"
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-          GOOGLE_CLOUD_LOCATION: "us-central1" # or your preferred region
+          GOOGLE_CLOUD_LOCATION: "asia-southeast1" # or your preferred region
         run: python get_market_us_vertex.py
 
       - name: Commit and Push Generated PDF
