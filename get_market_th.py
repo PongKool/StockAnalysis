@@ -11,7 +11,7 @@ DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for liv
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION FIRST (THAI SET WATCHLIST)
 my_costs = {
-    "BH.BK": 190.69,       # Custom entries configured in THB
+    "BH.BK": 190.50,       # Custom entries configured in THB
     "GULF.BK": 67.25,
     "SCC.BK": 260.44,
     "TU.BK": 13.28,
@@ -21,7 +21,7 @@ my_costs = {
     "KTB.BK": 44.54,
     "PTT.BK": 41.54,
     "TRUE.BK": 14.09,
-    "WHA.BK": 4.89,
+    "WHA.BK": 4.88,
     
     "GPSC.BK": 0,
     "ADVANC.BK": 0,
