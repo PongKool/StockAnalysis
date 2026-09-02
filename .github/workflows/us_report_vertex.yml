@@ -23,9 +23,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install yfinance fpdf2 pandas pandas-ta google-genai
 
-      - name: Execute US Market Script
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }} # Service account JSON key
+      
+      - name: Run Market Analysis
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VERTEXAI: "true"
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+          GOOGLE_CLOUD_LOCATION: "us-central1" # or your preferred region
         run: python get_market_vertex_us.py
 
       - name: Commit and Push Generated PDF
