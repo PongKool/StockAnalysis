@@ -43,7 +43,7 @@ calculated_market_data = {}
 client = genai.Client(
     vertexai=True, 
     project="gen-lang-client-0269994069", 
-    location="us-central1"
+    location="asia-southeast1"
 )
 
 class StockAnalysisSchema(BaseModel):
