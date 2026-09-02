@@ -1,14 +1,15 @@
-name: US Market Analysis Vertex Engine
+name: US Market AI Analysis
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write # Grants the workflow permission to commit and push changes
 
 jobs:
-  run-us-analysis:
+  run-analysis:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -16,32 +17,24 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.11"
+          cache: "pip"
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install yfinance fpdf2 pandas pandas-ta google-genai
+          pip install google-genai pydantic yfinance fpdf2
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }} # Service account JSON key
-      
-      - name: Run Market Analysis
+      - name: Run Market Analysis Script
         env:
-          VERTEXAI: "true"
-          GOOGLE_CLOUD_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
-          GOOGLE_CLOUD_LOCATION: "asia-southeast1" # or your preferred region
-        run: python get_market_vertex_us.py
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_FREE }}
+        run: |
+          python get_us_market.py
 
       - name: Commit and Push Generated PDF
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git stash
-          git pull origin main --rebase
-          git stash pop || true
-          git add us_market_analysis.pdf
-          git commit -m "Automated US PDF Update [skip ci]" || exit 0
-          git push origin main
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add us_market_ai.pdf
+          git commit -m "Auto-generate latest market analysis PDF [skip ci]" || echo "No changes to commit"
+          git push
