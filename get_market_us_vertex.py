@@ -492,6 +492,6 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
             style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_color)
         )
         
-filename = "us_market_analysis.pdf"
+filename = "us_market_analysis_vertex.pdf"
 pdf.output(filename)
 print(f"PDF output finalized successfully as {filename}.")
