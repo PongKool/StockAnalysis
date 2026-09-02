@@ -1,4 +1,4 @@
-name: US Market Analysis Engine
+name: US Market Analysis Vertex Engine
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
       - name: Execute US Market Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python get_market.py
+        run: python get_market_vertex_us.py
 
       - name: Commit and Push Generated PDF
         run: |
