@@ -27,7 +27,8 @@ jobs:
       - name: Execute Thai Market Script
         env:
           # GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_FREE }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.THAIPASS_GEMINI_API }}
         run: python get_market_th.py
 
       - name: Commit and Push Generated PDF
