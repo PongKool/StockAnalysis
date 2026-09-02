@@ -2,4 +2,4 @@ yfinance
 anthropic
 fpdf2
 pandas
-pandas-ta
+pandas_ta
