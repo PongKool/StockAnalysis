@@ -29,12 +29,12 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_FREE }}
         run: |
-          python get_us_market.py
+          python get_market_us.py
 
       - name: Commit and Push Generated PDF
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add us_market_ai.pdf
+          git add us_market_analysis.pdf
           git commit -m "Auto-generate latest market analysis PDF [skip ci]" || echo "No changes to commit"
           git push
