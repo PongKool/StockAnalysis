@@ -202,13 +202,13 @@ for ticker in tickers:
         atr_14 = float(tr.rolling(14).mean().iloc[-1])
     
         # Hybrid Support & Resistance with ATR and Volume Profile
-        at_least_support = latest_close - (1.5 * atr_14)
+        at_least_support = latest_close - (2.0 * atr_14)
         structural_support = max(swing_low_21d, poc_midpoint if poc_midpoint < latest_close else 0)
         support_level = float(max(structural_support, at_least_support))
         if support_level >= latest_close:
             support_level = float(swing_low_21d)
     
-        at_least_resistance = latest_close + (1.5 * atr_14)
+        at_least_resistance = latest_close + (2.0 * atr_14)
         structural_resistance = min(swing_high_21d, poc_midpoint if poc_midpoint > latest_close else float('inf'))
         resistance_level = float(min(structural_resistance, at_least_resistance))
         if resistance_level <= latest_close:
