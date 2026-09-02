@@ -27,7 +27,7 @@ jobs:
 
       - name: Run Market Analysis Script
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_FREE }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python get_market_us.py
 
