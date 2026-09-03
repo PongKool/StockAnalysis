@@ -275,11 +275,12 @@ for ticker in tickers:
         }
         
         data_summary += (
-            f"T: {ticker} |C: {actual_cost} |L: {latest_close:.2f} |P: {is_profitable} |"
-            f"S: {support_level:.2f} |R: {resistance_level:.2f} |ATR: {atr:.1f} ({atr_pct:.1f}%)|"
-            f"Stop: {atr_stop_loss:.2f} |RR: {rr_ratio_str} |Days: {atr_to_target:.1f} |"
-            f"OBV: {obv_trend} |OBV5D: {obv_5d_trend} |MACD: {macd_status} |Closes:[{trend_string}]\n"
-        )
+        f"T: {ticker} |C: {actual_cost} |L: {latest_close:.2f} |P: {is_profitable} |"
+        f"S: {support_level:.2f} |R: {resistance_level:.2f} |ATR: {atr:.1f} ({atr_pct:.1f}%)|"
+        f"Stop: {atr_stop_loss:.2f} |RR: {rr_ratio_str} |Days: {atr_to_target:.1f} |"
+        f"Squeeze: {squeeze_status_str} |"
+        f"OBV: {obv_trend} |OBV5D: {obv_5d_trend} |MACD: {macd_status} |Closes:[{trend_string}]\n"
+    )
         
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
@@ -320,7 +321,8 @@ You MUST explicitly mention how technical profiles or volatility metrics justifi
 - If the Latest Close (L:) is within 1.5% of the Resistance level (R:), calculate the breakout target (Resistance + 0.01) and explicitly state it in the note (e.g., "Watch for a clean breakout above $XXXX.XX").
 - If the recommendation is "Sell", check the profitability flag (P:). If P is "Yes", explicitly label your reason as a "Take-Profit" action. If P is "No" (or cost is N/A), you MUST explicitly label your reason as a "Cut-Loss" action and forbid any mention of "Take-Profit".
 - If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
-- If the stock has successfully broken above its resistance floor, note that old resistance has turned into support. 
+- If the stock has successfully broken above its resistance floor, note that old resistance has turned into support.
+- If the stock's data indicates a volatility squeeze (Squeeze: Squeeze Active...), explicitly mention that a squeeze is active and an expansion is imminent in the note.
 
 CRITICAL FORMATTING:
 - Keep the 'important_note' detailed yet dense (strictly under 45 words) to ensure deep technical justification fits within the table structure.
