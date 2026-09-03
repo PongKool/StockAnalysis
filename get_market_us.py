@@ -198,9 +198,15 @@ for ticker in tickers:
         poc_midpoint = float((bins[poc_idx] + bins[poc_idx + 1]) / 2)
         print(f"{ticker} POC Midpoint: {poc_midpoint:.2f}")
         
-        # Define near-term swing levels (21 days) first
-        swing_low_21d = float(hist['Low'].tail(21).min())
-        swing_high_21d = float(hist['High'].tail(21).max())
+        # --- HANDLE VOLATILITY SQUEEZES & DYNAMIC LOOKBACK ---
+        is_squeezed = bb_bandwidth < 5.0
+        squeeze_status_str = "Squeeze Active (Expansion Imminent)" if is_squeezed else "Normal Volatility"
+    
+        # Widen swing lookback window during a squeeze to capture macro structural levels
+        lookback_period = 50 if is_squeezed else 21
+    
+        swing_low_21d = float(hist['Low'].tail(lookback_period).min())
+        swing_high_21d = float(hist['High'].tail(lookback_period).max())
     
         # Calculate Average True Range (ATR) for volatility context
         tr = np.maximum(
