@@ -151,6 +151,17 @@ for ticker in tickers:
             
         cost_val = my_costs.get(ticker, 0.0)
 
+        # --- CALCULATE BOLLINGER BANDS (20, 2) ---
+        bbands = hist.ta.bbands(length=20, std=2)
+        # pandas_ta columns usually follow: BBL_20_2.0, BBM_20_2.0, BBU_20_2.0, BBB_20_2.0 (Bandwidth), BBP_20_2.0 (Percent)
+        lower_col = [c for c in bbands.columns if c.startswith('BBL')][0]
+        upper_col = [c for c in bbands.columns if c.startswith('BBU')][0]
+        width_col = [c for c in bbands.columns if c.startswith('BBB')][0]
+        
+        bb_lower = float(bbands[lower_col].iloc[-1])
+        bb_upper = float(bbands[upper_col].iloc[-1])
+        bb_bandwidth = float(bbands[width_col].iloc[-1]) # Width as a percentage or fraction depending on pandas_ta version
+
         # Fallback to latest price if cost is 0, None, or empty
         if not cost_val or cost_val == 0 or str(cost_val).strip() == "":
             cost_val = latest_close
@@ -201,16 +212,16 @@ for ticker in tickers:
         )
         atr_14 = float(tr.rolling(14).mean().iloc[-1])
     
-        # Hybrid Support & Resistance with ATR and Volume Profile
+        # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
         at_least_support = latest_close - (2.0 * atr_14)
         structural_support = max(swing_low_21d, poc_midpoint if poc_midpoint < latest_close else 0)
-        support_level = float(max(structural_support, at_least_support))
+        support_level = float(max(structural_support, bb_lower, latest_close - (2.0 * atr_14)))
         if support_level >= latest_close:
             support_level = float(swing_low_21d)
     
         at_least_resistance = latest_close + (2.0 * atr_14)
         structural_resistance = min(swing_high_21d, poc_midpoint if poc_midpoint > latest_close else float('inf'))
-        resistance_level = float(min(structural_resistance, at_least_resistance))
+        resistance_level = float(min(structural_resistance, bb_upper, latest_close + (2.0 * atr_14)))
         if resistance_level <= latest_close:
             resistance_level = float(swing_high_21d)
         
@@ -226,6 +237,11 @@ for ticker in tickers:
             closes_14d[-1]   # Today
         ]
         trend_string = ", ".join([f"{val:.1f}" for val in optimized_trend])
+
+        # --- HANDLE VOLATILITY SQUEEZES ---
+        # Detect if bands are squeezed (e.g., bandwidth exceptionally narrow, typically < 5.0 depending on asset)
+        is_squeezed = bb_bandwidth < 5.0 
+        squeeze_status_str = "Squeeze Active (Expansion Imminent)" if is_squeezed else "Normal Volatility"
 
         # --- RISK/REWARD RATIO WITH BREAKOUT/BOUNCE DETECTION ---
         risk_distance = latest_close - support_level
