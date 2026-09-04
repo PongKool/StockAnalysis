@@ -87,7 +87,7 @@ else:
 
 print("Executing bulk historical data download via Yahoo Finance...")
 try:
-    all_hist = yf.download(tickers, period="6mo", auto_adjust=True, group_by='ticker')
+    all_hist = yf.download(tickers, period="1y", auto_adjust=True, group_by='ticker')
 except Exception as e:
     print(f"Bulk download failed: {e}")
     all_hist = None
@@ -100,9 +100,9 @@ for ticker in tickers:
         if all_hist is not None and not all_hist.empty and ticker in all_hist.columns.get_level_values(0):
             hist = all_hist[ticker].copy()
         else:
-            hist = yf.Ticker(ticker).history(period="6mo", auto_adjust=True)
+            hist = yf.Ticker(ticker).history(period="1y", auto_adjust=True)
             
-        if hist.empty or len(hist) < 26:
+        if hist.empty or len(hist) < 200:
             continue
             
         hist = hist.dropna(subset=['Close'])
@@ -219,9 +219,12 @@ for ticker in tickers:
         atr_14 = float(tr.rolling(14).mean().iloc[-1])
     
         # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
+        ema200 = float(hist.ta.ema(length=200).iloc[-1])
+        print(f"Ticker: {ticker} | Price: {latest_close:.2f} | EMA200: {ema200:.2f} | Support: {support_level:.2f}")
+        
         at_least_support = latest_close - (2.0 * atr_14)
         structural_support = max(swing_low_21d, poc_midpoint if poc_midpoint < latest_close else 0)
-        support_level = float(max(structural_support, bb_lower, latest_close - (2.0 * atr_14)))
+        support_level = float(max(structural_support, bb_lower, ema200, at_least_support))
         if support_level >= latest_close:
             support_level = float(swing_low_21d)
     
@@ -277,7 +280,8 @@ for ticker in tickers:
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
             "resistance": f"{resistance_level:.2f}",
-            "atr_stop": f"{atr_stop_loss:.2f}"
+            "atr_stop": f"{atr_stop_loss:.2f}",
+            "ema200": f"{ema200:.2f}"
         }
         
         data_summary += (
