@@ -220,8 +220,9 @@ for ticker in tickers:
     
         # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
         # --- PASTE THIS NEW BLOCK ---
+        # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
         ema200 = float(hist.ta.ema(length=200).iloc[-1])
-        
+
         # 1. Define support/resistance candidates ordered by institutional significance
         support_candidates = [
             ("POC", poc_midpoint if poc_midpoint < latest_close else np.nan),
@@ -230,7 +231,7 @@ for ticker in tickers:
             ("2 ATR Support", latest_close - (2.0 * atr_14)),
             ("EMA200", ema200 if ema200 < latest_close else np.nan),
         ]
-        
+
         resistance_candidates = [
             ("POC", poc_midpoint if poc_midpoint > latest_close else np.nan),
             ("Swing High", swing_high_21d if swing_high_21d > latest_close else np.nan),
@@ -238,7 +239,7 @@ for ticker in tickers:
             ("2 ATR Resistance", latest_close + (2.0 * atr_14)),
             ("EMA200", ema200 if ema200 > latest_close else np.nan),
         ]
-        
+
         # 2. Extract first valid structural level for Support and Resistance
         valid_supports = [
             (name, float(val)) for name, val in support_candidates 
@@ -248,32 +249,32 @@ for ticker in tickers:
             (name, float(val)) for name, val in resistance_candidates 
             if np.isfinite(val) and val > latest_close
         ]
-        
+
         # High-priority initial pick
         if not valid_supports:
             valid_supports = [("2 ATR Support", float(latest_close - (2.0 * atr_14)))]
-        
+
         if not valid_resistances:
             valid_resistances = [("2 ATR Resistance", float(latest_close + (2.0 * atr_14)))]
-        
+
         support_source, support_level = valid_supports[0]
         resistance_source, resistance_level = valid_resistances[0]
-        
+
         # 3. GUARDRAIL: If channel width is unrealistically compressed (< 1.0x ATR),
         # expand support or resistance to the 2 ATR boundary to maintain a tradable range.
         min_channel_width = 1.0 * atr_14
-        
+
         if (resistance_level - support_level) < min_channel_width:
-        # If support is too close or above current price
-        if (latest_close - support_level) < (min_channel_width / 2):
-            support_source = "2 ATR Support"
-            support_level = float(latest_close - (2.0 * atr_14))
-    
-        # If resistance is too close or below current price
-        if (resistance_level - latest_close) < (min_channel_width / 2):
-            resistance_source = "2 ATR Resistance"
-            resistance_level = float(latest_close + (2.0 * atr_14))
-        
+            # If support is too close or above current price
+            if (latest_close - support_level) < (min_channel_width / 2):
+                support_source = "2 ATR Support"
+                support_level = float(latest_close - (2.0 * atr_14))
+
+            # If resistance is too close or below current price
+            if (resistance_level - latest_close) < (min_channel_width / 2):
+                resistance_source = "2 ATR Resistance"
+                resistance_level = float(latest_close + (2.0 * atr_14))
+
         print(
             f"Ticker: {ticker} | Price: {latest_close:.2f} | "
             f"Support: {support_level:.2f} ({support_source}) | "
