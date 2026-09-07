@@ -230,7 +230,7 @@ for ticker in tickers:
         data_summary += (
             f"Ticker: {ticker} | Entry Cost (THB): {actual_cost} | Latest Close (THB): {latest_close:.2f} | "
             f"Position Status: {position_status} | "
-            f"1Mo Support: {support_level:.2f} | 1Mo Resistance: {resistance_level:.2f} | "
+            f"3Mo Support: {support_level:.2f} | 3Mo Resistance: {resistance_level:.2f} | "
             f"Risk/Reward: {rr_ratio_str} | "
             f"OBV: {latest_obv:.0f} ({obv_trend}) | MACD: {latest_macd:.2f} (Signal: {latest_signal:.2f}, {macd_status}) | "
             f"Recent Close Trend: [{trend_string}]\n"
@@ -246,12 +246,12 @@ You are given the 'GLOBAL THAI MARKET REGIME' context derived from the SET50 Ind
 CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
 
 1. **CONFIRMED BREAKOUT (PRICE ABOVE RESISTANCE):**
-   - Condition: Latest Close is strictly breaking out ABOVE 1Mo Resistance (`Latest Close > 1Mo Resistance`), accompanied by a "Rising" OBV trend and a "Bullish" MACD profile:
+   - Condition: Latest Close is strictly breaking out ABOVE 3Mo Resistance (`Latest Close > 3Mo Resistance`), accompanied by a "Rising" OBV trend and a "Bullish" MACD profile:
      - For **Watchlist Stocks** (`Entry Cost: 0.00`): Recommend **Buy (Breakout)** to enter expanding volume momentum.
      - For **Held Positions** (`Entry Cost > 0`): Recommend **Hold (Accumulate)** to aggressively scale into the confirmed trend. Override standard "Poor R/R" exit rules.
 
 2. **TESTING RESISTANCE / EXTENDED MOVE (PRICE AT OR BELOW RESISTANCE):**
-   - Condition: Price is near or testing resistance (`Latest Close <= 1Mo Resistance`) with an unfavorable Risk/Reward ratio (< 1:1.0):
+   - Condition: Price is near or testing resistance (`Latest Close <= 3Mo Resistance`) with an unfavorable Risk/Reward ratio (< 1:1.0):
      - For **Held Positions (`Entry Cost > 0`)**:
        - **If Profitable (`Latest Close >= Entry Cost`)**:
          - If showing exhaustion (MACD bearish cross or falling OBV), recommend **Take-Profit Exit**.
@@ -265,8 +265,8 @@ CRITICAL VALUE-PORTFOLIO RISK & DEFENSE RULES:
    - **Neutral / Wait:** Recommend **Hold** (or **Watch**) if conditions are unmet (e.g., Bearish MACD, Falling OBV). Never issue exit/stop-loss recommendations for unentered assets.
 
 4. **HELD POSITIONS: DEFENSE & SUPPORT ACCUMULATION (`Entry Cost > 0`):**
-   - **Hold (Accumulate):** If position is healthy with "Rising" OBV + "Bullish" MACD while resting near **1Mo Support** (favorable R/R), recommend **Hold (Accumulate)**.
-   - **Support-Aware Stop-Loss:** If position is unprofitable AND Latest Close breaks structurally below 1Mo Support, recommend **Support-Aware Stop-Loss**. If holding support with bounce potential, maintain **Hold**.
+   - **Hold (Accumulate):** If position is healthy with "Rising" OBV + "Bullish" MACD while resting near **3Mo Support** (favorable R/R), recommend **Hold (Accumulate)**.
+   - **Support-Aware Stop-Loss:** If position is unprofitable AND Latest Close breaks structurally below 3Mo Support, recommend **Support-Aware Stop-Loss**. If holding support with bounce potential, maintain **Hold**.
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 1. You MUST explicitly mention how the combination of the **Rising OBV volume trend** and the **MACD status** justified your decision to buy or increase positions.
