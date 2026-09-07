@@ -221,20 +221,33 @@ for ticker in tickers:
         # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
         ema200 = float(hist.ta.ema(length=200).iloc[-1])
         
-        at_least_support = latest_close - (2.0 * atr_14)
-        structural_support = max(swing_low_21d, poc_midpoint if poc_midpoint < latest_close else 0)
-        support_level = float(max(structural_support, bb_lower, ema200, at_least_support))
-        if support_level >= latest_close:
-            support_level = float(swing_low_21d)
-    
+        support_candidates = [
+            swing_low_21d,
+            poc_midpoint,
+            bb_lower,
+            latest_close - (2.0 * atr_14),
+        ]
+
+        resistance_candidates = [
+            swing_high_21d,
+            poc_midpoint,
+            bb_upper,
+            latest_close + (2.0 * atr_14),
+        ]
+
+        if ema200 < latest_close:
+            support_candidates.append(ema200)
+        else:
+            resistance_candidates.append(ema200)
+
+        valid_supports = [x for x in support_candidates if np.isfinite(x) and x < latest_close]
+        valid_resistances = [x for x in resistance_candidates if np.isfinite(x) and x > latest_close]
+
+        support_level = float(max(valid_supports))
+        resistance_level = float(min(valid_resistances)) 
+
         print(f"Ticker: {ticker} | Price: {latest_close:.2f} | EMA200: {ema200:.2f} | Support: {support_level:.2f}")
 
-        
-        at_least_resistance = latest_close + (2.0 * atr_14)
-        structural_resistance = min(swing_high_21d, poc_midpoint if poc_midpoint > latest_close else float('inf'))
-        resistance_level = float(min(structural_resistance, bb_upper, latest_close + (2.0 * atr_14)))
-        if resistance_level <= latest_close:
-            resistance_level = float(swing_high_21d)
         
         # HIGH-BETA MILESTONE OPTIMIZATION (14-day history windowed into key nodes)
         # Moved up here so closes_14d is defined before it's used in the conditional block below
