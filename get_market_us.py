@@ -219,35 +219,59 @@ for ticker in tickers:
         atr_14 = float(tr.rolling(14).mean().iloc[-1])
     
         # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
+        # --- PASTE THIS NEW BLOCK ---
         ema200 = float(hist.ta.ema(length=200).iloc[-1])
         
+        # 1. Define support/resistance candidates ordered by institutional significance
         support_candidates = [
-            swing_low_21d,
-            poc_midpoint,
-            bb_lower,
-            latest_close - (2.0 * atr_14),
+            ("POC", poc_midpoint if poc_midpoint < latest_close else np.nan),
+            ("Swing Low", swing_low_21d if swing_low_21d < latest_close else np.nan),
+            ("Lower BB", bb_lower if bb_lower < latest_close else np.nan),
+            ("2 ATR Support", latest_close - (2.0 * atr_14)),
+            ("EMA200", ema200 if ema200 < latest_close else np.nan),
         ]
-
+        
         resistance_candidates = [
-            swing_high_21d,
-            poc_midpoint,
-            bb_upper,
-            latest_close + (2.0 * atr_14),
+            ("POC", poc_midpoint if poc_midpoint > latest_close else np.nan),
+            ("Swing High", swing_high_21d if swing_high_21d > latest_close else np.nan),
+            ("Upper BB", bb_upper if bb_upper > latest_close else np.nan),
+            ("2 ATR Resistance", latest_close + (2.0 * atr_14)),
+            ("EMA200", ema200 if ema200 > latest_close else np.nan),
         ]
-
-        if ema200 < latest_close:
-            support_candidates.append(ema200)
-        else:
-            resistance_candidates.append(ema200)
-
-        valid_supports = [x for x in support_candidates if np.isfinite(x) and x < latest_close]
-        valid_resistances = [x for x in resistance_candidates if np.isfinite(x) and x > latest_close]
-
-        support_level = float(max(valid_supports))
-        resistance_level = float(min(valid_resistances)) 
-
-        print(f"Ticker: {ticker} | Price: {latest_close:.2f} | EMA200: {ema200:.2f} | Support: {support_level:.2f}")
-
+        
+        # 2. Extract first valid structural level for Support and Resistance
+        valid_supports = [
+            (name, float(val)) for name, val in support_candidates 
+            if np.isfinite(val) and val < latest_close
+        ]
+        valid_resistances = [
+            (name, float(val)) for name, val in resistance_candidates 
+            if np.isfinite(val) and val > latest_close
+        ]
+        
+        # High-priority initial pick
+        support_source, support_level = valid_supports[0]
+        resistance_source, resistance_level = valid_resistances[0]
+        
+        # 3. GUARDRAIL: If channel width is unrealistically compressed (< 1.0x ATR),
+        # expand support or resistance to the 2 ATR boundary to maintain a tradable range.
+        min_channel_width = 1.0 * atr_14
+        
+        if (resistance_level - support_level) < min_channel_width:
+            if (latest_close - support_level) < (min_channel_width / 2):
+                support_source = "2 ATR Support"
+                support_level = float(latest_close - (2.0 * atr_14))
+            
+            if (resistance_level - latest_close) < (min_channel_width / 2):
+                resistance_source = "2 ATR Resistance"
+                resistance_level = float(latest_close + (2.0 * atr_14))
+        
+        print(
+            f"Ticker: {ticker} | Price: {latest_close:.2f} | "
+            f"Support: {support_level:.2f} ({support_source}) | "
+            f"Resistance: {resistance_level:.2f} ({resistance_source}) | "
+            f"Spread: {(resistance_level - support_level):.2f}"
+        )
         
         # HIGH-BETA MILESTONE OPTIMIZATION (14-day history windowed into key nodes)
         # Moved up here so closes_14d is defined before it's used in the conditional block below
