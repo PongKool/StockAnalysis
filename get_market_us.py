@@ -220,7 +220,6 @@ for ticker in tickers:
     
         # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
         ema200 = float(hist.ta.ema(length=200).iloc[-1])
-        print(f"Ticker: {ticker} | Price: {latest_close:.2f} | EMA200: {ema200:.2f} | Support: {support_level:.2f}")
         
         at_least_support = latest_close - (2.0 * atr_14)
         structural_support = max(swing_low_21d, poc_midpoint if poc_midpoint < latest_close else 0)
@@ -228,6 +227,9 @@ for ticker in tickers:
         if support_level >= latest_close:
             support_level = float(swing_low_21d)
     
+        print(f"Ticker: {ticker} | Price: {latest_close:.2f} | EMA200: {ema200:.2f} | Support: {support_level:.2f}")
+
+        
         at_least_resistance = latest_close + (2.0 * atr_14)
         structural_resistance = min(swing_high_21d, poc_midpoint if poc_midpoint > latest_close else float('inf'))
         resistance_level = float(min(structural_resistance, bb_upper, latest_close + (2.0 * atr_14)))
