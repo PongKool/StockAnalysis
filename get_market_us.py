@@ -219,8 +219,7 @@ for ticker in tickers:
         atr_14 = float(tr.rolling(14).mean().iloc[-1])
     
         # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
-        # --- PASTE THIS NEW BLOCK ---
-        # Hybrid Support & Resistance with ATR, Volume Profile, and Bollinger Bands
+
         ema200 = float(hist.ta.ema(length=200).iloc[-1])
 
         # 1. Define support/resistance candidates ordered by institutional significance
