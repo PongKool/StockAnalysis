@@ -42,23 +42,26 @@ client = genai.Client()
 
 # --- FETCH THAI BLUE-CHIP MACRO REGIME ---
 print("Evaluating Thai SET50 Macro Economic Regime...")
-macro_regime = "Bullish" # Keep this default fallback!
+
+macro_regime = "Neutral/Consolidating"
+
 try:
-    # TDEX tracks the SET50 Index (Thailand's top 50 blue chips)
     macro_stock = yf.Ticker("TDEX.BK")
     macro_hist = macro_stock.history(period="6mo", auto_adjust=False)
-    macro_hist = macro_hist.dropna(subset=['Close'])
-    
-    # Calculate 100-Day SMA for slow, structural market posture
-    macro_trend = macro_hist['Close'].rolling(window=100).mean()
-    latest_macro_close = float(macro_hist['Close'].iloc[-1])
-    latest_macro_ema = float(macro_trend.iloc[-1])
+    macro_hist = macro_hist.dropna(subset=["Close"])
 
-    # Define a tight 0.5% buffer zone around the EMA
-    upper_buffer = latest_macro_ema * 1.005
-    lower_buffer = latest_macro_ema * 0.995
+    if len(macro_hist) < 100:
+        raise ValueError(
+            f"Only {len(macro_hist)} valid TDEX rows; need at least 100 for SMA-100."
+        )
 
-    # Evaluate the 3 states
+    macro_sma_100 = macro_hist["Close"].rolling(window=100).mean()
+    latest_macro_close = float(macro_hist["Close"].iloc[-1])
+    latest_macro_sma = float(macro_sma_100.iloc[-1])
+
+    upper_buffer = latest_macro_sma * 1.005
+    lower_buffer = latest_macro_sma * 0.995
+
     if latest_macro_close > upper_buffer:
         macro_regime = "Bullish"
     elif latest_macro_close < lower_buffer:
@@ -67,8 +70,11 @@ try:
         macro_regime = "Neutral/Consolidating"
 
 except Exception as e:
-    print(f"Warning: Could not calculate Thai macro regime: {e}")
-    
+    print(
+        f"Warning: Could not calculate Thai macro regime: {e}. "
+        "Using Neutral/Consolidating."
+    )
+
 print(f"Current Thai Market Regime: {macro_regime}")
 
 print("Fetching technical data in batch from Yahoo Finance for Thai Equities...")
