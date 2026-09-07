@@ -37,9 +37,6 @@ tickers = list(my_costs.keys())
 # Dictionary to hold the exact calculated numbers for the PDF table mapping
 calculated_market_data = {}
 
-# Initialize Gemini Client
-client = genai.Client()
-
 # --- FETCH THAI BLUE-CHIP MACRO REGIME ---
 print("Evaluating Thai SET50 Macro Economic Regime...")
 
@@ -309,6 +306,8 @@ if DRY_RUN:
     token_cost_display = "Tokens: In 0 / Out 0 | Cost: $0.000000 (0.00 THB) [DRY RUN]"
 else:
     print("Generating structured technical analysis via Gemini API...")
+    
+    client = genai.Client()
     response = client.models.generate_content(
         model='gemini-3.6-flash',
         contents=prompt,
