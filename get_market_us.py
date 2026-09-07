@@ -171,10 +171,10 @@ for ticker in tickers:
         
         # --- FAST INSTITUTIONAL SUPPORT & RESISTANCE (SMA 20 + 1-Month Volume Profile) ---
         # 1. Safely calculate fast 20-Day SMA for US Tech stocks
-        if len(hist) >= 20:
-            sma_trend = float(hist['Close'].rolling(window=20).mean().iloc[-1])
-        else:
-            sma_trend = float(hist['Close'].mean())
+        # if len(hist) >= 20:
+        #     sma_trend = float(hist['Close'].rolling(window=20).mean().iloc[-1])
+        # else:
+        #    sma_trend = float(hist['Close'].mean())
         
         # 2. Focus Profile on Recent Post-Breakout Consolidation (18-Day Gaussian / Proximity Filter)
         hist_1m = hist.tail(18).copy()
