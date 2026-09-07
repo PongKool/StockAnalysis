@@ -250,6 +250,12 @@ for ticker in tickers:
         ]
         
         # High-priority initial pick
+        if not valid_supports:
+            valid_supports = [("2 ATR Support", float(latest_close - (2.0 * atr_14)))]
+        
+        if not valid_resistances:
+            valid_resistances = [("2 ATR Resistance", float(latest_close + (2.0 * atr_14)))]
+        
         support_source, support_level = valid_supports[0]
         resistance_source, resistance_level = valid_resistances[0]
         
@@ -258,13 +264,15 @@ for ticker in tickers:
         min_channel_width = 1.0 * atr_14
         
         if (resistance_level - support_level) < min_channel_width:
-            if (latest_close - support_level) < (min_channel_width / 2):
-                support_source = "2 ATR Support"
-                support_level = float(latest_close - (2.0 * atr_14))
-            
-            if (resistance_level - latest_close) < (min_channel_width / 2):
-                resistance_source = "2 ATR Resistance"
-                resistance_level = float(latest_close + (2.0 * atr_14))
+        # If support is too close or above current price
+        if (latest_close - support_level) < (min_channel_width / 2):
+            support_source = "2 ATR Support"
+            support_level = float(latest_close - (2.0 * atr_14))
+    
+        # If resistance is too close or below current price
+        if (resistance_level - latest_close) < (min_channel_width / 2):
+            resistance_source = "2 ATR Resistance"
+            resistance_level = float(latest_close + (2.0 * atr_14))
         
         print(
             f"Ticker: {ticker} | Price: {latest_close:.2f} | "
@@ -496,7 +504,7 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
     pdf.set_fill_color(30, 41, 59)
     
     header_row = table.row()
-    headers = ["Ticker", "Cost", "Price", "Support21", "Resist21", "ATR Stop14", "OBV14", "MACD", "Trend21", "Rec.", "Important Note"]
+    headers = ["Ticker", "Cost", "Price", "Support", "Resist", "ATR Stop", "OBV14", "MACD", "Trend21", "Rec.", "Important Note"]
     for header_title in headers:
         header_row.cell(header_title)
         
