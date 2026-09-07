@@ -89,6 +89,10 @@ except Exception as e:
 
 # 2. DATA PROCESSING LOOP
 for ticker in tickers:
+    support_level = 0.0
+    resistance_level = 0.0
+    rr_ratio_str = "N/A"
+    
     try:
         # Extract single-ticker slice if available
         if batch_df.empty or ticker not in batch_df['Close']:
