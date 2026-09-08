@@ -1,4 +1,4 @@
-import os
+Ximport os
 import json
 import yfinance as yf
 from google import genai
@@ -17,17 +17,17 @@ import time
 my_costs = {
     "SNDK": 1561.62, 
     "ORCL": 156.08, 
-    "AMZN": 0, 
+    "NBIX": 155.86, 
     "NVDA": 228.84, 
     "AVGO": 0, 
-    "SHOP": 152.14, 
-    "CCJ": 100.93, 
+    "EQIX": 0, 
+    "CCJ": 100.93,
     "GOOG": 0, 
     "LRCX": 0,
     "VRT": 279.44,
-    "MSFT": 509.02, 
+    "GEV": 0, 
     "CEG": 287.02,
-    "DELL": 0,
+    "DELL": 532.60,
     "TSM": 419.35,
     "ZS": 0, 
     "VST": 144.64    
