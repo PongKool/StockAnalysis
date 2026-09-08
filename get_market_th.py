@@ -23,7 +23,7 @@ my_costs = {
     "TRUE.BK": 14.09,
     "WHA.BK": 4.88,
     
-    "GPSC.BK": 0,
+    "BH.BK": 0,
     "ADVANC.BK": 0,
     "SCB.BK": 0,
     "OR.BK": 12.65,
