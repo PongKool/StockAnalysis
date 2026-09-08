@@ -1,4 +1,4 @@
-Ximport os
+import os
 import json
 import yfinance as yf
 from google import genai
