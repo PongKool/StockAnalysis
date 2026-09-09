@@ -22,7 +22,7 @@ my_costs = {
     "AVGO": 0, 
     "EQIX": 0, 
     "CCJ": 101.86,
-    "GOOG": 0, 
+    "PBR": 0, 
     "LRCX": 319.35,
     "VRT": 283.89,
     "GEV": 981.27, 
