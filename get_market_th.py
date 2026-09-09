@@ -13,7 +13,7 @@ DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for liv
 my_costs = {
     "BBL.BK": 193.32,       # Custom entries configured in THB
     "GULF.BK": 67.25,
-    "SCC.BK": 260.44,
+    "SCC.BK": 265.11,
     "TU.BK": 13.28,
     "AOT.BK": 0,
     "BCP.BK": 0,
@@ -23,9 +23,9 @@ my_costs = {
     "TRUE.BK": 14.09,
     "WHA.BK": 4.88,
     
-    "BH.BK": 0,
+    "BH.BK": 198.67,
     "ADVANC.BK": 0,
-    "SCB.BK": 0,
+    "GPSC.BK": 51.59,
     "OR.BK": 12.65,
     "IVL.BK": 25.32,
     "KBANK.BK": 0
