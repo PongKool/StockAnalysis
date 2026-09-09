@@ -15,22 +15,22 @@ import time
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "SNDK": 1561.62, 
+    "SNDK": 1604.81, 
     "ORCL": 156.08, 
     "NBIX": 155.86, 
-    "NVDA": 228.84, 
+    "NVDA": 228.35, 
     "AVGO": 0, 
     "EQIX": 0, 
-    "CCJ": 100.93,
+    "CCJ": 101.86,
     "GOOG": 0, 
-    "LRCX": 0,
-    "VRT": 279.44,
-    "GEV": 0, 
+    "LRCX": 319.35,
+    "VRT": 283.89,
+    "GEV": 981.27, 
     "CEG": 287.02,
     "DELL": 532.60,
     "TSM": 419.35,
     "ZS": 0, 
-    "VST": 144.64    
+    "VST": 146.08    
 }
 
 tickers = list(my_costs.keys())
