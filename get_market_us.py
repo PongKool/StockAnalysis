@@ -201,12 +201,30 @@ for ticker in tickers:
         # --- HANDLE VOLATILITY SQUEEZES & DYNAMIC LOOKBACK ---
         is_squeezed = bb_bandwidth < 5.0
         squeeze_status_str = "Squeeze Active (Expansion Imminent)" if is_squeezed else "Normal Volatility"
-    
-        # Widen swing lookback window during a squeeze to capture macro structural levels
-        lookback_period = 50 if is_squeezed else 21
-    
-        swing_low_21d = float(hist['Low'].tail(lookback_period).min())
-        swing_high_21d = float(hist['High'].tail(lookback_period).max())
+        
+        # Widen profile lookback window during a squeeze to capture macro structural levels
+        profile_window = 50 if is_squeezed else 21
+        hist_1m = hist.tail(profile_window).copy()
+        
+        min_price = hist_1m['Low'].min()
+        max_price = hist_1m['High'].max()
+        bins = np.linspace(min_price, max_price, 51)
+        bin_volume = np.zeros(len(bins) - 1)
+        
+        for _, row in hist_1m.iterrows():
+            day_low, day_high, day_vol = row['Low'], row['High'], row['Volume']
+            slices = np.linspace(day_low, day_high, 15) if day_high != day_low else np.array([day_low])
+            vol_per_slice = day_vol / len(slices)
+            for price_point in slices:
+                idx = max(0, min(np.digitize(price_point, bins) - 1, len(bin_volume) - 1))
+                bin_volume[idx] += vol_per_slice
+
+        poc_idx = np.argmax(bin_volume)
+        poc_midpoint = float((bins[poc_idx] + bins[poc_idx + 1]) / 2)
+        print(f"{ticker} POC Midpoint: {poc_midpoint:.2f}")
+
+        swing_low_dyn = float(hist['Low'].tail(profile_window).min())
+        swing_high_dyn = float(hist['High'].tail(profile_window).max())
     
         # Calculate Average True Range (ATR) for volatility context
         tr = np.maximum(
@@ -225,7 +243,7 @@ for ticker in tickers:
         # 1. Define support/resistance candidates ordered by institutional significance
         support_candidates = [
             ("POC", poc_midpoint if poc_midpoint < latest_close else np.nan),
-            ("Swing Low", swing_low_21d if swing_low_21d < latest_close else np.nan),
+            ("Swing Low", swing_low_dyn if swing_low_dyn < latest_close else np.nan),
             ("Lower BB", bb_lower if bb_lower < latest_close else np.nan),
             ("2 ATR Support", latest_close - (2.0 * atr_14)),
             ("EMA200", ema200 if ema200 < latest_close else np.nan),
@@ -233,7 +251,7 @@ for ticker in tickers:
 
         resistance_candidates = [
             ("POC", poc_midpoint if poc_midpoint > latest_close else np.nan),
-            ("Swing High", swing_high_21d if swing_high_21d > latest_close else np.nan),
+            ("Swing High", swing_high_dyn if swing_high_dyn > latest_close else np.nan),
             ("Upper BB", bb_upper if bb_upper > latest_close else np.nan),
             ("2 ATR Resistance", latest_close + (2.0 * atr_14)),
             ("EMA200", ema200 if ema200 > latest_close else np.nan),
@@ -357,10 +375,10 @@ You are an expert institutional technical analyst managing a high-beta technolog
 CRITICAL PORTFOLIO RISK & EXIT RULES:
 1. **Bearish Divergence Rule:** Pay deep attention to instances where price action is stable or rising, but the OBV Trend is "Falling". This indicates institutional distribution/selling behind the scenes. If a position is profitable and showing an OBV divergence, flag it immediately as a Take-Profit exit.
 2. **Volatility Stop Filter:** If the asset's current price breaks below its calculated 'Volatility Stop Loss' (Stop:), you must immediately flag an exit priority. Override lagging indicators and force a Cautious/Sell recommendation to protect trading principal from volatility contraction.
-3. **Trailing Take-Profit Exits:** If a position is profitable ("Yes"), prioritize capital protection:
+3. **Trailing & Profit Target Exits:** If a position is profitable ("Yes"), prioritize capital protection and gain-locking:
+   - **2.5:1 Target Rule:** If the asset's current price or immediate upside target has reached or exceeded a 2.5:1 reward-to-risk distance from support, you must prioritize locking in gains.
    - Downgrade recommendation to **Sell** immediately if the "MACD Status" is a "Bearish Crossover" OR the OBV trend is "Falling" (signals institutional distribution).
-   - EXCEPTION: If the immediate price trend and OBV trend are both confidently **"Rising"**, you may issue a **"Hold"** or **"Hold (Accumulate)"** to capture extended upside, even if the absolute MACD line is temporarily lagging or sitting in Bearish Territory.
-   - If the GLOBAL TECH SECTOR REGIME is BEARISH, tighten requirements; exit if momentum begins to flatten even if a full crossover hasn't completed.
+   - EXCEPTION: If the immediate price trend and OBV trend are both confidently **"Rising"** AND price is still climbing toward its target without fading, you may issue a **"Hold"** or **"Hold (Accumulate)"**.
 4. **Position Sizing & Probability Filtering:**
    - Issue a **"Buy"** or a **"Hold (Accumulate)"** recommendation if the stock demonstrates strong potential to continue upward. Strong potential is defined as having a **"Rising" OBV trend**, an overall **"Bullish" trend**, AND a healthy MACD profile.
    - **PROBABILITY & RISK FILTER:** Compare the total percentage distance to target resistance against the stock's 'Daily ATR Volatility (%)'.
@@ -380,6 +398,7 @@ You MUST explicitly mention how technical profiles or volatility metrics justifi
 - If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
 - If the stock has successfully broken above its resistance floor, note that old resistance has turned into support.
 - If the stock's data indicates a volatility squeeze (Squeeze: Squeeze Active...), explicitly mention that a squeeze is active and an expansion is imminent in the note.
+- If the position is profitable ("Yes") and approaching or exceeding the 2.5:1 profit target zone, explicitly label your reason as a "Take-Profit Target Reached" action.
 
 CRITICAL FORMATTING:
 - Keep the 'important_note' detailed yet dense (strictly under 45 words) to ensure deep technical justification fits within the table structure.
@@ -492,7 +511,7 @@ class CorporatePDF(FPDF):
         self.cell(100, 10, f"Page {self.page_no()}", align="L")
         self.cell(90, 10, self.token_cost_str, align="R")
 
-pdf = CorporatePDF(current_adx, ema20, qqq_latest_close, token_cost_display)
+pdf = CorporatePDF(current_adx, ema50, qqq_latest_close, token_cost_display)
 pdf.add_page()
 
 
