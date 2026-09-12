@@ -6,7 +6,6 @@ tickers = ["SNDK", "ORCL", "PBR", "NVDA", "VRT", "CEG", "DELL", "TSM", "VST"]
 
 print("Downloading 1-year historical data for backtest simulation...")
 all_hist = yf.download(tickers, period="1y", auto_adjust=True, group_by='ticker')
-
 backtest_results = {}
 
 for ticker in tickers:
@@ -25,12 +24,12 @@ for ticker in tickers:
         in_position = False
         entry_price = 0.0
         entry_date = None
-        
+
         for i in range(start_idx, len(hist)):
             hist_slice = hist.iloc[:i+1].copy()
             current_date = hist_slice.index[-1]
             latest_close = float(hist_slice['Close'].iloc[-1])
-            
+
             # ATR (14) via pure Pandas
             high_low = hist_slice['High'] - hist_slice['Low']
             high_close = (hist_slice['High'] - hist_slice['Close'].shift()).abs()
@@ -38,13 +37,13 @@ for ticker in tickers:
             true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
             atr_14 = float(true_range.ewm(alpha=1/14, adjust=False).mean().iloc[-1])
             atr_stop_loss = latest_close - (2.5 * atr_14)
-            
-            # OBV & EMA14 Trend
+
+            # OBV & EMA14 Trend direction
             direction = hist_slice['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
             obv = (direction * hist_slice['Volume']).cumsum()
             obv_ema14 = obv.ewm(span=14, adjust=False).mean()
             obv_trend = "Rising" if not pd.isna(obv.iloc[-1]) and not pd.isna(obv_ema14.iloc[-1]) and obv.iloc[-1] > obv_ema14.iloc[-1] else "Falling"
-            
+
             # Volume Profile (18-day window)
             hist_1m = hist_slice.tail(18).copy()
             min_price = float(hist_1m['Low'].min())
@@ -72,11 +71,11 @@ for ticker in tickers:
             if (resistance_level - support_level) < (1.0 * atr_14):
                 support_level = latest_close - (2.0 * atr_14)
                 resistance_level = latest_close + (2.0 * atr_14)
-                
+
             risk_distance = latest_close - support_level
             support_buffer = support_level * 0.015
             closes_14d = hist_1m['Close'].tail(14).tolist()
-            
+
             if latest_close < support_level:
                 rr_ratio_str = "Breakdown"
             elif latest_close > resistance_level:
@@ -85,7 +84,8 @@ for ticker in tickers:
                 rr_ratio_str = "Testing Support (Bounce Potential)"
             else:
                 rr_ratio_str = "Normal"
-                
+
+            # FIXED: Separated Entry and Exit logic checks
             if not in_position:
                 if rr_ratio_str == "Testing Support (Bounce Potential)" or (rr_ratio_str == "Breakout" and obv_trend == "Rising"):
                     in_position = True
@@ -96,15 +96,15 @@ for ticker in tickers:
                     exit_price = latest_close
                     pft_pct = ((exit_price - entry_price) / entry_price) * 100
                     trades.append({
-                        "entry_date": entry_date,
-                        "exit_date": current_date,
-                        "entry_price": entry_price,
-                        "exit_price": exit_price,
-                        "return_pct": pft_pct,
+                        "entry_date": entry_date, 
+                        "exit_date": current_date, 
+                        "entry_price": entry_price, 
+                        "exit_price": exit_price, 
+                        "return_pct": pft_pct, 
                         "win": pft_pct > 0
                     })
                     in_position = False
-                    
+
         backtest_results[ticker] = trades
         print(f"Completed backtest for {ticker}: {len(trades)} simulated trades found.")
         
@@ -124,7 +124,6 @@ for ticker, trades in backtest_results.items():
     total_trades += ticker_total
     total_wins += ticker_wins
     all_returns.extend(ticker_returns)
-    
     win_rate = (ticker_wins / ticker_total) * 100 if ticker_total > 0 else 0
     print(f"{ticker} -> Trades: {ticker_total} | Win Rate: {win_rate:.1f}% | Avg Return: {np.mean(ticker_returns):.2f}%")
 
