@@ -2,9 +2,10 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
+# Use your exact watchlist from get_market_us.py
 tickers = ["SNDK", "ORCL", "PBR", "NVDA", "VRT", "CEG", "DELL", "TSM", "VST"]
 
-print("Downloading 1-year historical data for backtest simulation...")
+print("Downloading 1-year historical data for institutional strategy backtest...")
 all_hist = yf.download(tickers, period="1y", auto_adjust=True, group_by='ticker')
 backtest_results = {}
 
@@ -30,7 +31,7 @@ for ticker in tickers:
             current_date = hist_slice.index[-1]
             latest_close = float(hist_slice['Close'].iloc[-1])
 
-            # ATR (14) via pure Pandas
+            # 1. ATR (14) & Volatility Stop
             high_low = hist_slice['High'] - hist_slice['Low']
             high_close = (hist_slice['High'] - hist_slice['Close'].shift()).abs()
             low_close = (hist_slice['Low'] - hist_slice['Close'].shift()).abs()
@@ -38,13 +39,13 @@ for ticker in tickers:
             atr_14 = float(true_range.ewm(alpha=1/14, adjust=False).mean().iloc[-1])
             atr_stop_loss = latest_close - (2.5 * atr_14)
 
-            # OBV & EMA14 Trend direction
+            # 2. OBV Macro & Short-Term Trend
             direction = hist_slice['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
             obv = (direction * hist_slice['Volume']).cumsum()
             obv_ema14 = obv.ewm(span=14, adjust=False).mean()
             obv_trend = "Rising" if not pd.isna(obv.iloc[-1]) and not pd.isna(obv_ema14.iloc[-1]) and obv.iloc[-1] > obv_ema14.iloc[-1] else "Falling"
 
-            # Volume Profile (18-day window)
+            # 3. Volume Profile (18-day window) matching get_market_us.py
             hist_1m = hist_slice.tail(18).copy()
             min_price = float(hist_1m['Low'].min())
             max_price = float(hist_1m['High'].max())
@@ -62,12 +63,13 @@ for ticker in tickers:
             poc_idx = np.argmax(bin_volume)
             poc_midpoint = float((bins[poc_idx] + bins[poc_idx + 1]) / 2)
             
-            swing_low_21d = float(hist_slice['High'].tail(21).min())
+            swing_low_21d = float(hist_slice['Low'].tail(21).min())
             swing_high_21d = float(hist_slice['High'].tail(21).max())
             
             support_level = max(poc_midpoint if poc_midpoint < latest_close else 0, swing_low_21d)
             resistance_level = min(poc_midpoint if poc_midpoint > latest_close else float('inf'), swing_high_21d)
             
+            # Guardrail check matching script
             if (resistance_level - support_level) < (1.0 * atr_14):
                 support_level = latest_close - (2.0 * atr_14)
                 resistance_level = latest_close + (2.0 * atr_14)
@@ -76,6 +78,7 @@ for ticker in tickers:
             support_buffer = support_level * 0.015
             closes_14d = hist_1m['Close'].tail(14).tolist()
 
+            # 4. State Evaluation (Matches get_market_us.py RR Classification)
             if latest_close < support_level:
                 rr_ratio_str = "Breakdown"
             elif latest_close > resistance_level:
@@ -85,14 +88,16 @@ for ticker in tickers:
             else:
                 rr_ratio_str = "Normal"
 
-            # FIXED: Separated Entry and Exit logic checks
+            # 5. Simulation Execution Loop
             if not in_position:
+                # Entry Rule: Buy the bounce or Clean breakout with rising volume
                 if rr_ratio_str == "Testing Support (Bounce Potential)" or (rr_ratio_str == "Breakout" and obv_trend == "Rising"):
                     in_position = True
                     entry_price = latest_close
                     entry_date = current_date
             else:
-                if latest_close <= atr_stop_loss or rr_ratio_str == "Breakdown":
+                # Exit Rule: Volatility stop breach, breakdown, or OBV distribution warning
+                if latest_close <= atr_stop_loss or rr_ratio_str == "Breakdown" or obv_trend == "Falling":
                     exit_price = latest_close
                     pft_pct = ((exit_price - entry_price) / entry_price) * 100
                     trades.append({
@@ -106,17 +111,19 @@ for ticker in tickers:
                     in_position = False
 
         backtest_results[ticker] = trades
-        print(f"Completed backtest for {ticker}: {len(trades)} simulated trades found.")
+        print(f"Completed backtest for {ticker}: {len(trades)} trades evaluated.")
         
     except Exception as e:
         print(f"Error backtesting {ticker}: {e}")
 
-print("\n--- BACKTEST PERFORMANCE SUMMARY ---")
+# Summary Reporting
+print("\n--- STRATEGY BACKTEST PERFORMANCE REPORT ---")
 total_trades, total_wins = 0, 0
 all_returns = []
 
 for ticker, trades in backtest_results.items():
     if not trades:
+        print(f"{ticker} -> No trades triggered.")
         continue
     ticker_wins = sum(1 for t in trades if t['win'])
     ticker_total = len(trades)
@@ -124,11 +131,11 @@ for ticker, trades in backtest_results.items():
     total_trades += ticker_total
     total_wins += ticker_wins
     all_returns.extend(ticker_returns)
-    win_rate = (ticker_wins / ticker_total) * 100 if ticker_total > 0 else 0
+    win_rate = (ticker_wins / ticker_total) * 100
     print(f"{ticker} -> Trades: {ticker_total} | Win Rate: {win_rate:.1f}% | Avg Return: {np.mean(ticker_returns):.2f}%")
 
 if total_trades > 0:
     print(f"\nOverall Portfolio Win Rate: {(total_wins / total_trades) * 100:.1f}% across {total_trades} trades")
-    print(f"Cumulative Simulated Strategy Return: {sum(all_returns):.2f}%")
+    print(f"Cumulative Strategy Return: {sum(all_returns):.2f}%")
 else:
-    print("\nNo trades were triggered across the selected timeframe and parameters.")
+    print("\nNo trades were triggered across the chosen timeframe.")
