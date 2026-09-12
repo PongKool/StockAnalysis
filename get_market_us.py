@@ -74,7 +74,7 @@ print(f"Calculated ADX: {current_adx}")
 print(f"Calculated EMA50: {ema50}")
 print(f"Latest Close: {qqq_latest_close}")
 print(f"Condition (ADX > 25): {current_adx > 25}")
-print(f"Condition (Close > EMA20): {qqq_latest_close > ema20}")
+print(f"Condition (Close > EMA50): {qqq_latest_close > ema50}")
 # -----------------------------
 
 if current_adx > 25:
