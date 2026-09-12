@@ -58,8 +58,8 @@ start_date = datetime.now(timezone.utc) - timedelta(days=100)
 qqq_hist = yf.Ticker("QQQ").history(start=start_date, auto_adjust=True, actions=True)
 
 # 2. Calculate Indicators
-# EMA 20
-ema20 = qqq_hist.ta.ema(length=20).iloc[-1]
+# EMA 50
+ema50 = qqq_hist.ta.ema(length=50).iloc[-1]
 # ADX 14
 adx_data = qqq_hist.ta.adx(length=14)
 adx_col = [c for c in adx_data.columns if c.startswith('ADX')][0]
@@ -71,14 +71,14 @@ qqq_latest_close = qqq_hist['Close'].iloc[-1]
 # --- ADD DEBUG PRINTS HERE ---
 print(f"--- DEBUG DATA ---")
 print(f"Calculated ADX: {current_adx}")
-print(f"Calculated EMA20: {ema20}")
+print(f"Calculated EMA50: {ema50}")
 print(f"Latest Close: {qqq_latest_close}")
 print(f"Condition (ADX > 25): {current_adx > 25}")
 print(f"Condition (Close > EMA20): {qqq_latest_close > ema20}")
 # -----------------------------
 
 if current_adx > 25:
-    if qqq_latest_close > ema20:
+    if qqq_latest_close > ema50:
         tech_market_regime = "BULLISH"
     else:
         tech_market_regime = "BEARISH"
