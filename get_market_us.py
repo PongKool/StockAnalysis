@@ -15,7 +15,7 @@ import time
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "SNDK": 1622.50, 
+    "SNDK": 1620.50, 
     "ORCL": 0, 
     "PBR": 21.14, 
     "NVDA": 228.08, 
@@ -321,13 +321,16 @@ for ticker in tickers:
         atr_to_target = (reward_distance / atr) if reward_distance > 0 else 0.0
 
         # --- SAVE & SUMMARIZE DATA ---
+        is_bounce_confirmed = bool(risk_distance <= support_buffer and (obv_trend == "Rising" or latest_close >= closes_14d[-2]))
         calculated_market_data[ticker] = {
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
             "resistance": f"{resistance_level:.2f}",
             "target_3r": f"{target_3r:.2f}",
             "atr_stop": f"{atr_stop_loss:.2f}",
-            "ema200": f"{ema200:.2f}"
+            "ema200": f"{ema200:.2f}",
+            "bounce_confirmed": is_bounce_confirmed,
+            "rr_str": rr_ratio_str
         }
         
         data_summary += (
@@ -359,7 +362,7 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
    - **Hard Volatility Stop Filter:** If the asset's current price breaks below its calculated 'Volatility Stop Loss' (Stop:) OR is labeled as 'Breakdown' (L < S), you must immediately force a **"Sell (Cut Loss)"** to protect trading capital.
    - **Support Floor Defense Rule:** If an existing position is trading SAFELY ABOVE its Volatility Stop Loss (L > Stop:) and is holding or resting right at its technical support floor (L >= S, e.g. NVDA holding $218.28 support above $197.76 stop loss), you must NEVER panic-sell into support! Selling at the support floor turns normal pullbacks into premature realized losses. You MUST issue a **"Hold"** (giving the institutional support floor a chance to bounce, with stop loss strictly defending downside at $Stop:).
 3. **Trailing & 3.0:1 Profit Target Exits:** If a position is profitable ("Yes"), prioritize capital protection and gain-locking:
-   - **Target Exit vs. Forward R:R Rule:** The indicator `RR:` (e.g. `RR: 1:3.3`) represents the FORWARD Potential Reward-to-Risk ratio towards Resistance (R:). A high forward RR (e.g. 1:3.0 or higher) means there is SUBSTANTIAL UPSIDE REMAINING to target resistance—this justifies a **"Buy"** or **"Hold (Accumulate)"**, NEVER a premature exit!
+   - **Target Exit vs. Forward R:R Rule:** The indicator `RR:` (e.g. `RR: 1:3.3`) represents the FORWARD Potential Reward-to-Risk ratio towards Resistance (R:). A high forward RR (e.g. 1:3.0 or higher) means there is SUBSTANTIAL UPSIDE REMAINING to target resistanceâ€”this justifies a **"Buy"** or **"Hold (Accumulate)"**, NEVER a premature exit!
    - **Resistance (R:) vs. 3.0:1 Profit Target (Target3R:):**
        * Resistance (R:) is an intermediate technical chart hurdle (e.g. 21-day swing high). It is NOT your trade's profit target!
        * The true mathematical 3.0:1 profit target is provided as `Target3R:`. Do NOT cut winners short at resistance if the position has not achieved its 3.0:1 target.
@@ -385,6 +388,9 @@ You MUST explicitly mention how technical profiles or volatility metrics justifi
     * NEVER use confusing phrases like 'no further upside'.
     * If OBV is "Rising" and MACD is "Bullish", recommend 'Hold' and state: 'Testing resistance $R with strong volume. Hold existing position for 3:1 target $Target3R; watch breakout above $(R+0.01).'
     * If recommending 'Sell' (due to reaching Target3R or bearish rejection), state: '3:1 Target reached at $Target3R. Take profit on swing gains.' or 'Bearish rejection at resistance $R. Take profit to lock in gains.'
+- If an existing position is at or near Support (within 2% of S):
+    * If today's close is green (higher than yesterday) OR OBV is Rising, recommend 'Hold (Accumulate)' and state: 'Support bounce confirmed at $S. Safe to add shares with stop at $Stop.'
+    * If today's close is red and OBV is Falling, recommend 'Hold' and state: 'Holding support floor at $S. Awaiting green bounce candle before adding; stop at $Stop.'
 - If the recommendation is "Sell", check the profitability flag (P:). If P is "Yes", explicitly label your reason as a "Take-Profit" action. If P is "No" (or cost is N/A), you MUST explicitly label your reason as a "Cut-Loss" action and forbid any mention of "Take-Profit".
 - If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
 - If the stock has successfully broken above its resistance floor, note that old resistance has turned into support.
@@ -456,9 +462,14 @@ if analysis_data is None:
             trend = "Bullish"
         elif (c_price - sup) <= (sup * 0.02):
             is_owned = my_costs.get(t, 0) > 0
+            is_bounce = m.get("bounce_confirmed", False)
             if is_owned:
-                rec = "Hold"
-                note = f"Holding support floor at {sup:.2f}. Bounce defense active with stop {atr_stp:.2f}."
+                if is_bounce:
+                    rec = "Hold (Accumulate)"
+                    note = f"Support bounce confirmed at {sup:.2f}. Safe to add shares with stop {atr_stp:.2f}."
+                else:
+                    rec = "Hold"
+                    note = f"Holding support floor at {sup:.2f}. Awaiting green bounce candle before adding; stop {atr_stp:.2f}."
             else:
                 rec = "Buy"
                 note = f"Testing support floor at {sup:.2f}. Optimal bounce entry."
