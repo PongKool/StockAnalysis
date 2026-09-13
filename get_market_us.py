@@ -15,18 +15,18 @@ import time
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "SNDK": 1620.50, 
-    "ORCL": 156.03, 
+    "SNDK": 1622.50, 
+    "ORCL": 0, 
     "PBR": 21.14, 
     "NVDA": 228.08, 
     "AVGO": 0, 
-    "EQIX": 0, 
+    "GLW": 166.02, 
     "CCJ": 0,
     "GOOG": 0, 
     "LRCX": 0,
-    "VRT": 283.89,
+    "VRT": 0,
     "GEV": 0, 
-    "CEG": 287.02,
+    "CEG": 0,
     "DELL": 524.25,
     "TSM": 421.41,
     "ZS": 0, 
@@ -355,7 +355,9 @@ You are an expert institutional technical analyst managing a high-beta technolog
 
 CRITICAL PORTFOLIO RISK & EXIT RULES:
 1. **Bearish Divergence Rule:** Pay deep attention to instances where price action is stable or rising, but the OBV Trend is "Falling". This indicates institutional distribution/selling behind the scenes. If a position is profitable and showing an OBV divergence, flag it immediately as a Take-Profit exit.
-2. **Volatility Stop Filter:** If the asset's current price breaks below its calculated 'Volatility Stop Loss' (Stop:), you must immediately flag an exit priority. Override lagging indicators and force a Cautious/Sell recommendation to protect trading principal from volatility contraction.
+2. **Volatility Stop & Support Defense Rules:**
+   - **Hard Volatility Stop Filter:** If the asset's current price breaks below its calculated 'Volatility Stop Loss' (Stop:) OR is labeled as 'Breakdown' (L < S), you must immediately force a **"Sell (Cut Loss)"** to protect trading capital.
+   - **Support Floor Defense Rule:** If an existing position is trading SAFELY ABOVE its Volatility Stop Loss (L > Stop:) and is holding or resting right at its technical support floor (L >= S, e.g. NVDA holding $218.28 support above $197.76 stop loss), you must NEVER panic-sell into support! Selling at the support floor turns normal pullbacks into premature realized losses. You MUST issue a **"Hold"** (giving the institutional support floor a chance to bounce, with stop loss strictly defending downside at $Stop:).
 3. **Trailing & 3.0:1 Profit Target Exits:** If a position is profitable ("Yes"), prioritize capital protection and gain-locking:
    - **Target Exit vs. Forward R:R Rule:** The indicator `RR:` (e.g. `RR: 1:3.3`) represents the FORWARD Potential Reward-to-Risk ratio towards Resistance (R:). A high forward RR (e.g. 1:3.0 or higher) means there is SUBSTANTIAL UPSIDE REMAINING to target resistance—this justifies a **"Buy"** or **"Hold (Accumulate)"**, NEVER a premature exit!
    - **Resistance (R:) vs. 3.0:1 Profit Target (Target3R:):**
@@ -453,8 +455,13 @@ if analysis_data is None:
             note = f"Testing resistance {res:.2f}. Hold for 3:1 target {t3r:.2f}; watch breakout above {res + 0.01:.2f}."
             trend = "Bullish"
         elif (c_price - sup) <= (sup * 0.02):
-            rec = "Buy"
-            note = f"Testing support floor at {sup:.2f}. Optimal bounce entry."
+            is_owned = my_costs.get(t, 0) > 0
+            if is_owned:
+                rec = "Hold"
+                note = f"Holding support floor at {sup:.2f}. Bounce defense active with stop {atr_stp:.2f}."
+            else:
+                rec = "Buy"
+                note = f"Testing support floor at {sup:.2f}. Optimal bounce entry."
             trend = "Bullish"
         elif (res - c_price) / max(c_price - sup, 0.01) >= 3.0:
             rec = "Hold (Accumulate)"
