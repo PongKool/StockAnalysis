@@ -15,12 +15,12 @@ import time
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "SNDK": 1622.50, 
+    "SNDK": 1620.50, 
     "ORCL": 0, 
     "PBR": 21.14, 
     "NVDA": 228.08, 
     "AVGO": 0, 
-    "EQIX": 0, 
+    "GLW": 166.02, 
     "CCJ": 0,
     "GOOG": 0, 
     "LRCX": 0,
@@ -29,7 +29,7 @@ my_costs = {
     "CEG": 0,
     "DELL": 524.25,
     "TSM": 421.41,
-    "GLW": 166.02, 
+    "ZS": 0, 
     "VST": 146.08    
 }
 
@@ -167,12 +167,14 @@ for ticker in tickers:
         bb_upper = float(bbands[upper_col].iloc[-1])
         bb_bandwidth = float(bbands[width_col].iloc[-1])
 
-        # Fallback to latest price if cost is 0, None, or empty
-        if not cost_val or cost_val == 0 or str(cost_val).strip() == "":
-            cost_val = latest_close
-
-        actual_cost = f"{cost_val:.2f}"
-        is_profitable = "Yes" if latest_close >= cost_val else "No"
+        # If cost is 0, None, or empty, user has no position (watch-only)
+        if not cost_val or cost_val == 0 or str(cost_val).strip() in ["", "0", "0.0", "none", "n/a", "N/A"]:
+            actual_cost = "N/A"
+            is_profitable = "N/A"
+        else:
+            cost_num = float(cost_val)
+            actual_cost = f"{cost_num:.2f}"
+            is_profitable = "Yes" if latest_close >= cost_num else "No"
         
         # --- HANDLE VOLATILITY SQUEEZES & DYNAMIC LOOKBACK ---
         is_squeezed = bb_bandwidth < 5.0
@@ -347,8 +349,8 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
 1. **Bearish Divergence Rule:** Pay deep attention to instances where price action is stable or rising, but the OBV Trend is "Falling". This indicates institutional distribution/selling behind the scenes. If a position is profitable and showing an OBV divergence, flag it immediately as a Take-Profit exit.
 2. **Volatility Stop Filter:** If the asset's current price breaks below its calculated 'Volatility Stop Loss' (Stop:), you must immediately flag an exit priority. Override lagging indicators and force a Cautious/Sell recommendation to protect trading principal from volatility contraction.
 3. **Trailing & Profit Target Exits:** If a position is profitable ("Yes"), prioritize capital protection and gain-locking:
-   - **3.0:1 Target Rule:** If the asset's current price or immediate upside target has reached or exceeded a 3.0:1 reward-to-risk distance from support, you must prioritize locking in gains.
-   - Downgrade recommendation to **Sell** immediately if the "MACD Status" is a "Bearish Crossover" OR the OBV trend is "Falling" (signals institutional distribution).
+   - **Target Exit vs. Forward R:R Rule:** The indicator `RR:` (e.g. `RR: 1:3.3`) represents the FORWARD Potential Reward-to-Risk ratio towards Resistance (R:). A high forward RR (e.g. 1:3.0 or higher) means there is SUBSTANTIAL UPSIDE REMAINING to target resistance—this justifies a **"Buy"** or **"Hold (Accumulate)"**, NEVER a premature exit!
+   - **Take-Profit Rule:** You may ONLY issue a "Take-Profit" or "Sell" recommendation to lock in gains if the asset's current price (L:) has actually reached or tested its Resistance target (R:) (L >= R * 0.985) AND shows exhaustion, OR if the MACD Status is a "Bearish Crossover" / OBV trend is "Falling".
    - EXCEPTION: If the immediate price trend and OBV trend are both confidently **"Rising"** AND price is still climbing toward its target without fading, you may issue a **"Hold"** or **"Hold (Accumulate)"**.
 4. **Position Sizing & Probability Filtering:**
    - Issue a **"Buy"** or a **"Hold (Accumulate)"** recommendation if the stock demonstrates strong potential to continue upward. Strong potential is defined as having a **"Rising" OBV trend**, an overall **"Bullish" trend**, AND a healthy MACD profile.
@@ -369,7 +371,7 @@ You MUST explicitly mention how technical profiles or volatility metrics justifi
 - If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
 - If the stock has successfully broken above its resistance floor, note that old resistance has turned into support.
 - If the stock's data indicates a volatility squeeze (Squeeze: Squeeze Active...), explicitly mention that a squeeze is active and an expansion is imminent in the note.
-- If the position is profitable ("Yes") and approaching or exceeding the 3.0:1 profit target zone, explicitly label your reason as a "Take-Profit Target Reached" action.
+- DO NOT label any action as "Take-Profit Target Reached" unless the current price (L:) is actually testing or touching Resistance (R:). A high forward ratio like 'RR: 1:3.3' indicates high upside potential toward resistance, NOT that the target was already achieved!
 
 CRITICAL FORMATTING:
 - Keep the 'important_note' detailed yet dense (strictly under 45 words) to ensure deep technical justification fits within the table structure.
@@ -548,10 +550,10 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
         
         row.cell(ticker)
         current_cost = my_costs.get(ticker, 0.0)
-        if not current_cost or current_cost == 0 or str(current_cost).strip() == "":
-            cost_display = market_metrics.get("latest_price", "N/A")
+        if not current_cost or current_cost == 0 or str(current_cost).strip() in ["", "0", "0.0", "none", "n/a", "N/A"]:
+            cost_display = "N/A"
         else:
-            cost_display = f"{current_cost:.2f}"
+            cost_display = f"{float(current_cost):.2f}"
         row.cell(cost_display)
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
