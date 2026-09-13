@@ -16,17 +16,17 @@ import time
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
     "SNDK": 1620.50, 
-    "ORCL": 0, 
+    "ORCL": 156.03, 
     "PBR": 21.14, 
     "NVDA": 228.08, 
     "AVGO": 0, 
-    "GLW": 166.02, 
+    "EQIX": 0, 
     "CCJ": 0,
     "GOOG": 0, 
     "LRCX": 0,
-    "VRT": 0,
+    "VRT": 283.89,
     "GEV": 0, 
-    "CEG": 0,
+    "CEG": 287.02,
     "DELL": 524.25,
     "TSM": 421.41,
     "ZS": 0, 
@@ -350,8 +350,9 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
 2. **Volatility Stop Filter:** If the asset's current price breaks below its calculated 'Volatility Stop Loss' (Stop:), you must immediately flag an exit priority. Override lagging indicators and force a Cautious/Sell recommendation to protect trading principal from volatility contraction.
 3. **Trailing & Profit Target Exits:** If a position is profitable ("Yes"), prioritize capital protection and gain-locking:
    - **Target Exit vs. Forward R:R Rule:** The indicator `RR:` (e.g. `RR: 1:3.3`) represents the FORWARD Potential Reward-to-Risk ratio towards Resistance (R:). A high forward RR (e.g. 1:3.0 or higher) means there is SUBSTANTIAL UPSIDE REMAINING to target resistance—this justifies a **"Buy"** or **"Hold (Accumulate)"**, NEVER a premature exit!
-   - **Take-Profit Rule:** You may ONLY issue a "Take-Profit" or "Sell" recommendation to lock in gains if the asset's current price (L:) has actually reached or tested its Resistance target (R:) (L >= R * 0.985) AND shows exhaustion, OR if the MACD Status is a "Bearish Crossover" / OBV trend is "Falling".
-   - EXCEPTION: If the immediate price trend and OBV trend are both confidently **"Rising"** AND price is still climbing toward its target without fading, you may issue a **"Hold"** or **"Hold (Accumulate)"**.
+   - **At Resistance / Take-Profit Rule:** When current price (L:) reaches or tests its Resistance target (R:) (L >= R * 0.985):
+       * If OBV is "Falling" OR MACD shows a "Bearish Crossover" (rejection/exhaustion), force a **"Sell"** (Take-Profit) to lock in gains.
+       * If OBV is "Rising" AND MACD is "Bullish" (strong momentum into resistance), you may issue **"Hold"** (awaiting breakout confirmation above R+0.01; do NOT accumulate new shares directly under resistance) OR issue **"Sell"** (Take-Profit to lock in swing gains).
 4. **Position Sizing & Probability Filtering:**
    - Issue a **"Buy"** or a **"Hold (Accumulate)"** recommendation if the stock demonstrates strong potential to continue upward. Strong potential is defined as having a **"Rising" OBV trend**, an overall **"Bullish" trend**, AND a healthy MACD profile.
    - **PROBABILITY & RISK FILTER:** Compare the total percentage distance to target resistance against the stock's 'Daily ATR Volatility (%)'.
@@ -366,7 +367,11 @@ CRITICAL PORTFOLIO RISK & EXIT RULES:
 
 OUTPUT INSTRUCTION FOR THE 'IMPORTANT_NOTE' FIELD:
 You MUST explicitly mention how technical profiles or volatility metrics justified your decision.
-- If the Latest Close (L:) is within 1.5% of the Resistance level (R:), calculate the breakout target (Resistance + 0.01) and explicitly state it in the note (e.g., "Watch for a clean breakout above $XXXX.XX").
+- If Latest Close (L:) is within 1.5% of Resistance (R:):
+    * Calculate the breakout watch target (Resistance + 0.01).
+    * NEVER use confusing phrases like 'no further upside'.
+    * If recommending 'Sell' (Take-Profit), state: 'Target reached at resistance $R. Take profit on swing gains or trail tight stop for breakout above $(R+0.01).'
+    * If recommending 'Hold', state: 'Testing resistance $R with bullish momentum. Hold existing position and watch for confirmed breakout above $(R+0.01) before adding.'
 - If the recommendation is "Sell", check the profitability flag (P:). If P is "Yes", explicitly label your reason as a "Take-Profit" action. If P is "No" (or cost is N/A), you MUST explicitly label your reason as a "Cut-Loss" action and forbid any mention of "Take-Profit".
 - If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
 - If the stock has successfully broken above its resistance floor, note that old resistance has turned into support.
