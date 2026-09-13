@@ -15,18 +15,18 @@ import time
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "SNDK": 1622.50, 
-    "ORCL": 0, 
+    "SNDK": 1620.50, 
+    "ORCL": 156.03, 
     "PBR": 21.14, 
     "NVDA": 228.08, 
-    "AVGO": 0,
-    "GLW": 166.02, 
+    "AVGO": 0, 
+    "EQIX": 0, 
     "CCJ": 0,
     "GOOG": 0, 
     "LRCX": 0,
-    "VRT": 0,
+    "VRT": 283.89,
     "GEV": 0, 
-    "CEG": 0,
+    "CEG": 287.02,
     "DELL": 524.25,
     "TSM": 421.41,
     "ZS": 0, 
@@ -311,6 +311,13 @@ for ticker in tickers:
         else:
             rr_ratio_str = f"1:{(reward_distance / risk_distance):.1f}"
 
+        # --- 3.0:1 MATHEMATICAL PROFIT TARGET (Exact Backtest Strategy Rule) ---
+        entry_ref = cost_val if (actual_cost != "N/A" and cost_val > 0) else latest_close
+        initial_risk = max(entry_ref - support_level, 1.5 * atr)
+        target_3r = entry_ref + (3.0 * initial_risk)
+        r_achieved = ((latest_close - entry_ref) / initial_risk) if actual_cost != "N/A" else 0.0
+        r_achieved_str = f"{r_achieved:.1f}R" if actual_cost != "N/A" else "New Trade"
+
         atr_to_target = (reward_distance / atr) if reward_distance > 0 else 0.0
 
         # --- SAVE & SUMMARIZE DATA ---
@@ -318,14 +325,15 @@ for ticker in tickers:
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
             "resistance": f"{resistance_level:.2f}",
+            "target_3r": f"{target_3r:.2f}",
             "atr_stop": f"{atr_stop_loss:.2f}",
             "ema200": f"{ema200:.2f}"
         }
         
         data_summary += (
         f"T: {ticker} |C: {actual_cost} |L: {latest_close:.2f} |P: {is_profitable} |"
-        f"S: {support_level:.2f} |R: {resistance_level:.2f} |ATR: {atr:.1f} ({atr_pct:.1f}%)|"
-        f"Stop: {atr_stop_loss:.2f} |RR: {rr_ratio_str} |Days: {atr_to_target:.1f} |"
+        f"S: {support_level:.2f} |R: {resistance_level:.2f} |Target3R: {target_3r:.2f} (Gain: {r_achieved_str}) |"
+        f"ATR: {atr:.1f} ({atr_pct:.1f}%) |Stop: {atr_stop_loss:.2f} |RR: {rr_ratio_str} |Days: {atr_to_target:.1f} |"
         f"Squeeze: {squeeze_status_str} |"
         f"OBV: {obv_trend} |OBV5D: {obv_5d_trend} |MACD: {macd_status} |Closes:[{trend_string}]\n"
     )
@@ -348,11 +356,14 @@ You are an expert institutional technical analyst managing a high-beta technolog
 CRITICAL PORTFOLIO RISK & EXIT RULES:
 1. **Bearish Divergence Rule:** Pay deep attention to instances where price action is stable or rising, but the OBV Trend is "Falling". This indicates institutional distribution/selling behind the scenes. If a position is profitable and showing an OBV divergence, flag it immediately as a Take-Profit exit.
 2. **Volatility Stop Filter:** If the asset's current price breaks below its calculated 'Volatility Stop Loss' (Stop:), you must immediately flag an exit priority. Override lagging indicators and force a Cautious/Sell recommendation to protect trading principal from volatility contraction.
-3. **Trailing & Profit Target Exits:** If a position is profitable ("Yes"), prioritize capital protection and gain-locking:
+3. **Trailing & 3.0:1 Profit Target Exits:** If a position is profitable ("Yes"), prioritize capital protection and gain-locking:
    - **Target Exit vs. Forward R:R Rule:** The indicator `RR:` (e.g. `RR: 1:3.3`) represents the FORWARD Potential Reward-to-Risk ratio towards Resistance (R:). A high forward RR (e.g. 1:3.0 or higher) means there is SUBSTANTIAL UPSIDE REMAINING to target resistance—this justifies a **"Buy"** or **"Hold (Accumulate)"**, NEVER a premature exit!
-   - **At Resistance / Take-Profit Rule:** When current price (L:) reaches or tests its Resistance target (R:) (L >= R * 0.985):
-       * If OBV is "Falling" OR MACD shows a "Bearish Crossover" (rejection/exhaustion), force a **"Sell"** (Take-Profit) to lock in gains.
-       * If OBV is "Rising" AND MACD is "Bullish" (strong momentum into resistance), you may issue **"Hold"** (awaiting breakout confirmation above R+0.01; do NOT accumulate new shares directly under resistance) OR issue **"Sell"** (Take-Profit to lock in swing gains).
+   - **Resistance (R:) vs. 3.0:1 Profit Target (Target3R:):**
+       * Resistance (R:) is an intermediate technical chart hurdle (e.g. 21-day swing high). It is NOT your trade's profit target!
+       * The true mathematical 3.0:1 profit target is provided as `Target3R:`. Do NOT cut winners short at resistance if the position has not achieved its 3.0:1 target.
+   - **At Resistance / Breakout Rule:** When current price (L:) reaches or tests its Resistance hurdle (R:) (L >= R * 0.985):
+       * If OBV is "Rising" AND MACD is "Bullish" (strong momentum into resistance, e.g. DELL), price is attempting an upside breakout to continue toward Target3R! You MUST recommend **"Hold"** (do NOT sell; do NOT accumulate new shares directly under resistance; let the winner run!).
+       * You may ONLY issue a **"Sell"** (Take-Profit) if price actually reaches or exceeds the 3.0:1 target (`Target3R:` or Gain >= 3.0R), OR if price gets rejected at resistance with a "Bearish Crossover" / "Falling" OBV.
 4. **Position Sizing & Probability Filtering:**
    - Issue a **"Buy"** or a **"Hold (Accumulate)"** recommendation if the stock demonstrates strong potential to continue upward. Strong potential is defined as having a **"Rising" OBV trend**, an overall **"Bullish" trend**, AND a healthy MACD profile.
    - **PROBABILITY & RISK FILTER:** Compare the total percentage distance to target resistance against the stock's 'Daily ATR Volatility (%)'.
@@ -370,13 +381,13 @@ You MUST explicitly mention how technical profiles or volatility metrics justifi
 - If Latest Close (L:) is within 1.5% of Resistance (R:):
     * Calculate the breakout watch target (Resistance + 0.01).
     * NEVER use confusing phrases like 'no further upside'.
-    * If recommending 'Sell' (Take-Profit), state: 'Target reached at resistance $R. Take profit on swing gains or trail tight stop for breakout above $(R+0.01).'
-    * If recommending 'Hold', state: 'Testing resistance $R with bullish momentum. Hold existing position and watch for confirmed breakout above $(R+0.01) before adding.'
+    * If OBV is "Rising" and MACD is "Bullish", recommend 'Hold' and state: 'Testing resistance $R with strong volume. Hold existing position for 3:1 target $Target3R; watch breakout above $(R+0.01).'
+    * If recommending 'Sell' (due to reaching Target3R or bearish rejection), state: '3:1 Target reached at $Target3R. Take profit on swing gains.' or 'Bearish rejection at resistance $R. Take profit to lock in gains.'
 - If the recommendation is "Sell", check the profitability flag (P:). If P is "Yes", explicitly label your reason as a "Take-Profit" action. If P is "No" (or cost is N/A), you MUST explicitly label your reason as a "Cut-Loss" action and forbid any mention of "Take-Profit".
 - If the stock was downgraded due to demanding too many 'ATRs to Target' (Days: > 5.0), explicitly note that the upside target requires too many days of average volatility.
 - If the stock has successfully broken above its resistance floor, note that old resistance has turned into support.
 - If the stock's data indicates a volatility squeeze (Squeeze: Squeeze Active...), explicitly mention that a squeeze is active and an expansion is imminent in the note.
-- DO NOT label any action as "Take-Profit Target Reached" unless the current price (L:) is actually testing or touching Resistance (R:). A high forward ratio like 'RR: 1:3.3' indicates high upside potential toward resistance, NOT that the target was already achieved!
+- DO NOT label any action as "Take-Profit Target Reached" unless the current price (L:) is actually testing or exceeding Target3R:. Intermediate resistance is a breakout hurdle, not the profit target!
 
 CRITICAL FORMATTING:
 - Keep the 'important_note' detailed yet dense (strictly under 45 words) to ensure deep technical justification fits within the table structure.
@@ -421,6 +432,7 @@ if analysis_data is None:
         c_price = float(m["latest_price"])
         sup = float(m["support"])
         res = float(m["resistance"])
+        t3r = float(m.get("target_3r", res))
         atr_stp = float(m["atr_stop"])
         
         # Algorithmic recommendation using backtested rules
@@ -432,9 +444,13 @@ if analysis_data is None:
             rec = "Sell"
             note = f"Breached volatility stop {atr_stp:.2f}. Cut loss priority."
             trend = "Bearish"
-        elif c_price >= res:
-            rec = "Buy"
-            note = f"Active breakout above {res:.2f}. Strong upward momentum."
+        elif c_price >= t3r:
+            rec = "Sell"
+            note = f"3:1 Profit Target {t3r:.2f} reached. Take-profit to lock in gains."
+            trend = "Bullish"
+        elif c_price >= (res * 0.985):
+            rec = "Hold"
+            note = f"Testing resistance {res:.2f}. Hold for 3:1 target {t3r:.2f}; watch breakout above {res + 0.01:.2f}."
             trend = "Bullish"
         elif (c_price - sup) <= (sup * 0.02):
             rec = "Buy"
