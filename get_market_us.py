@@ -15,12 +15,12 @@ import time
 
 # 1. INITIALIZE GLOBAL VARIABLES & CONFIGURATION
 my_costs = {
-    "SNDK": 1620.50, 
+    "SNDK": 1622.50, 
     "ORCL": 0, 
     "PBR": 21.14, 
     "NVDA": 228.08, 
     "AVGO": 0, 
-    "GLW": 166.02, 
+    "GLW": 158.48, 
     "CCJ": 0,
     "GOOG": 0, 
     "LRCX": 0,
