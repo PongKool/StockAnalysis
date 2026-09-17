@@ -395,7 +395,7 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
         row.cell(str(stock.get("important_note", "")))
 
 # --- PDF Output with Safe Fallback ---
-output_filename = "us_market_analysis.pdf"
+output_filename = "us_market_analysis_v2.pdf"
 try:
     pdf.output(output_filename)
     print(f"PDF output finalized successfully as '{output_filename}'.")
