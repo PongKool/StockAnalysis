@@ -17,20 +17,20 @@ import time
 my_costs = {
     "SNDK": 1622.50, 
     "ORCL": 0, 
-    "PBR": 21.14, 
-    "NVDA": 228.08, 
+    "PBR": 21.13, 
+    "NVDA": 227.53, 
     "AVGO": 0, 
-    "GLW": 154.58, 
+    "GLW": 153.98, 
     "CCJ": 0,
-    "GOOG": 340.47, 
+    "GOOG": 340.97, 
     "LRCX": 0,
     "VRT": 0,
     "GEV": 0, 
     "CEG": 0,
     "DELL": 524.25,
     "TSM": 0,
-    "ZS": 0, 
-    "VST": 146.08    
+    "DDOG": 237.02, 
+    "VST": 145.91    
 }
 
 tickers = list(my_costs.keys())
