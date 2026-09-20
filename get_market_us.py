@@ -16,22 +16,22 @@ import time
 # 1. PORTFOLIO CONFIGURATION & TICKERS
 # ==============================================================================
 my_costs = {
-    "SNDK": 1620.50, 
-    "ORCL": 156.03, 
-    "PBR": 21.14, 
-    "NVDA": 228.08, 
+    "SNDK": 1622.50, 
+    "AMD": 545.69, 
+    "ADI": 370.25, 
+    "NVDA": 227.53, 
     "AVGO": 0, 
-    "EQIX": 0, 
+    "GLW": 153.98, 
     "CCJ": 0, 
-    "GOOG": 0, 
+    "GOOG": 342.01, 
     "LRCX": 0, 
-    "VRT": 283.89, 
+    "VRT": 0, 
     "GEV": 0, 
-    "CEG": 287.02, 
+    "CEG": 0, 
     "DELL": 524.25, 
-    "TSM": 421.41, 
-    "ZS": 0, 
-    "VST": 146.08    
+    "TSM": 429.66, 
+    "DDOG": 237.02, 
+    "VST": 145.91    
 }
 
 tickers = list(my_costs.keys())
@@ -221,10 +221,19 @@ for ticker in tickers:
             support_level = float(latest_close - (2.0 * atr))
             resistance_level = float(latest_close + (2.0 * atr))
 
-        # --- 3.0:1 MATHEMATICAL PROFIT TARGET (Directly from Backtest Engine) ---
+        # --- 3.0:1 MATHEMATICAL PROFIT TARGET & STOP LOSS (From Backtest Engine) ---
         entry_ref = float(cost_val) if is_owned else latest_close
-        initial_risk = max(entry_ref - support_level, 1.5 * atr)
-        target_3r = float(entry_ref + (3.0 * initial_risk))
+        if is_owned:
+            atr_stop_loss = float(entry_ref - (4.25 * atr))
+            initial_risk = max(entry_ref - atr_stop_loss, 1.5 * atr)
+            target_3r = float(entry_ref + (3.0 * initial_risk))
+            is_stop_breached = (latest_close <= atr_stop_loss) or (latest_close < (support_level * 0.98))
+        else:
+            atr_stop_loss = float(latest_close - (4.25 * atr))
+            initial_risk = max(latest_close - support_level, 1.5 * atr)
+            target_3r = float(latest_close + (3.0 * initial_risk))
+            is_stop_breached = latest_close < (support_level * 0.98)
+
         r_achieved = ((latest_close - entry_ref) / initial_risk) if is_owned else 0.0
         r_achieved_str = f"{r_achieved:.1f}R" if is_owned else "New Trade"
         
@@ -248,7 +257,7 @@ for ticker in tickers:
         prefix = "[Squeeze Active] " if is_squeezed else ""
         
         # 1. Hard Volatility Stop Loss or Technical Breakdown
-        if latest_close < atr_stop_loss or latest_close < support_level:
+        if is_stop_breached:
             quant_rec = "Sell (Cut Loss)" if is_owned else "Sell"
             quant_trend = "Bearish"
             quant_note = f"{prefix}Breached stop {atr_stop_loss:.2f} / support {support_level:.2f}. Cut loss priority."
