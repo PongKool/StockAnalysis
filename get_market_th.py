@@ -201,14 +201,18 @@ for ticker in tickers:
         is_held = (entry_cost_num > 0.0)
         display_cost = f"{entry_cost_num:.2f}" if is_held else "-"
 
-        atr_stop_level = latest_close - (ATR_STOP_MULT * atr)
-
         if is_held:
-            initial_risk = max(entry_cost_num - (entry_cost_num - (ATR_STOP_MULT * atr)), atr * 1.5)
+            # For held positions: Stop loss is anchored to entry cost (exact backtest rule)
+            atr_stop_level = entry_cost_num - (ATR_STOP_MULT * atr)
+            initial_risk = max(entry_cost_num - atr_stop_level, atr * 1.5)
             target_price = entry_cost_num + (TARGET_RR * initial_risk)
+            is_stop_breached = (latest_close <= atr_stop_level) or (latest_close < (support_level * 0.98))
         else:
+            # For new watchlist candidates: Forward stop from current price
+            atr_stop_level = latest_close - (ATR_STOP_MULT * atr)
             initial_risk = max(latest_close - support_level, atr * 1.5)
             target_price = latest_close + (TARGET_RR * initial_risk)
+            is_stop_breached = latest_close < (support_level * 0.98)
 
         # 8. Overall Trend Evaluation
         bullish_macd = "Bullish" in macd_status
@@ -229,9 +233,9 @@ for ticker in tickers:
 
         if is_held:
             # 1. Hard Volatility Stop Loss / Support Breakdown
-            if latest_low <= atr_stop_level or latest_close < (support_level * 0.98):
+            if is_stop_breached:
                 quant_rec = "Sell (Cut Loss)"
-                quant_note = f"Breached {ATR_STOP_MULT}x ATR stop ({atr_stop_level:.2f} THB) or support. Capital defense."
+                quant_note = f"Breached {ATR_STOP_MULT}x ATR stop ({atr_stop_level:.2f} THB) from cost {entry_cost_num:.2f}. Capital defense."
             # 2. 3.0:1 Profit Target Hit or Resistance Exhaustion
             elif latest_high >= target_price or (latest_close >= resistance_level and not rising_obv):
                 quant_rec = "Sell (Take-Profit)"
