@@ -31,11 +31,11 @@ DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for liv
 my_costs = {
     "BBL.BK": 193.32,       # Custom entries configured in THB
     "GULF.BK": 67.41,
-    "SCC.BK": 265.11,
+    "SCC.BK": 0,
     "TU.BK": 13.31,
     "AOT.BK": 0,
     "BCP.BK": 0,
-    "BDMS.BK": 20.01,
+    "BDMS.BK": 20.22,
     "KTB.BK": 44.54,
     "PTT.BK": 41.62,
     "TRUE.BK": 14.09,
@@ -43,9 +43,10 @@ my_costs = {
     "BH.BK": 0,
     "ADVANC.BK": 355.31,
     "GPSC.BK": 51.59,
-    "OR.BK": 12.65,
+    "OR.BK": 12.64,
     "IVL.BK": 25.32,
-    "KBANK.BK": 0
+    "KBANK.BK": 253.22,
+    "SCB.BK": 151.88
 }
 
 tickers = list(my_costs.keys())
