@@ -26,7 +26,7 @@ my_costs = {
     "GOOG": 342.01, 
     "LRCX": 0, 
     "VRT": 0, 
-    "GEV": 0, 
+    "MRVL": 0, 
     "CEG": 0, 
     "DELL": 524.25, 
     "TSM": 429.66, 
