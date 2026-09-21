@@ -38,7 +38,7 @@ my_costs = {
     "BDMS.BK": 20.22,
     "KTB.BK": 44.54,
     "PTT.BK": 41.62,
-    "TRUE.BK": 0,
+    "TRUE.BK": 14.09,
     "WHA.BK": 4.87,
     "BH.BK": 0,
     "ADVANC.BK": 355.31,
@@ -235,7 +235,10 @@ for ticker in tickers:
             # 1. Hard Volatility Stop Loss / Support Breakdown
             if is_stop_breached:
                 quant_rec = "Sell (Cut Loss)"
-                quant_note = f"Breached {ATR_STOP_MULT}x ATR stop ({atr_stop_level:.2f} THB) from cost {entry_cost_num:.2f}. Capital defense."
+                if is_at_support and rising_obv:
+                    quant_note = f"Breached stop ({atr_stop_level:.2f} THB). Staging bounce off {support_level:.2f} support with rising OBV; exit on relief rally or hard stop below support."
+                else:
+                    quant_note = f"Breached {ATR_STOP_MULT}x ATR stop ({atr_stop_level:.2f} THB) from cost {entry_cost_num:.2f}. Capital defense."
             # 2. 3.0:1 Profit Target Hit or Resistance Exhaustion
             elif latest_high >= target_price or (latest_close >= resistance_level and not rising_obv):
                 quant_rec = "Sell (Take-Profit)"
@@ -279,12 +282,13 @@ for ticker in tickers:
             "important_note": quant_note
         })
 
+        reversal_alert = "Yes (Bounce at Support with Rising OBV)" if (is_at_support and rising_obv) else "No"
         data_summary += (
             f"T: {ticker} | Cost: {display_cost} | Price: {latest_close:.2f} | "
             f"Quant_Rec: {quant_rec} | Quant_Trend: {quant_trend} | "
             f"Support: {support_level:.2f} | Resist: {resistance_level:.2f} | "
             f"Target3R: {target_price:.2f} | Stop: {atr_stop_level:.2f} | "
-            f"OBV: {obv_trend} | MACD: {macd_status}\n"
+            f"OBV: {obv_trend} | MACD: {macd_status} | Reversal_Attempt: {reversal_alert}\n"
         )
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
@@ -302,7 +306,10 @@ CORE MISSION:
    - Explicitly cite key price milestones: Support, Resistance, 3.0:1 Target, or 2.8x ATR Stop in THB.
    - If testing resistance, state whether it is holding for breakout toward the 3.0:1 target.
    - If at support, confirm whether the bounce is validated with risk defended at the 2.8x ATR stop.
-   - If Sell (Take-Profit) or Sell (Cut Loss), give the clear institutional risk rationale.
+   - If Sell (Take-Profit), state profit target reached or resistance exhaustion.
+   - If Sell (Cut Loss):
+     * If broken down with falling volume/trend (e.g. TRUE), cite capital defense and stop breach.
+     * If attempting an oversold bounce/reversal off support with rising OBV (e.g. GULF), acknowledge the support bounce and advise a tactical exit into the relief rally toward resistance with an emergency stop placed just below the support level.
 
 CRITICAL FORMATTING:
 - Write strictly in plain text. Do NOT use markdown asterisks (** or *), quotes, or code backticks inside the text.
