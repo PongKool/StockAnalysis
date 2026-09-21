@@ -18,7 +18,7 @@ import time
 my_costs = {
     "SNDK": 1622.50, 
     "AMD": 545.69, 
-    "ADI": 370.25, 
+    "ADI": 374.79, 
     "NVDA": 227.53, 
     "AVGO": 0, 
     "GLW": 153.98, 
@@ -26,12 +26,12 @@ my_costs = {
     "GOOG": 342.01, 
     "LRCX": 0, 
     "VRT": 0, 
-    "MRVL": 250.37, 
-    "GEV": 0, 
+    "MRVL": 251.61, 
+    "GEV": 955.95, 
     "DELL": 524.25, 
-    "TSM": 429.66, 
-    "DDOG": 237.02, 
-    "VST": 145.91    
+    "TSM": 434.22, 
+    "DDOG": 0, 
+    "VST": 0    
 }
 
 tickers = list(my_costs.keys())
