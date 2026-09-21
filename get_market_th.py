@@ -38,7 +38,7 @@ my_costs = {
     "BDMS.BK": 20.22,
     "KTB.BK": 44.54,
     "PTT.BK": 41.62,
-    "TRUE.BK": 14.09,
+    "TRUE.BK": 0,
     "WHA.BK": 4.87,
     "BH.BK": 0,
     "ADVANC.BK": 355.31,
@@ -46,7 +46,7 @@ my_costs = {
     "OR.BK": 12.64,
     "IVL.BK": 25.32,
     "KBANK.BK": 253.22,
-    "SCB.BK": 151.88
+    "SCB.BK": 152.47
 }
 
 tickers = list(my_costs.keys())
