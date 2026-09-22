@@ -29,24 +29,24 @@ DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for liv
 # 1. PORTFOLIO CONFIGURATION & THAI SET WATCHLIST
 # ==============================================================================
 my_costs = {
-    "BBL.BK": 193.32,       # Custom entries configured in THB
+    "BBL.BK": 193.83,       # Custom entries configured in THB
     "BEM.BK": 6.92,
-    "GPSC.BK": 0,
-    "GULF.BK": 0,
+    "GPSC.BK": 49.08,
+    "GULF.BK": 62.60,
     "SCC.BK": 0,
-    "TU.BK": 13.31,
+    "TU.BK": 13.33,
     "AOT.BK": 0,
     "BCP.BK": 0,
     "BDMS.BK": 20.22,
-    "KTB.BK": 44.54,
+    "KTB.BK": 44.55,
     "PTT.BK": 41.62,
     "TRUE.BK": 0,
     "WHA.BK": 4.87,
     "BH.BK": 0,
     "ADVANC.BK": 355.31,
-    "OR.BK": 12.64,
+    "OR.BK": 0,
     "IVL.BK": 25.32,
-    "KBANK.BK": 253.22,
+    "KBANK.BK": 254.22,
     "SCB.BK": 153.51
     
 }
