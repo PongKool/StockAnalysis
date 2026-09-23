@@ -18,7 +18,8 @@ import time
 my_costs = {
     "SNDK": 1622.50, 
     "AMD": 0, 
-    "ADI": 0, 
+    "ADI": 0,
+    "AMAT": 0,
     "NVDA": 227.53, 
     "AVGO": 0, 
     "GLW": 153.98, 
