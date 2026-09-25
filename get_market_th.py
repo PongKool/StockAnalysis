@@ -47,7 +47,7 @@ my_costs = {
     "TRUE.BK": 0,
     "CPALL.BK": 0,
     "BBL.BK": 193.83,
-    "BDMS.BK": 20.22,
+    "BDMS.BK": 0,
     "SCC.BK": 0,
     "CRC.BK": 0,
     # User's Additional Holdings & Watchlist
@@ -56,7 +56,7 @@ my_costs = {
     "WHA.BK": 4.87,
     "BCP.BK": 0,
     "BH.BK": 0,
-    "OR.BK": 0,
+    "GPSC.BK": 48.97,
     "IVL.BK": 0
 }
 
