@@ -23,7 +23,7 @@ if os.path.exists(env_path):
     except Exception:
         pass
 
-DRY_RUN = True  # Set to True when testing layout/code for $0.00; False for live runs
+DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for live runs
 
 # Strategy Constants: Option 2 Hybrid & Relative Strength Momentum (+81.54% Engine)
 ATR_STOP_MULT = 3.0
@@ -47,7 +47,7 @@ my_costs = {
     "TRUE.BK": 0,
     "CPALL.BK": 0,
     "BBL.BK": 193.83,
-    "BDMS.BK": 0,
+    "BDMS.BK": 20.22,
     "SCC.BK": 0,
     "CRC.BK": 0,
     # User's Additional Holdings & Watchlist
@@ -56,7 +56,7 @@ my_costs = {
     "WHA.BK": 4.87,
     "BCP.BK": 0,
     "BH.BK": 0,
-    "GPSC.BK": 48.97,
+    "OR.BK": 0,
     "IVL.BK": 0
 }
 
@@ -136,6 +136,7 @@ momentum_scores = {}
 for t in tickers:
     if not batch_df.empty and t in batch_df['Close']:
         s_c = batch_df['Close'][t].dropna()
+        s_v = batch_df['Volume'][t].dropna() if ('Volume' in batch_df and t in batch_df['Volume']) else pd.Series()
         if len(s_c) >= 20:
             c_now = float(s_c.iloc[-1])
             c_30 = float(s_c.iloc[-min(30, len(s_c))])
@@ -144,16 +145,33 @@ for t in tickers:
             roc_60 = ((c_now - c_60) / c_60) * 100 if len(s_c) >= 60 else roc_30
             sma_50 = float(s_c.rolling(50).mean().iloc[-1]) if len(s_c) >= 50 else float(s_c.mean())
             is_above_sma50 = (c_now >= sma_50 * 0.98)
-            score = (0.6 * roc_30) + (0.4 * roc_60)
+            price_score = (0.6 * roc_30) + (0.4 * roc_60)
+            
+            # Volume Expansion Multiplier (20d vs 60d institutional accumulation)
+            if len(s_v) >= 20:
+                vol_20 = float(s_v.iloc[-min(20, len(s_v)):].mean())
+                vol_60 = float(s_v.iloc[-min(60, len(s_v)):].mean()) if len(s_v) >= 60 else vol_20
+                vol_ratio = (vol_20 / vol_60) if vol_60 > 0 else 1.0
+                clamped_vr = max(0.80, min(1.30, vol_ratio))
+            else:
+                vol_ratio = 1.0
+                clamped_vr = 1.0
+                
+            composite_score = price_score * clamped_vr
             momentum_scores[t] = {
-                "score": score, "roc_30": roc_30, "roc_60": roc_60,
+                "score": composite_score,
+                "price_score": price_score,
+                "vol_ratio": vol_ratio,
+                "roc_30": roc_30,
+                "roc_60": roc_60,
                 "above_sma50": is_above_sma50
             }
 
 eligible_leaders = [t for t in momentum_scores if momentum_scores[t]["above_sma50"]]
 ranked_leaders_list = sorted(eligible_leaders, key=lambda t: momentum_scores[t]["score"], reverse=True)
 top_4_leaders = {t: idx + 1 for idx, t in enumerate(ranked_leaders_list[:4])}
-print(f"Top 4 SET Relative Strength Leaders Identified: {list(top_4_leaders.keys())}")
+leader_summary = [f"{t} (Score: {momentum_scores[t]['score']:.1f}%, Vol: {momentum_scores[t]['vol_ratio']:.2f}x)" for t in top_4_leaders]
+print(f"Top 4 SET Volume-Confirmed RS Leaders: {leader_summary}")
 
 for ticker in tickers:
     try:
