@@ -23,7 +23,7 @@ if os.path.exists(env_path):
     except Exception:
         pass
 
-DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for live runs
+DRY_RUN = True  # Set to True when testing layout/code for $0.00; False for live runs
 
 # Strategy Constants: Option 2 Hybrid & Relative Strength Momentum (+81.54% Engine)
 ATR_STOP_MULT = 3.0
