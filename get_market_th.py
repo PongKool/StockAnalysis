@@ -524,7 +524,7 @@ pdf.add_page()
 
 pdf.set_font("Helvetica", "", 6.5)
 # 11 Columns totaling 190mm
-col_widths = (11, 7, 7, 7, 8, 8, 8, 12, 8, 14, 100)
+col_widths = (11, 9, 9, 9, 10, 10, 10, 12, 8, 14, 88)
 
 with pdf.table(col_widths=col_widths, borders_layout="HORIZONTAL_LINES", line_height=4) as table:
     pdf.set_font("Helvetica", "B", 7.5)
