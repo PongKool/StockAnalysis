@@ -41,7 +41,7 @@ my_costs = {
     "GULF.BK": 62.60,
     "AOT.BK": 0,
     "KTB.BK": 44.55,
-    "KBANK.BK": 254.22,
+    "KBANK.BK": 253.22,
     "PTTEP.BK": 0,
     "SCB.BK": 153.51,
     "TRUE.BK": 12.91,
@@ -70,7 +70,7 @@ class StockAnalysisSchema(BaseModel):
     obv_status: str = Field(description="Rising/Falling/Flat")
     macd_status: str = Field(description="MACD crossover/territory state.")
     trend: str = Field(description="Bullish/Bearish/Sideways")
-    recommendation: str = Field(description="Buy (Leader Pullback)/Buy (Leader Breakout)/Buy (Support Bounce)/Hold (Core Leader)/Hold/Hold (Accumulate)/Sell (Take-Profit)/Sell (Cut Loss)/Watch")
+    recommendation: str = Field(description="Buy (Leader Pullback)/Buy (Leader Breakout)/Buy (Support Bounce)/Hold (Core Leader)/Hold/Hold (Accumulate)/Sell (Take-Profit)/Sell (Cut Loss)/Sell (Trend Breakdown)/Watch")
     important_note: str = Field(description="Crisp institutional justification strictly under 35 words citing levels.")
 
 class StockAnalysisList(BaseModel):
@@ -327,9 +327,13 @@ for ticker in tickers:
             elif is_tactical_tp_alert:
                 display_tp_stop = trailing_stop_level if trailing_stop_level > 0 else (recent_high_20d - 1.5 * atr)
                 quant_rec = "Sell (Take-Profit)"
-                quant_note = f"Tactical TP Alert: In +{pnl_pct_held:.1f}% profit near resistance ({resistance_level:.2f} THB). Bank profit now or trail stop at {display_tp_stop:.2f} THB."
+            # 5. Trend Breakdown Exit (Early Capital Defense)
+            # Held position closed below 50-day SMA with Falling OBV and Bearish MACD
+            elif (not above_sma50) and (not rising_obv) and (not bullish_macd):
+                quant_rec = "Sell (Trend Breakdown)"
+                quant_note = f"Trend Breakdown: Closed below 50 SMA ({sma_50:.2f} THB) with falling OBV & bearish MACD. Exit early to cut loss."
 
-            # 5. Core Leader Status (Highest Conviction Run)
+            # 6. Core Leader Status (Highest Conviction Run)
             elif is_top_leader:
                 quant_rec = "Hold (Core Leader)"
                 stop_display = trailing_stop_level if (trailing_stop_level > 0 and latest_close > entry_cost_num) else atr_stop_level
@@ -424,6 +428,8 @@ CORE MISSION:
    - If Sell (Take-Profit):
      * If 3.5:1 target reached or resistance hit, cite target hit or resistance exhaustion.
      * If Tactical TP Alert or Trailing Stop triggered, cite locking in double-digit profit or securing gains at the elevated trailing stop.
+   - If Sell (Trend Breakdown):
+     * Cite structural breakdown below 50-day SMA with falling OBV and bearish MACD, advising immediate exit to prevent deeper losses.
    - If Sell (Cut Loss):
      * If broken down with falling volume/trend (e.g. TRUE), cite capital defense and stop breach.
      * If attempting an oversold bounce/reversal off support with rising OBV (e.g. GULF), acknowledge the support bounce and advise a tactical exit into the relief rally toward resistance with an emergency stop placed just below the support level.
@@ -542,7 +548,7 @@ pdf.add_page()
 
 pdf.set_font("Helvetica", "", 6.5)
 # 11 Columns totaling 190mm
-col_widths = (11, 9, 11, 11, 10, 10, 10, 12, 8, 14, 84)
+col_widths = (11, 7, 7, 7, 8, 8, 8, 12, 8, 14, 100)
 
 with pdf.table(col_widths=col_widths, borders_layout="HORIZONTAL_LINES", line_height=4) as table:
     pdf.set_font("Helvetica", "B", 7.5)
