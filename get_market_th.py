@@ -292,10 +292,10 @@ for ticker in tickers:
             peak_gain_pct = ((recent_high_20d - entry_cost_num) / entry_cost_num) * 100 if entry_cost_num > 0 else 0.0
             pullback_from_peak = ((latest_close - recent_high_20d) / recent_high_20d) * 100 if recent_high_20d > 0 else 0.0
 
-            # Dynamic Profit-Protection Trailing Stop (Option 2: activated if peak gain >= 12.0%)
+            # Dynamic Profit-Protection Trailing Stop (Option 2: activated if peak gain >= 12.0% and currently in profit >= 3.0%)
             trailing_stop_level = 0.0
             is_trailing_stop_breached = False
-            if peak_gain_pct >= 12.0:
+            if peak_gain_pct >= 12.0 and pnl_pct_held >= 3.0:
                 trailing_stop_level = max(recent_high_20d - (2.5 * atr), entry_cost_num * 1.03)
                 is_trailing_stop_breached = (latest_close <= trailing_stop_level)
 
@@ -319,7 +319,7 @@ for ticker in tickers:
                 quant_note = f"Reached {TARGET_RR}:1 target ({target_price:.2f} THB). Locking in profit at resistance."
 
             # 3. Dynamic Profit-Protection Trailing Stop Triggered
-            elif is_trailing_stop_breached:
+            elif is_trailing_stop_breached and pnl_pct_held > 0:
                 quant_rec = "Sell (Take-Profit)"
                 quant_note = f"Breached trailing stop ({trailing_stop_level:.2f} THB) after {peak_gain_pct:.1f}% peak. Securing {pnl_pct_held:+.1f}% profit."
 
@@ -548,7 +548,7 @@ pdf.add_page()
 
 pdf.set_font("Helvetica", "", 6.5)
 # 11 Columns totaling 190mm
-col_widths = (11, 7, 7, 7, 8, 8, 8, 12, 8, 14, 100)
+col_widths = (11, 9, 11, 11, 10, 10, 10, 12, 8, 14, 84)
 
 with pdf.table(col_widths=col_widths, borders_layout="HORIZONTAL_LINES", line_height=4) as table:
     pdf.set_font("Helvetica", "B", 7.5)
