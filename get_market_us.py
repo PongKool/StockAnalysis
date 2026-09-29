@@ -24,7 +24,7 @@ my_costs = {
     "AVGO": 0, 
     "GLW": 153.98, 
     "CCJ": 0, 
-    "GOOG": 341.70, 
+    "GOOG": 0, 
     "LRCX": 298.56, 
     "VRT": 0, 
     "LLY": 1185.85, 
@@ -32,7 +32,7 @@ my_costs = {
     "DELL": 0, 
     "TSM": 438.89, 
     "SNPS": 0, 
-    "ASML": 1820.12,
+    "ASML": 1822.63,
     "VST": 0    
 }
 
