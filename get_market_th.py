@@ -192,6 +192,11 @@ for ticker in tickers:
         latest_close = float(hist['Close'].iloc[-1])
         latest_high = float(hist['High'].iloc[-1])
         latest_low = float(hist['Low'].iloc[-1])
+        latest_open = float(hist['Open'].iloc[-1])
+        prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else latest_close
+        latest_volume = float(hist['Volume'].iloc[-1])
+        vol_ma20 = float(hist['Volume'].tail(20).mean()) if len(hist) >= 20 else latest_volume
+        vol_ratio = (latest_volume / vol_ma20) if vol_ma20 > 0 else 1.0
 
         # 1. ATR 14
         h_l = hist['High'] - hist['Low']
@@ -286,6 +291,21 @@ for ticker in tickers:
         support_buffer = support_level * (1.0 + SUPPORT_BUFFER_PCT)
         is_at_support = (latest_close >= support_level * 0.985) and (latest_close <= support_buffer)
 
+        # Volume & Price Action Confirmation Flags (Anti-Falling Knife)
+        is_green_day = (latest_close >= latest_open) or (latest_close >= prev_close)
+        is_heavy_selling = (latest_close < prev_close) and (vol_ratio >= 1.0)
+        is_holding_ema20 = (latest_close >= ema_20 * 0.99)
+        pullback_zone_ema20 = (latest_close <= ema_20 * 1.025) and (latest_close >= ema_20 * 0.97)
+
+        # Confirmed Pullback Reversal:
+        # Must hold EMA20 line, must NOT be heavy selling, and shows green reversal candle or dried-up volume bounce
+        confirmed_ema20_bounce = (
+            pullback_zone_ema20 and 
+            is_holding_ema20 and 
+            (not is_heavy_selling) and 
+            (is_green_day or (bullish_macd and vol_ratio < 0.8))
+        )
+
         if is_held:
             recent_high_20d = float(hist['High'].tail(min(20, len(hist))).max())
             pnl_pct_held = ((latest_close - entry_cost_num) / entry_cost_num) * 100 if entry_cost_num > 0 else 0.0
@@ -340,7 +360,7 @@ for ticker in tickers:
                 quant_note = f"SET Rank {rank_display} Momentum Leader ({m_score:.1f}% ROC). Ride core trend toward {target_price:.2f} THB. Stop: {stop_display:.2f} THB."
 
             # 6. Bounce at Support (Scale candidate)
-            elif is_at_support and rising_obv and bullish_macd:
+            elif is_at_support and rising_obv and bullish_macd and (not is_heavy_selling) and is_green_day:
                 quant_rec = "Hold (Accumulate)"
                 quant_note = f"Bouncing off POC support ({support_level:.2f} THB) with volume accumulation. Scale candidate."
 
@@ -352,28 +372,30 @@ for ticker in tickers:
         else:
             # Watchlist / New Entry
             if is_top_leader:
-                pullback_to_ema20 = (latest_close <= ema_20 * 1.025) and (latest_close >= ema_20 * 0.975)
-                if pullback_to_ema20:
+                if confirmed_ema20_bounce:
                     quant_rec = "Buy (Leader Pullback)"
-                    quant_note = f"SET Rank {rank_display} Momentum Leader testing 20 EMA ({ema_20:.2f} THB). Low-risk trend entry toward {target_price:.2f} THB."
-                elif is_breakout:
+                    quant_note = f"SET Rank {rank_display} Momentum Leader confirmed bounce off 20 EMA ({ema_20:.2f} THB) with volume support. Target: {target_price:.2f} THB."
+                elif pullback_zone_ema20 or (latest_close < ema_20 and latest_close >= ema_20 * 0.95):
+                    quant_rec = "Watch"
+                    quant_note = f"SET Rank {rank_display} Momentum Leader testing 20 EMA ({ema_20:.2f} THB). Free fall / unconfirmed; wait for green reversal candle & volume before entering."
+                elif is_breakout and (not is_heavy_selling):
                     quant_rec = "Buy (Leader Breakout)"
-                    quant_note = f"SET Rank {rank_display} Momentum Leader breakout above {resistance_level:.2f} THB. Momentum ({m_score:.1f}% ROC). Target: {target_price:.2f} THB."
-                elif bullish_macd and rising_obv:
+                    quant_note = f"SET Rank {rank_display} Momentum Leader breakout above {resistance_level:.2f} THB with volume ({vol_ratio:.1f}x). Target: {target_price:.2f} THB."
+                elif bullish_macd and rising_obv and is_green_day and (not is_heavy_selling):
                     quant_rec = "Buy (Leader Breakout)"
                     quant_note = f"SET Rank {rank_display} Momentum Leader holding high momentum ({m_score:.1f}% ROC). Target: {target_price:.2f} THB."
                 else:
                     quant_rec = "Watch"
-                    quant_note = f"SET Rank {rank_display} Momentum Leader consolidating. Waiting for pullback to 20 EMA ({ema_20:.2f} THB) or breakout."
-            elif is_breakout and rising_obv and bullish_macd:
+                    quant_note = f"SET Rank {rank_display} Momentum Leader consolidating. Waiting for confirmed 20 EMA bounce or breakout."
+            elif is_breakout and rising_obv and bullish_macd and (not is_heavy_selling):
                 quant_rec = "Buy (Breakout)"
-                quant_note = f"Confirmed breakout above {resistance_level:.2f} THB with rising volume. Target: {target_price:.2f} THB."
-            elif is_at_support and rising_obv and bullish_macd:
+                quant_note = f"Confirmed breakout above {resistance_level:.2f} THB with rising volume ({vol_ratio:.1f}x). Target: {target_price:.2f} THB."
+            elif is_at_support and rising_obv and bullish_macd and (not is_heavy_selling) and is_green_day:
                 quant_rec = "Buy (Support Bounce)"
-                quant_note = f"High-conviction bounce at POC support ({support_level:.2f} THB). R/R > {TARGET_RR}:1. Target: {target_price:.2f} THB."
+                quant_note = f"High-conviction bounce at POC support ({support_level:.2f} THB) with volume support. Target: {target_price:.2f} THB."
             else:
                 quant_rec = "Watch"
-                quant_note = f"Patience. Waiting for support test at {support_level:.2f} THB or confirmed breakout above {resistance_level:.2f} THB."
+                quant_note = f"Patience. Waiting for confirmed support bounce at {support_level:.2f} THB or breakout above {resistance_level:.2f} THB."
 
         # Display active stop (trailing stop if in profit protection mode, otherwise entry stop)
         display_stop = trailing_stop_level if (is_held and trailing_stop_level > 0 and latest_close > entry_cost_num) else atr_stop_level
