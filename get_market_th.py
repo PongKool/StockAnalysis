@@ -291,19 +291,28 @@ for ticker in tickers:
         support_buffer = support_level * (1.0 + SUPPORT_BUFFER_PCT)
         is_at_support = (latest_close >= support_level * 0.985) and (latest_close <= support_buffer)
 
-        # Volume & Price Action Confirmation Flags (Anti-Falling Knife)
-        is_green_day = (latest_close >= latest_open) or (latest_close >= prev_close)
+        # High-Conviction Reversal Confirmation Flags (Anti-Falling Knife)
+        closed_up = (latest_close > prev_close)
+        strictly_green = (latest_close > latest_open)
+        day_range = latest_high - latest_low
+        close_in_upper_half = ((latest_close - latest_low) >= 0.5 * day_range) if day_range > 0 else False
+        
+        # Sequence break: Must close UP on the day, OR have a strictly green candle closing in upper half
+        has_reversal_candle = closed_up or (strictly_green and close_in_upper_half)
+        
         is_heavy_selling = (latest_close < prev_close) and (vol_ratio >= 1.0)
-        is_holding_ema20 = (latest_close >= ema_20 * 0.99)
-        pullback_zone_ema20 = (latest_close <= ema_20 * 1.025) and (latest_close >= ema_20 * 0.97)
+        is_holding_ema20 = (latest_close >= ema_20)
+        pullback_zone_ema20 = (latest_close <= ema_20 * 1.025) and (latest_close >= ema_20 * 0.975)
 
         # Confirmed Pullback Reversal:
-        # Must hold EMA20 line, must NOT be heavy selling, and shows green reversal candle or dried-up volume bounce
+        # 1. Price is in EMA20 zone and holds strictly at or above EMA20
+        # 2. Must NOT be an institutional distribution / heavy selling day
+        # 3. Must have broken the sequence of lower closes with a confirmed reversal candle
         confirmed_ema20_bounce = (
             pullback_zone_ema20 and 
             is_holding_ema20 and 
             (not is_heavy_selling) and 
-            (is_green_day or (bullish_macd and vol_ratio < 0.8))
+            has_reversal_candle
         )
 
         if is_held:
@@ -360,7 +369,7 @@ for ticker in tickers:
                 quant_note = f"SET Rank {rank_display} Momentum Leader ({m_score:.1f}% ROC). Ride core trend toward {target_price:.2f} THB. Stop: {stop_display:.2f} THB."
 
             # 6. Bounce at Support (Scale candidate)
-            elif is_at_support and rising_obv and bullish_macd and (not is_heavy_selling) and is_green_day:
+            elif is_at_support and rising_obv and bullish_macd and (not is_heavy_selling) and has_reversal_candle:
                 quant_rec = "Hold (Accumulate)"
                 quant_note = f"Bouncing off POC support ({support_level:.2f} THB) with volume accumulation. Scale candidate."
 
@@ -381,7 +390,7 @@ for ticker in tickers:
                 elif is_breakout and (not is_heavy_selling):
                     quant_rec = "Buy (Leader Breakout)"
                     quant_note = f"SET Rank {rank_display} Momentum Leader breakout above {resistance_level:.2f} THB with volume ({vol_ratio:.1f}x). Target: {target_price:.2f} THB."
-                elif bullish_macd and rising_obv and is_green_day and (not is_heavy_selling):
+                elif bullish_macd and rising_obv and has_reversal_candle and (not is_heavy_selling):
                     quant_rec = "Buy (Leader Breakout)"
                     quant_note = f"SET Rank {rank_display} Momentum Leader holding high momentum ({m_score:.1f}% ROC). Target: {target_price:.2f} THB."
                 else:
@@ -390,7 +399,7 @@ for ticker in tickers:
             elif is_breakout and rising_obv and bullish_macd and (not is_heavy_selling):
                 quant_rec = "Buy (Breakout)"
                 quant_note = f"Confirmed breakout above {resistance_level:.2f} THB with rising volume ({vol_ratio:.1f}x). Target: {target_price:.2f} THB."
-            elif is_at_support and rising_obv and bullish_macd and (not is_heavy_selling) and is_green_day:
+            elif is_at_support and rising_obv and bullish_macd and (not is_heavy_selling) and has_reversal_candle:
                 quant_rec = "Buy (Support Bounce)"
                 quant_note = f"High-conviction bounce at POC support ({support_level:.2f} THB) with volume support. Target: {target_price:.2f} THB."
             else:
