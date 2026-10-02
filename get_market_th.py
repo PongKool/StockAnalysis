@@ -35,7 +35,7 @@ SUPPORT_BUFFER_PCT = 0.030
 # ==============================================================================
 my_costs = {
     # Official Top 15 Market Cap Equities on SET
-    "DELTA.BK": 259.23,
+    "DELTA.BK": 0,
     "PTT.BK": 41.62,
     "ADVANC.BK": 352.31,
     "GULF.BK": 62.60,
