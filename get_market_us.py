@@ -23,7 +23,7 @@ my_costs = {
     "NVDA": 227.53, 
     "AVGO": 0, 
     "GLW": 153.93, 
-    "CCJ": 0, 
+    "SNOW": 0, 
     "GOOG": 348.42, 
     "LRCX": 298.56, 
     "VRT": 0, 
