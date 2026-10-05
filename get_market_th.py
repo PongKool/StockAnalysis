@@ -51,12 +51,12 @@ my_costs = {
     "SCC.BK": 0,
     "CRC.BK": 0,
     # User's Additional Holdings & Watchlist
-    "BEM.BK": 0,
+    "HANA.BK": 52.84,
     "TU.BK": 0,
     "WHA.BK": 4.87,
     "BCP.BK": 53.62,
-    "BH.BK": 0,
     "GPSC.BK": 48.97,
+    "PTTGC.BK": 50.04,
     "IVL.BK": 0
 }
 
