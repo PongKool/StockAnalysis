@@ -18,22 +18,22 @@ import time
 my_costs = {
     "SNDK": 1622.50, 
     "CRWV": 0, 
-    "ADI": 0,
-    "AMAT": 479.84,
-    "NVDA": 227.53, 
-    "AVGO": 0, 
-    "GLW": 155.52, 
+    "COST": 923.05,
+    "AMAT": 497.47,
+    "NVDA": 227.81, 
+    "AVGO": 362.99, 
+    "GLW": 0, 
     "SNOW": 0, 
     "GOOG": 0, 
-    "LRCX": 298.56, 
+    "LRCX": 0, 
     "VRT": 0, 
     "LLY": 0, 
-    "GEV": 957.02, 
+    "GEV": 958.98, 
     "DELL": 0, 
     "TSM": 438.89, 
     "SNPS": 0, 
-    "ASML": 1822.63,
-    "VST": 146.11    
+    "ASML": 1828.09,
+    "VST": 145.50    
 }
 
 tickers = list(my_costs.keys())
