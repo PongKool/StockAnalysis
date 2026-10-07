@@ -16,13 +16,13 @@ import time
 # 1. PORTFOLIO CONFIGURATION & TICKERS
 # ==============================================================================
 my_costs = {
-    "SNDK": 1622.50, 
+    "MRVL": 0, 
     "CRWV": 0, 
     "COST": 924.60,
     "AMAT": 502.01,
     "NVDA": 227.81, 
     "AVGO": 362.99, 
-    "GLW": 0, 
+    "SNDK": 0, 
     "SNOW": 0, 
     "GOOG": 0, 
     "LRCX": 0, 
