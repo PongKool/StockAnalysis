@@ -29,11 +29,14 @@ my_costs = {
     "VRT": 0, 
     "LLY": 0, 
     "GEV": 958.98, 
-    "DELL": 576.46, 
+    "DELL": 0, 
     "TSM": 438.89, 
     "SNPS": 0, 
     "ASML": 1828.09,
-    "VST": 145.50    
+    "VST": 145.50,
+    "MA": 576.03,
+    "DIS": 105.91
+    
 }
 
 tickers = list(my_costs.keys())
