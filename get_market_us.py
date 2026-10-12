@@ -16,17 +16,17 @@ import time
 # 1. PORTFOLIO CONFIGURATION & TICKERS
 # ==============================================================================
 my_costs = {
-    "MRVL": 0, 
-    "CRWV": 0, 
+    "AMZN": 0, 
+    "META": 0, 
     "COST": 924.60,
     "AMAT": 502.01,
     "NVDA": 227.81, 
     "AVGO": 362.99, 
-    "SNDK": 0, 
+    "MSFT": 0, 
     "SNOW": 0, 
     "GOOG": 0, 
-    "LRCX": 0, 
-    "VRT": 0, 
+    "NFLX": 0, 
+    "ARCC": 18.65, 
     "LLY": 0, 
     "GEV": 958.98, 
     "DELL": 0, 
@@ -35,8 +35,7 @@ my_costs = {
     "ASML": 1828.09,
     "VST": 145.50,
     "MA": 576.03,
-    "DIS": 105.91
-    
+    "DIS": 106.40    
 }
 
 tickers = list(my_costs.keys())
