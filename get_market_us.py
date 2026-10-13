@@ -19,23 +19,23 @@ my_costs = {
     "AMZN": 0, 
     "META": 0, 
     "COST": 924.60,
-    "AMAT": 502.01,
+    "AMAT": 0,
     "NVDA": 227.81, 
-    "AVGO": 362.99, 
+    "AVGO": 0, 
     "MSFT": 0, 
-    "SNOW": 0, 
-    "GOOG": 349.69, 
+    "ZS": 231.03, 
+    "GOOG": 350.01, 
     "NFLX": 0, 
     "ARCC": 18.66, 
-    "LLY": 0, 
+    "LLY": 1167.03, 
     "GEV": 958.98, 
     "DELL": 0, 
-    "TSM": 438.89, 
+    "TSM": 0, 
     "SNPS": 0, 
     "ASML": 1828.09,
     "VST": 145.50,
-    "MA": 581.47,
-    "DIS": 106.40    
+    "MA": 585.81,
+    "DIS": 106.94    
 }
 
 tickers = list(my_costs.keys())
