@@ -64,7 +64,7 @@ class StockAnalysisSchema(BaseModel):
     obv_status: str = Field(description="Rising/Falling/Flat")
     macd_status: str = Field(description="MACD crossover/territory state.")
     trend: str = Field(description="Bullish/Bearish/Sideways")
-    recommendation: str = Field(description="Buy/Hold/Hold (Accumulate)/Sell (Take-Profit)/Sell (Cut Loss)")
+    recommendation: str = Field(description="Buy/Watch/Hold/Hold (Accumulate)/Sell (Take-Profit)/Sell (Cut Loss)")
     important_note: str = Field(description="Crisp institutional technical justification strictly under 45 words.")
 
 class StockAnalysisList(BaseModel):
@@ -162,6 +162,42 @@ for ticker in tickers:
         actual_cost_str = f"{float(cost_val):.2f}" if is_owned else "N/A"
         is_profitable = (latest_close >= float(cost_val)) if is_owned else False
 
+        # --- DIVERGENCE DETECTION (Price vs Volume & Momentum) ---
+        lookback_div = 14
+        p_chg_div = float((latest_close - hist['Close'].iloc[-lookback_div]) / hist['Close'].iloc[-lookback_div] * 100)
+        recent_high_14 = float(hist['High'].tail(lookback_div).max())
+        recent_low_14 = float(hist['Low'].tail(lookback_div).min())
+        is_near_high = latest_close >= (recent_high_14 * 0.985)
+        is_near_low = latest_close <= (recent_low_14 * 1.015)
+
+        is_bear_div = False
+        bear_div_desc = []
+        if (p_chg_div > 0 or is_near_high) and obv_trend == "Falling":
+            is_bear_div = True
+            bear_div_desc.append("OBV Falling")
+        if (p_chg_div > 1.0 or is_near_high) and ("Bearish Crossover" in macd_status or (macd_line.iloc[-1] < macd_line.iloc[-lookback_div] and macd_line.iloc[-1] < signal_line.iloc[-1])):
+            is_bear_div = True
+            bear_div_desc.append("MACD Rolling Over")
+
+        is_bull_div = False
+        bull_div_desc = []
+        if (p_chg_div < 0 or is_near_low) and obv_trend == "Rising":
+            is_bull_div = True
+            bull_div_desc.append("OBV Accumulation")
+        if (p_chg_div < -1.0 or is_near_low) and ("Bullish Crossover" in macd_status or (macd_line.iloc[-1] > macd_line.iloc[-lookback_div] and macd_line.iloc[-1] > signal_line.iloc[-1])):
+            is_bull_div = True
+            bull_div_desc.append("MACD Momentum Up")
+
+        if is_bear_div and not is_bull_div:
+            div_status = "Bearish Divergence"
+            div_prefix = "[Bearish Divergence] "
+        elif is_bull_div and not is_bear_div:
+            div_status = "Bullish Divergence"
+            div_prefix = "[Bullish Divergence] "
+        else:
+            div_status = "None"
+            div_prefix = ""
+
         # --- BOLLINGER BANDS & SQUEEZE LOOKBACK ---
         bbands = hist.ta.bbands(length=20, std=2)
         lower_col = [c for c in bbands.columns if c.startswith('BBL')][0]
@@ -257,70 +293,115 @@ for ticker in tickers:
         else:
             trend = "Sideways"
 
-        # --- DETERMINISTIC 7-STEP WATERFALL DECISION ENGINE ---
-        prefix = "[Squeeze Active] " if is_squeezed else ""
-        
-        # 1. Hard Volatility Stop Loss or Technical Breakdown
-        if is_stop_breached:
-            quant_rec = "Sell (Cut Loss)" if is_owned else "Sell"
-            quant_trend = "Bearish"
-            quant_note = f"{prefix}Breached stop {atr_stop_loss:.2f} / support {support_level:.2f}. Cut loss priority."
-            
-        # 2. 3.0:1 Mathematical Profit Target Achieved
-        elif latest_close >= target_3r:
-            quant_rec = "Sell (Take-Profit)"
-            quant_trend = "Bullish"
-            quant_note = f"{prefix}3:1 Target {target_3r:.2f} reached! Lock in asymmetric gains."
-            
-        # 3. Bearish Divergence in Profitable Position
-        elif is_owned and is_profitable and obv_trend == "Falling" and "Bearish Crossover" in macd_status:
-            quant_rec = "Sell (Take-Profit)"
-            quant_trend = "Bearish"
-            quant_note = f"{prefix}Bearish divergence (falling OBV & MACD cross). Take profit to lock in gains."
-            
-        # 4. Testing Intermediate Resistance Ceiling
-        elif latest_close >= (resistance_level * 0.985):
-            if latest_close >= resistance_level and (obv_trend == "Rising" or obv_5d_trend == "Rising"):
-                quant_rec = "Buy" if not is_owned else "Hold (Accumulate)"
-                quant_trend = "Bullish"
-                quant_note = f"{prefix}Clean breakout above {resistance_level:.2f}. Target expansion toward {target_3r:.2f}."
-            else:
-                quant_rec = "Hold"
-                quant_trend = "Bullish"
-                quant_note = f"{prefix}Testing resistance {resistance_level:.2f}. Hold for 3:1 target {target_3r:.2f}; watch breakout above {resistance_level + 0.01:.2f}."
+        # --- DYNAMIC INSTITUTIONAL SYNTHESIS & DECISION ENGINE ---
+        tags = []
+        if div_status != "None":
+            tags.append(f"[{div_status}]")
+        if is_squeezed:
+            tags.append("[Squeeze Active]")
+        tag_str = " ".join(tags) + (" " if tags else "")
+
+        pnl_pct = ((latest_close - float(cost_val)) / float(cost_val) * 100) if is_owned else 0.0
+        dist_r = max(0.0, ((resistance_level - latest_close) / latest_close) * 100)
+        dist_s = max(0.0, ((latest_close - support_level) / latest_close) * 100)
+
+        if is_owned:
+            # 1. Hard Volatility Stop Loss or Technical Breakdown
+            if is_stop_breached:
+                quant_rec = "Sell (Cut Loss)"
+                quant_trend = "Bearish"
+                quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f} / support {support_level:.2f}. Cut loss priority to preserve capital."
                 
-        # 5. Testing Support Floor (Bounce Potential)
-        elif is_at_support:
-            if is_owned:
-                if is_bounce_confirmed:
-                    quant_rec = "Hold (Accumulate)"
-                    quant_trend = "Bullish"
-                    quant_note = f"{prefix}Support bounce confirmed at {support_level:.2f}. Safe to add shares with stop {atr_stop_loss:.2f}."
+            # 2. 3.0:1 Mathematical Profit Target Achieved
+            elif latest_close >= target_3r:
+                quant_rec = "Sell (Take-Profit)"
+                quant_trend = "Bullish"
+                quant_note = f"{tag_str}Reached 3:1 target {target_3r:.2f} (+{pnl_pct:.1f}% P&L). Take profit to lock in asymmetric gains."
+                
+            # 3. Bearish Divergence in Profitable Position
+            elif is_profitable and (is_bear_div or (obv_trend == "Falling" and "Bearish Crossover" in macd_status)):
+                quant_rec = "Sell (Take-Profit)"
+                quant_trend = "Bearish"
+                div_reason = f" ({', '.join(bear_div_desc)})" if bear_div_desc else ""
+                quant_note = f"{tag_str}Bearish divergence{div_reason} in green position (+{pnl_pct:.1f}%). Lock in profits before momentum rolls over."
+                
+            # 4. Profitable Runner (+5% or higher)
+            elif pnl_pct >= 5.0:
+                quant_trend = "Bullish"
+                if latest_close >= (resistance_level * 0.985):
+                    quant_rec = "Hold (Accumulate)" if (latest_close >= resistance_level and (obv_trend == "Rising" or obv_5d_trend == "Rising")) else "Hold"
+                    quant_note = f"{tag_str}Leading runner (+{pnl_pct:.1f}%); presses resistance {resistance_level:.2f} ({dist_r:.1f}% away). Hold for expansion toward target {target_3r:.2f}."
                 else:
                     quant_rec = "Hold"
-                    quant_trend = "Sideways"
-                    quant_note = f"{prefix}Holding support floor at {support_level:.2f}. Awaiting green bounce candle before adding; stop {atr_stop_loss:.2f}."
+                    quant_note = f"{tag_str}Solid runner (+{pnl_pct:.1f}% P&L). Floating {dist_s:.1f}% over support {support_level:.2f}; trailing stop defends at {atr_stop_loss:.2f}. Target: {target_3r:.2f}."
+                    
+            # 5. Position in Drawdown (-5% or lower)
+            elif pnl_pct <= -5.0:
+                quant_trend = "Bearish" if latest_close < ema200 else "Sideways"
+                quant_rec = "Hold"
+                quant_note = f"{tag_str}Position in drawdown ({pnl_pct:.1f}%); holds {dist_s:.1f}% above support {support_level:.2f}. Hard stop guarded at {atr_stop_loss:.2f}. Await stabilization."
+                
+            # 6. Near Breakeven Range (-5% to +5%)
             else:
+                if latest_close >= (resistance_level * 0.985):
+                    if latest_close >= resistance_level and (obv_trend == "Rising" or obv_5d_trend == "Rising"):
+                        quant_rec = "Hold (Accumulate)"
+                        quant_trend = "Bullish"
+                        quant_note = f"{tag_str}Breakout above {resistance_level:.2f} (+{p_chg_div:+.1f}% 14d). Accumulate for run toward 3:1 target {target_3r:.2f}."
+                    else:
+                        quant_rec = "Hold"
+                        quant_trend = "Bullish"
+                        quant_note = f"{tag_str}Near breakeven ({pnl_pct:+.1f}%); testing ceiling {resistance_level:.2f} ({dist_r:.1f}% away). Watch breakout above {resistance_level + 0.01:.2f}."
+                elif is_at_support:
+                    if is_bounce_confirmed:
+                        quant_rec = "Hold (Accumulate)"
+                        quant_trend = "Bullish"
+                        quant_note = f"{tag_str}Support bounce confirmed at {support_level:.2f} with {obv_trend.lower()} OBV. Safe to add shares with stop {atr_stop_loss:.2f}."
+                    else:
+                        quant_rec = "Hold"
+                        quant_trend = "Sideways"
+                        quant_note = f"{tag_str}Testing support cushion {support_level:.2f}; awaiting green candle. Risk guarded at stop {atr_stop_loss:.2f}."
+                elif (reward_distance / max(risk_distance, 0.01)) >= 3.0 and obv_trend == "Rising":
+                    quant_rec = "Hold (Accumulate)"
+                    quant_trend = "Bullish"
+                    quant_note = f"{tag_str}Favorable 3:1 R:R expansion ({dist_s:.1f}% over support, {dist_r:.1f}% to {resistance_level:.2f}). Target: {target_3r:.2f}."
+                else:
+                    quant_rec = "Hold"
+                    quant_trend = "Bullish" if latest_close > ema200 else "Sideways"
+                    quant_note = f"{tag_str}Consolidating near entry ({pnl_pct:+.1f}%); sits {dist_s:.1f}% over support {support_level:.2f} and {dist_r:.1f}% below {resistance_level:.2f}. Stop: {atr_stop_loss:.2f}."
+        else:
+            # Watchlist Stocks (Unowned: ONLY Buy or Watch)
+            if is_stop_breached:
+                quant_rec = "Watch"
+                quant_trend = "Bearish"
+                quant_note = f"{tag_str}Trading below support {support_level:.2f}. Breakdown phase with {obv_trend.lower()} volume; await basing before considering entry."
+            elif is_at_support:
                 if is_bounce_confirmed:
                     quant_rec = "Buy"
                     quant_trend = "Bullish"
-                    quant_note = f"{prefix}Testing support floor at {support_level:.2f}. Optimal bounce entry with stop {atr_stop_loss:.2f}."
+                    quant_note = f"{tag_str}Confirmed bounce at support floor {support_level:.2f} with {obv_trend.lower()} OBV. Prime entry window; risk defended at stop {atr_stop_loss:.2f}."
                 else:
-                    quant_rec = "Hold"
+                    quant_rec = "Watch"
                     quant_trend = "Sideways"
-                    quant_note = f"{prefix}At support floor {support_level:.2f}. Await green bounce candle to enter; stop {atr_stop_loss:.2f}."
-                    
-        # 6. Favorable Forward R:R Expansion toward Resistance
-        elif (reward_distance / max(risk_distance, 0.01)) >= 3.0 and obv_trend == "Rising":
-            quant_rec = "Hold (Accumulate)" if is_owned else "Buy"
-            quant_trend = "Bullish"
-            quant_note = f"{prefix}Healthy 3:1 R:R expansion toward resistance {resistance_level:.2f} (Target: {target_3r:.2f})."
-            
-        # 7. Standard Consolidation
-        else:
-            quant_rec = "Hold"
-            quant_trend = "Bullish" if latest_close > ema200 else "Sideways"
-            quant_note = f"{prefix}Consolidating between support {support_level:.2f} and resistance {resistance_level:.2f}."
+                    quant_note = f"{tag_str}Testing support cushion {support_level:.2f}. Await green turn or volume expansion before entering; stop at {atr_stop_loss:.2f}."
+            elif latest_close >= (resistance_level * 0.985):
+                if latest_close >= resistance_level and (obv_trend == "Rising" or obv_5d_trend == "Rising"):
+                    quant_rec = "Buy"
+                    quant_trend = "Bullish"
+                    quant_note = f"{tag_str}Clean breakout above {resistance_level:.2f} (+{p_chg_div:+.1f}% 14d). Momentum entry active toward target {target_3r:.2f}."
+                else:
+                    quant_rec = "Watch"
+                    quant_trend = "Bullish"
+                    quant_note = f"{tag_str}Knocking on ceiling {resistance_level:.2f} ({dist_r:.1f}% away) with {obv_trend.lower()} OBV. Watch for daily close above {resistance_level + 0.01:.2f}."
+            elif (reward_distance / max(risk_distance, 0.01)) >= 3.0 and obv_trend == "Rising":
+                quant_rec = "Buy"
+                quant_trend = "Bullish"
+                quant_note = f"{tag_str}Favorable 3:1 R:R expansion ({dist_s:.1f}% over support, {dist_r:.1f}% to {resistance_level:.2f}). Optimal setup toward target {target_3r:.2f}."
+            else:
+                quant_rec = "Watch"
+                quant_trend = "Bullish" if latest_close > ema200 else "Sideways"
+                bias = "Institutional accumulation coiling" if "Bullish" in div_status else ("Thinning volume coiling" if "Bearish" in div_status else "Range-bound coiling")
+                quant_note = f"{tag_str}{bias} ({dist_s:.1f}% above {support_level:.2f}, {dist_r:.1f}% below {resistance_level:.2f}). Await edge test at {support_level:.2f} or breakout at {resistance_level:.2f}."
 
         calculated_market_data[ticker] = {
             "latest_price": f"{latest_close:.2f}",
@@ -335,7 +416,9 @@ for ticker in tickers:
             "quant_trend": quant_trend,
             "quant_note": quant_note,
             "obv_status": obv_trend,
-            "macd_status": macd_status
+            "macd_status": macd_status,
+            "divergence": div_status,
+            "is_owned": is_owned
         }
         
         quant_decision_data.append({
@@ -349,7 +432,7 @@ for ticker in tickers:
         
         data_summary += (
             f"T: {ticker} | Cost: {actual_cost_str} | Price: {latest_close:.2f} | "
-            f"Quant_Rec: {quant_rec} | Quant_Trend: {quant_trend} | "
+            f"Quant_Rec: {quant_rec} | Quant_Trend: {quant_trend} | Divergence: {div_status} | "
             f"S: {support_level:.2f} | R: {resistance_level:.2f} | Target3R: {target_3r:.2f} (Gain: {r_achieved_str}) | "
             f"Stop: {atr_stop_loss:.2f} | POC: {poc_midpoint:.2f} | Squeeze: {squeeze_str} | "
             f"At_Support: {is_at_support} | Bounce_Confirmed: {is_bounce_confirmed} | "
@@ -367,8 +450,9 @@ You are the Senior Quantitative Portfolio Co-Pilot for a high-beta technology eq
 You are given both the raw market metrics and the pre-computed recommendations generated by our +304.56% backtested algorithmic engine (`Quant_Rec` and `Quant_Trend` with 4.25x ATR stop and 3.0:1 profit target).
 
 CORE MISSION:
-1. **Strict Recommendation Alignment:** Maintain perfect alignment with the quantitative engine's signal (`Quant_Rec` and `Quant_Trend`). The mathematical edge of this portfolio relies on discipline (4.25x ATR stops, 3.0:1 profit targets, and confirmed bounces yielding a 68.1% win rate and 0.69 Sharpe).
+1. **Strict Recommendation Alignment:** Maintain perfect alignment with the quantitative engine's signal (`Quant_Rec` and `Quant_Trend`). For unowned watchlist stocks (Cost: N/A), recommendations must strictly be 'Buy' or 'Watch' (never 'Hold' or 'Sell'). For owned portfolio stocks, recommendations can be 'Buy', 'Hold', 'Hold (Accumulate)', or 'Sell (Cut Loss)'/'Sell (Take-Profit)'. The mathematical edge of this portfolio relies on discipline (4.25x ATR stops, 3.0:1 profit targets, and confirmed bounces yielding a 68.1% win rate and 0.69 Sharpe).
 2. **Institutional Technical Justification (`important_note`):** Craft a crisp, high-density justification strictly under 45 words for each stock.
+   - If [Bullish Divergence] or [Bearish Divergence] is active, MUST explicitly state `[Bullish Divergence]` or `[Bearish Divergence]` at the very start of the note.
    - Explicitly cite key price milestones: Support ($S), Resistance ($R), 3.0:1 Target ($Target3R), or Stop ($Stop).
    - If [Squeeze Active], mention that volatility squeeze expansion is imminent.
    - If testing resistance, state whether it is holding for breakout above $(R+0.01) toward $Target3R.
@@ -502,16 +586,30 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
     for idx, stock in enumerate(analysis_data):
         row = table.row()
         ticker = str(stock.get("stock_name", "")).strip()
-        trend_status = str(stock.get("trend", "")).strip().lower()
-        rec_status = str(stock.get("recommendation", "")).strip().lower()
         
         market_metrics = calculated_market_data.get(ticker, {
             "latest_price": "N/A", 
             "support": "N/A", 
             "resistance": "N/A", 
             "atr_stop": "N/A",
-            "cost_display": "N/A"
+            "cost_display": "N/A",
+            "quant_rec": "Watch",
+            "quant_trend": "Sideways",
+            "is_owned": False
         })
+        
+        is_owned_stock = market_metrics.get("is_owned", False)
+        
+        # Strict Quant Authority with Unowned Guardrail
+        raw_rec = market_metrics.get("quant_rec", str(stock.get("recommendation", "")).strip())
+        trend_val = market_metrics.get("quant_trend", str(stock.get("trend", "")).strip())
+        
+        # Unowned stocks can strictly only receive Buy or Watch
+        if not is_owned_stock and raw_rec not in ["Buy", "Watch"]:
+            raw_rec = "Watch"
+            
+        trend_status = trend_val.lower()
+        rec_status = raw_rec.lower()
         
         pdf.set_fill_color(255, 255, 255) if idx % 2 == 0 else pdf.set_fill_color(248, 250, 252)
         pdf.set_font("Helvetica", "", 7)
@@ -533,20 +631,25 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
             pdf.set_text_color(185, 28, 28)
         else:
             pdf.set_text_color(51, 65, 85)
-        row.cell(str(stock.get("trend", "")))
+        row.cell(trend_val)
         
         # Recommendation Color
-        if "buy" in rec_status or "accumulate" in rec_status:
+        if "buy" in rec_status:
             pdf.set_text_color(21, 128, 61)
+        elif "accumulate" in rec_status:
+            pdf.set_text_color(16, 185, 129)
         elif "sell" in rec_status or "cut" in rec_status:
             pdf.set_text_color(185, 28, 28)
-        else:
+        elif "watch" in rec_status:
             pdf.set_text_color(180, 83, 9)
-        row.cell(str(stock.get("recommendation", "")))
+        else:
+            pdf.set_text_color(51, 65, 85)
+        row.cell(raw_rec)
         
         bg_color = (255, 255, 255) if idx % 2 == 0 else (248, 250, 252)
+        note_text = str(stock.get("important_note", market_metrics.get("quant_note", "")))
         row.cell(
-            str(stock.get("important_note", "")),
+            note_text,
             style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_color)
         )
         
