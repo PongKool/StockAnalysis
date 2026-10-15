@@ -231,33 +231,74 @@ for ticker in tickers:
         poc_idx = np.argmax(bin_volume)
         poc_midpoint = float((bins[poc_idx] + bins[poc_idx + 1]) / 2)
 
-        swing_low_dyn = float(hist['Low'].tail(profile_window).min())
-        swing_high_dyn = float(hist['High'].tail(profile_window).max())
-        ema200 = float(hist.ta.ema(length=200).iloc[-1])
-        
-        # Institutional Support / Resistance Candidate Hierarchy
-        support_candidates = [
-            poc_midpoint if poc_midpoint < latest_close else np.nan,
-            swing_low_dyn if swing_low_dyn < latest_close else np.nan,
-            bb_lower if bb_lower < latest_close else np.nan,
-            latest_close - (2.0 * atr),
-            ema200 if ema200 < latest_close else np.nan
-        ]
-        valid_supports = [s for s in support_candidates if np.isfinite(s) and s < latest_close]
-        support_level = float(max(valid_supports)) if valid_supports else float(latest_close - (2.0 * atr))
+        ema_series = hist.ta.ema(length=200)
+        ema200 = float(ema_series.iloc[-1]) if (ema_series is not None and not ema_series.empty and not pd.isna(ema_series.iloc[-1])) else float(latest_close)
 
-        resistance_candidates = [
-            poc_midpoint if poc_midpoint > latest_close else np.nan,
-            swing_high_dyn if swing_high_dyn > latest_close else np.nan,
-            bb_upper if bb_upper > latest_close else np.nan,
-            latest_close + (2.0 * atr),
-            ema200 if ema200 > latest_close else np.nan
-        ]
-        valid_resistances = [r for r in resistance_candidates if np.isfinite(r) and r > latest_close]
-        resistance_level = float(min(valid_resistances)) if valid_resistances else float(latest_close + (2.0 * atr))
+        # --- 1. MACD CYCLE INFLECTION PIVOTS ---
+        bull_crosses = (macd_line > signal_line) & (macd_line.shift(1) <= signal_line.shift(1))
+        bear_crosses = (macd_line < signal_line) & (macd_line.shift(1) >= signal_line.shift(1))
+        bull_indices = hist.index[bull_crosses].tolist()
+        bear_indices = hist.index[bear_crosses].tolist()
 
-        # Channel Guardrail (Minimum 1.0x ATR width)
-        if (resistance_level - support_level) < (1.0 * atr):
+        # MACD Support: Lowest price just before MACD crossed up (< latest_close)
+        macd_support = np.nan
+        for b_idx in reversed(bull_indices):
+            pos = hist.index.get_loc(b_idx)
+            start_p = max(0, pos - 20)
+            cand_low = float(hist['Low'].iloc[start_p : pos + 2].min())
+            if cand_low < latest_close:
+                macd_support = cand_low
+                break
+        if np.isnan(macd_support):
+            macd_support = float(latest_close - (2.0 * atr))
+
+        # MACD Resistance: Highest price just before MACD crossed down (> latest_close)
+        macd_resistance = np.nan
+        for br_idx in reversed(bear_indices):
+            pos = hist.index.get_loc(br_idx)
+            start_p = max(0, pos - 20)
+            cand_high = float(hist['High'].iloc[start_p : pos + 2].max())
+            if cand_high > latest_close:
+                macd_resistance = cand_high
+                break
+        if np.isnan(macd_resistance):
+            macd_resistance = float(latest_close + (2.0 * atr))
+
+        # --- 2. HYBRID SUPPORT & RESISTANCE (POC / BB with MACD Fallback when too narrow) ---
+        # Disqualify POC/BB candidate if too close to price (< 1.0x ATR or < 2% of price)
+        min_proximity = max(1.0 * atr, latest_close * 0.02)
+
+        # Support candidates: POC and Lower Bollinger Band
+        valid_supports = []
+        if (poc_midpoint < latest_close) and ((latest_close - poc_midpoint) >= min_proximity):
+            valid_supports.append(poc_midpoint)
+        if (bb_lower < latest_close) and ((latest_close - bb_lower) >= min_proximity):
+            valid_supports.append(bb_lower)
+
+        if valid_supports:
+            support_level = float(max(valid_supports))
+        else:
+            support_level = float(macd_support)
+
+        # Resistance candidates: POC and Upper Bollinger Band
+        valid_resistances = []
+        if (poc_midpoint > latest_close) and ((poc_midpoint - latest_close) >= min_proximity):
+            valid_resistances.append(poc_midpoint)
+        if (bb_upper > latest_close) and ((bb_upper - latest_close) >= min_proximity):
+            valid_resistances.append(bb_upper)
+
+        if valid_resistances:
+            resistance_level = float(min(valid_resistances))
+        else:
+            resistance_level = float(macd_resistance)
+
+        # Channel Guardrail: if resulting channel is too narrow (< 2.0x ATR), expand using MACD pivots
+        if (resistance_level - support_level) < (2.0 * atr):
+            support_level = float(macd_support)
+            resistance_level = float(macd_resistance)
+
+        # Minimum Channel Guardrail (Minimum 2.0x ATR width safety floor)
+        if (resistance_level - support_level) < (2.0 * atr):
             support_level = float(latest_close - (2.0 * atr))
             resistance_level = float(latest_close + (2.0 * atr))
 
