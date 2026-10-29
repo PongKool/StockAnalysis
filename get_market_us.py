@@ -15,30 +15,51 @@ import time
 # ==============================================================================
 # 1. PORTFOLIO CONFIGURATION & TICKERS
 # ==============================================================================
-my_costs = {
-    "AMZN": 0, 
-    "META": 0, 
-    "COST": 924.60,
-    "AMAT": 0,
-    "NVDA": 227.81, 
-    "AVGO": 343.33, 
-    "MSFT": 0, 
-    "ZS": 243.94, 
-    "GOOG": 350.01, 
-    "SNDK": 1336.52, 
-    "ARCC": 18.66, 
-    "LLY": 1193.15, 
-    "GEV": 958.98, 
-    "DELL": 0, 
-    "TSM": 0, 
-    "SNPS": 0, 
-    "ASML": 1828.09,
-    "VST": 145.50,
-    "MA": 585.81,
-    "DIS": 107.49    
+def parse_position(entry):
+    """
+    Accepts:
+      - dict: {"cost": 924.60, "shares": 2.5}  (supports fractional/decimal shares)
+      - tuple/list: (924.60, 2.5)
+      - number: 924.60 (shares defaults to 0.0)
+    """
+    if isinstance(entry, dict):
+        return float(entry.get("cost", 0.0)), float(entry.get("shares", 0.0))
+    elif isinstance(entry, (list, tuple)):
+        c = float(entry[0]) if len(entry) > 0 else 0.0
+        s = float(entry[1]) if len(entry) > 1 else 0.0
+        return c, s
+    else:
+        return float(entry or 0.0), 0.0
+
+# PORTFOLIO DICTIONARY
+# For owned stocks, provide {"cost": <price>, "shares": <quantity>}
+# Fractional shares (e.g., 1.5, 0.45) are fully supported!
+my_portfolio = {
+    "AMZN": {"cost": 0, "shares": 0.0}, 
+    "META": {"cost": 0, "shares": 0.0}, 
+    "COST": {"cost": 0, "shares": 0.0},
+    "AMAT": {"cost": 425.25, "shares": 2.35},
+    "NVDA": {"cost": 227.81, "shares": 15.34}, 
+    "AVGO": {"cost": 343.33, "shares": 5.82}, 
+    "MSFT": {"cost": 0, "shares": 0.0}, 
+    "ZS":   {"cost": 243.94, "shares": 8.19}, 
+    "GOOG": {"cost": 0, "shares": 0.0}, 
+    "SNDK": {"cost": 1336.52, "shares": 1.49}, 
+    "ARCC": {"cost": 18.66, "shares": 133.80}, 
+    "LLY":  {"cost": 1193.15, "shares": 1.67}, 
+    "GEV":  {"cost": 958.98, "shares": 3.64}, 
+    "DELL": {"cost": 0, "shares": 0.0}, 
+    "TSM":  {"cost": 432.91, "shares": 2.31}, 
+    "SNPS": {"cost": 0, "shares": 0.0}, 
+    "ASML": {"cost": 1828.09, "shares": 1.91},
+    "VST":  {"cost": 145.50, "shares": 20.58},
+    "MA":   {"cost": 585.81, "shares": 4.26},
+    "DIS":  {"cost": 0, "shares": 0.0}    
 }
 
-tickers = list(my_costs.keys())
+# Backward compatibility alias
+my_costs = {k: parse_position(v)[0] for k, v in my_portfolio.items()}
+tickers = list(my_portfolio.keys())
 
 # Auto-load .env if present
 env_path = os.path.join(os.path.dirname(__file__), ".env")
@@ -156,10 +177,11 @@ for ticker in tickers:
         else:
             macd_status = "Bearish Crossover" if macd_line.iloc[-2] >= signal_line.iloc[-2] else "Bearish Territory"
             
-        # Cost validation
-        cost_val = my_costs.get(ticker, 0.0)
+        # Cost and Shares validation
+        cost_val, shares_val = parse_position(my_portfolio.get(ticker, 0.0))
         is_owned = bool(cost_val and float(cost_val) > 0)
         actual_cost_str = f"{float(cost_val):.2f}" if is_owned else "N/A"
+        shares_display = f"{shares_val:g}" if shares_val > 0 else ("0" if is_owned else "N/A")
         is_profitable = (latest_close >= float(cost_val)) if is_owned else False
 
         # --- DIVERGENCE DETECTION (Price vs Volume & Momentum) ---
@@ -446,6 +468,11 @@ for ticker in tickers:
                 bias = "Institutional accumulation coiling" if "Bullish" in div_status else ("Thinning volume coiling" if "Bearish" in div_status else "Range-bound coiling")
                 quant_note = f"{tag_str}{bias} ({dist_s:.1f}% above {support_level:.2f}, {dist_r:.1f}% below {resistance_level:.2f}). Await edge test at {support_level:.2f} or breakout at {resistance_level:.2f}."
 
+        pos_market_val = (shares_val * latest_close) if shares_val > 0 else 0.0
+        pos_cost_val = (shares_val * cost_val) if shares_val > 0 else 0.0
+        pos_dollar_pnl = (pos_market_val - pos_cost_val) if shares_val > 0 else 0.0
+        pos_dollar_risk = (shares_val * max(0.0, latest_close - atr_stop_loss)) if shares_val > 0 else 0.0
+
         calculated_market_data[ticker] = {
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
@@ -455,6 +482,12 @@ for ticker in tickers:
             "poc": f"{poc_midpoint:.2f}",
             "squeeze": squeeze_str,
             "cost_display": actual_cost_str,
+            "shares": shares_val,
+            "shares_display": shares_display,
+            "market_val": pos_market_val,
+            "cost_val": pos_cost_val,
+            "dollar_pnl": pos_dollar_pnl,
+            "dollar_risk": pos_dollar_risk,
             "quant_rec": quant_rec,
             "quant_trend": quant_trend,
             "quant_note": quant_note,
@@ -577,6 +610,7 @@ class CorporatePDF(FPDF):
         self.ema50 = ema50
         self.close = close
         self.token_cost_str = token_cost_str
+        self.current_section = "technical"
 
     def header(self):
         self.set_fill_color(30, 41, 59)
@@ -587,7 +621,8 @@ class CorporatePDF(FPDF):
         self.cell(0, 10, "Daily US Market Report (Hybrid Co-Pilot)", new_x="LMARGIN", new_y="NEXT", align="L")
         self.set_font("Helvetica", "B", 10)
         self.set_text_color(79, 70, 229)
-        self.cell(0, 5, "WATCHLIST TECHNICAL SUMMARY & 3.0:1 QUANT TARGETS", new_x="LMARGIN", new_y="NEXT", align="L")
+        subtitle = "PORTFOLIO ALLOCATION & CAPITAL AT RISK DASHBOARD" if self.current_section == "portfolio" else "WATCHLIST TECHNICAL SUMMARY & 3.0:1 QUANT TARGETS"
+        self.cell(0, 5, subtitle, new_x="LMARGIN", new_y="NEXT", align="L")
         
         thailand_tz = timezone(timedelta(hours=7))
         thai_timestamp = datetime.now(thailand_tz).strftime('%Y-%m-%d %H:%M:%S')
@@ -696,6 +731,105 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
             style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_color)
         )
         
+# ==============================================================================
+# 7. PAGE 2: PORTFOLIO ALLOCATION & CAPITAL AT RISK DASHBOARD
+# ==============================================================================
+owned_tickers = [t for t in tickers if calculated_market_data.get(t, {}).get("is_owned", False)]
+has_any_shares = any(calculated_market_data.get(t, {}).get("shares", 0.0) > 0 for t in owned_tickers)
+
+if has_any_shares:
+    pdf.current_section = "portfolio"
+    pdf.add_page()
+    
+    total_market_val = sum(calculated_market_data[t]["market_val"] for t in owned_tickers)
+    total_cost_val = sum(calculated_market_data[t]["cost_val"] for t in owned_tickers)
+    total_dollar_pnl = total_market_val - total_cost_val
+    total_pnl_pct = ((total_dollar_pnl / total_cost_val) * 100) if total_cost_val > 0 else 0.0
+    total_dollar_risk = sum(calculated_market_data[t]["dollar_risk"] for t in owned_tickers)
+    total_risk_pct = ((total_dollar_risk / total_market_val) * 100) if total_market_val > 0 else 0.0
+    
+    # Section Header
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_text_color(15, 23, 42)
+    pdf.cell(0, 6, "PORTFOLIO ALLOCATION & CAPITAL AT RISK DASHBOARD", new_x="LMARGIN", new_y="NEXT", align="L")
+    
+    # KPI Summary Ribbon
+    pdf.set_font("Helvetica", "B", 8)
+    pnl_sign = "+" if total_dollar_pnl >= 0 else ""
+    kpi_text = (
+        f"Portfolio Value: ${total_market_val:,.2f}  |  "
+        f"Cost Basis: ${total_cost_val:,.2f}  |  "
+        f"Unrealized P&L: {pnl_sign}${total_dollar_pnl:,.2f} ({pnl_sign}{total_pnl_pct:.1f}%)  |  "
+        f"Capital at Risk: ${total_dollar_risk:,.2f} ({total_risk_pct:.1f}%)"
+    )
+    pdf.set_fill_color(241, 245, 249)
+    pdf.set_text_color(30, 41, 59)
+    pdf.cell(0, 7, kpi_text, border=1, fill=True, new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.ln(4)
+    
+    # Table dimensions: sum = 190 mm
+    port_widths = (14, 16, 18, 18, 22, 14, 24, 18, 46)
+    with pdf.table(col_widths=port_widths, text_align="LEFT", line_height=4.5, padding=2, outer_border_width=0.5) as ptable:
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_fill_color(30, 41, 59)
+        
+        phead = ptable.row()
+        for h in ["Ticker", "Shares", "Cost", "Price", "Value ($)", "Weight", "Unrealized P&L", "Risk to Stop", "Scaling / Exit Blueprint"]:
+            phead.cell(h)
+            
+        for p_idx, t in enumerate(owned_tickers):
+            m = calculated_market_data[t]
+            sh = m.get("shares", 0.0)
+            if sh <= 0:
+                continue
+            
+            p_val = m["market_val"]
+            c_val = m["cost_val"]
+            d_pnl = m["dollar_pnl"]
+            pnl_pct = ((d_pnl / c_val) * 100) if c_val > 0 else 0.0
+            weight = ((p_val / total_market_val) * 100) if total_market_val > 0 else 0.0
+            d_risk = m["dollar_risk"]
+            rec = m["quant_rec"]
+            target = m["target_3r"]
+            
+            # Determine partial scale-out / execution blueprint
+            if "sell" in rec.lower():
+                plan_str = f"Exit priority. Violates stop {m['atr_stop']}."
+            elif pnl_pct >= 5.0:
+                trim_shares = max(round(sh * 0.30, 3), 0.001) if sh >= 0.1 else sh
+                plan_str = f"Runner (+{pnl_pct:.1f}%). Hold toward ${target}; trim 30% ({trim_shares:g} sh) at target."
+            elif pnl_pct <= -5.0:
+                plan_str = f"Drawdown ({pnl_pct:.1f}%). Hard stop guarded at ${m['atr_stop']}."
+            else:
+                plan_str = f"Consolidating ({pnl_pct:+.1f}%). Stop defended at ${m['atr_stop']}."
+                
+            prow = ptable.row()
+            pdf.set_fill_color(255, 255, 255) if p_idx % 2 == 0 else pdf.set_fill_color(248, 250, 252)
+            pdf.set_font("Helvetica", "", 7)
+            pdf.set_text_color(51, 65, 85)
+            
+            prow.cell(t)
+            prow.cell(m["shares_display"])
+            prow.cell(f"${float(m['cost_display']):.2f}")
+            prow.cell(f"${float(m['latest_price']):.2f}")
+            prow.cell(f"${p_val:,.2f}")
+            prow.cell(f"{weight:.1f}%")
+            
+            # PnL Color
+            if d_pnl >= 0:
+                pdf.set_text_color(21, 128, 61)
+                prow.cell(f"+${d_pnl:,.2f} (+{pnl_pct:.1f}%)")
+            else:
+                pdf.set_text_color(185, 28, 28)
+                prow.cell(f"-${abs(d_pnl):,.2f} ({pnl_pct:.1f}%)")
+                
+            pdf.set_text_color(185, 28, 28)
+            prow.cell(f"-${d_risk:,.2f}")
+            
+            bg_c = (255, 255, 255) if p_idx % 2 == 0 else (248, 250, 252)
+            prow.cell(plan_str, style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_c))
+
 filename = "us_market_analysis.pdf"
 try:
     pdf.output(filename)
