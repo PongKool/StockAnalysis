@@ -264,15 +264,17 @@ for ticker in tickers:
         if np.isnan(macd_resistance):
             macd_resistance = float(latest_close + (2.0 * atr))
 
-        # --- 2. HYBRID SUPPORT & RESISTANCE (POC / BB with MACD Fallback when too narrow) ---
-        # Disqualify POC/BB candidate if too close to price (< 1.0x ATR or < 2% of price)
+        # --- 2. HYBRID SUPPORT & RESISTANCE (POC / BB with MACD Fallback) ---
+        # Disqualify POC/BB candidate if too close (< 1.0x ATR or < 2% of price)
+        # or too far/blown-out (> 3.0x ATR from price)
         min_proximity = max(1.0 * atr, latest_close * 0.02)
+        max_proximity = 3.0 * atr
 
         # Support candidates: POC and Lower Bollinger Band
         valid_supports = []
-        if (poc_midpoint < latest_close) and ((latest_close - poc_midpoint) >= min_proximity):
+        if (poc_midpoint < latest_close) and (min_proximity <= (latest_close - poc_midpoint) <= max_proximity):
             valid_supports.append(poc_midpoint)
-        if (bb_lower < latest_close) and ((latest_close - bb_lower) >= min_proximity):
+        if (bb_lower < latest_close) and (min_proximity <= (latest_close - bb_lower) <= max_proximity):
             valid_supports.append(bb_lower)
 
         if valid_supports:
@@ -282,9 +284,9 @@ for ticker in tickers:
 
         # Resistance candidates: POC and Upper Bollinger Band
         valid_resistances = []
-        if (poc_midpoint > latest_close) and ((poc_midpoint - latest_close) >= min_proximity):
+        if (poc_midpoint > latest_close) and (min_proximity <= (poc_midpoint - latest_close) <= max_proximity):
             valid_resistances.append(poc_midpoint)
-        if (bb_upper > latest_close) and ((bb_upper - latest_close) >= min_proximity):
+        if (bb_upper > latest_close) and (min_proximity <= (bb_upper - latest_close) <= max_proximity):
             valid_resistances.append(bb_upper)
 
         if valid_resistances:
