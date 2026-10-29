@@ -21,13 +21,13 @@ my_costs = {
     "COST": 924.60,
     "AMAT": 0,
     "NVDA": 227.81, 
-    "AVGO": 358.06, 
+    "AVGO": 343.33, 
     "MSFT": 0, 
-    "ZS": 231.03, 
+    "ZS": 243.94, 
     "GOOG": 350.01, 
-    "SNDK": 1379.15, 
+    "SNDK": 1336.52, 
     "ARCC": 18.66, 
-    "LLY": 1164.68, 
+    "LLY": 1193.15, 
     "GEV": 958.98, 
     "DELL": 0, 
     "TSM": 0, 
@@ -35,7 +35,7 @@ my_costs = {
     "ASML": 1828.09,
     "VST": 145.50,
     "MA": 585.81,
-    "DIS": 106.94    
+    "DIS": 107.49    
 }
 
 tickers = list(my_costs.keys())
