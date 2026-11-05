@@ -8,62 +8,8 @@ from fpdf import FPDF
 from fpdf.fonts import FontFace
 from datetime import datetime, timezone, timedelta
 import pandas as pd
-import pandas_ta as ta
 import numpy as np
 import time
-
-# ==============================================================================
-# 1. PORTFOLIO CONFIGURATION & TICKERS
-# ==============================================================================
-def parse_position(entry):
-    """
-    Accepts:
-      - dict: {"cost": 924.60, "shares": 2.5}  (supports fractional/decimal shares)
-      - tuple/list: (924.60, 2.5)
-      - number: 924.60 (shares defaults to 0.0)
-    """
-    if isinstance(entry, dict):
-        return float(entry.get("cost", 0.0)), float(entry.get("shares", 0.0))
-    elif isinstance(entry, (list, tuple)):
-        c = float(entry[0]) if len(entry) > 0 else 0.0
-        s = float(entry[1]) if len(entry) > 1 else 0.0
-        return c, s
-    else:
-        return float(entry or 0.0), 0.0
-
-# PORTFOLIO DICTIONARY
-# For owned stocks, provide {"cost": <price>, "shares": <quantity>}
-# Fractional shares (e.g., 1.5, 0.45) are fully supported!
-my_portfolio = {
-    "AMZN": {"cost": 0, "shares": 0.0}, 
-    "META": {"cost": 0, "shares": 0.0}, 
-    "COST": {"cost": 0, "shares": 0.0},
-    "AMAT": {"cost": 0, "shares": 0},
-    "NVDA": {"cost": 227.81, "shares": 15.34}, 
-    "AVGO": {"cost": 0, "shares": 0}, 
-    "MSFT": {"cost": 0, "shares": 0.0}, 
-    "ZS":   {"cost": 243.94, "shares": 8.19}, 
-    "GOOG": {"cost": 0, "shares": 0.0}, 
-    "SNDK": {"cost": 0, "shares": 0}, 
-    "ARCC": {"cost": 18.66, "shares": 133.80}, 
-    "LLY":  {"cost": 1193.15, "shares": 1.67}, 
-    "GEV":  {"cost": 958.98, "shares": 3.64}, 
-    "DELL": {"cost": 0, "shares": 0.0}, 
-    "TSM":  {"cost": 0, "shares": 0}, 
-    "SNPS": {"cost": 0, "shares": 0.0}, 
-    "ASML": {"cost": 0, "shares": 0},
-    "VST":  {"cost": 0, "shares": 0},
-    "MA":   {"cost": 585.81, "shares": 4.26},
-    "DIS":  {"cost": 0, "shares": 0.0},
-    "SKHY": {"cost": 143.78, "shares": 13.89}    
-}
-
-# Tickers with short trading history (e.g. recent IPOs/ADRs like SKHY) that need a 30-bar minimum instead of original 200 bars
-SHORT_HISTORY_TICKERS = {"SKHY"}
-
-# Backward compatibility alias
-my_costs = {k: parse_position(v)[0] for k, v in my_portfolio.items()}
-tickers = list(my_portfolio.keys())
 
 # Auto-load .env if present
 env_path = os.path.join(os.path.dirname(__file__), ".env")
@@ -77,477 +23,425 @@ if os.path.exists(env_path):
     except Exception:
         pass
 
-api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-try:
-    client = genai.Client(api_key=api_key) if api_key else genai.Client()
-except Exception as e:
-    print(f"Note: Gemini Client initialization deferred ({e}).")
-    client = None
+DRY_RUN = False  # Set to True when testing layout/code for $0.00; False for live runs
 
+# Strategy Constants: Option 2 Hybrid & Relative Strength Momentum (+81.54% Engine)
+ATR_STOP_MULT = 3.0
+TARGET_RR = 3.5
+SUPPORT_BUFFER_PCT = 0.030
+
+# ==============================================================================
+# 1. PORTFOLIO CONFIGURATION & THAI SET WATCHLIST
+# ==============================================================================
+my_costs = {
+    # Official Top 15 Market Cap Equities on SET
+    "DELTA.BK": 0,
+    "PTT.BK": 41.42,
+    "ADVANC.BK": 349.31,
+    "GULF.BK": 62.60,
+    "AOT.BK": 0,
+    "KTB.BK": 44.68,
+    "KBANK.BK": 254.72,
+    "PTTEP.BK": 0,
+    "SCB.BK": 154.30,
+    "TRUE.BK": 0,
+    "CPALL.BK": 0,
+    "BBL.BK": 194.33,
+    "BDMS.BK": 0,
+    "SCC.BK": 0,
+    "PRM.BK": 8.85,
+    # User's Additional Holdings & Watchlist
+    "HANA.BK": 52.63,
+    "TU.BK": 0,
+    "WHA.BK": 4.88,
+    "BCP.BK": 53.62,
+    "GPSC.BK": 49.60,
+    "PTTGC.BK": 54.09,
+    "IVL.BK": 0
+}
+
+tickers = list(my_costs.keys())
+
+# Pydantic Schema for Gemini Structured Output
 class StockAnalysisSchema(BaseModel):
     stock_name: str = Field(description="Ticker symbol.")
+    rank: str = Field(description="Leaderboard rank, e.g. '#1', '#2', '#3', '#4', or '-'")
+    cost: str = Field(description="The exact entry cost provided or '-'")
     obv_status: str = Field(description="Rising/Falling/Flat")
     macd_status: str = Field(description="MACD crossover/territory state.")
     trend: str = Field(description="Bullish/Bearish/Sideways")
-    recommendation: str = Field(description="Buy/Watch/Hold/Hold (Accumulate)/Sell (Take-Profit)/Sell (Cut Loss)")
-    important_note: str = Field(description="Crisp institutional technical justification strictly under 45 words.")
+    recommendation: str = Field(description="Buy (Leader Pullback)/Buy (Leader Breakout)/Buy (Support Bounce)/Hold (Core Leader)/Hold/Hold (Accumulate)/Sell (Take-Profit)/Sell (Cut Loss)/Sell (Trend Breakdown)/Watch")
+    important_note: str = Field(description="Crisp institutional justification strictly under 35 words citing levels.")
 
 class StockAnalysisList(BaseModel):
     analyses: list[StockAnalysisSchema]
 
 # ==============================================================================
-# 2. MACRO TECH SECTOR REGIME (QQQ)
+# 2. THAI BLUE-CHIP MACRO REGIME (TDEX.BK)
 # ==============================================================================
-print("Fetching Macro Tech Sector Regime Context (QQQ)...")
-start_date = datetime.now(timezone.utc) - timedelta(days=100)
-qqq_hist = yf.Ticker("QQQ").history(start=start_date, auto_adjust=True, actions=True)
+print("Evaluating Thai SET50 Macro Economic Regime (TDEX.BK)...")
+macro_regime = "Neutral/Consolidating"
 
-ema20 = qqq_hist.ta.ema(length=20).iloc[-1]
-ema50 = qqq_hist.ta.ema(length=50).iloc[-1]
+try:
+    macro_stock = yf.Ticker("TDEX.BK")
+    macro_hist = macro_stock.history(period="6mo", auto_adjust=False)
+    macro_hist = macro_hist.dropna(subset=["Close"])
 
-adx_data = qqq_hist.ta.adx(length=14)
-adx_col = [c for c in adx_data.columns if c.startswith('ADX')][0]
-current_adx = adx_data[adx_col].iloc[-1]
-qqq_latest_close = qqq_hist['Close'].iloc[-1]
+    if len(macro_hist) >= 50:
+        macro_sma_100 = macro_hist["Close"].rolling(window=min(100, len(macro_hist))).mean()
+        latest_macro_close = float(macro_hist["Close"].iloc[-1])
+        latest_macro_sma = float(macro_sma_100.iloc[-1])
 
-if current_adx > 25:
-    if qqq_latest_close > ema50:
-        tech_market_regime = "BULLISH"
-    else:
-        tech_market_regime = "BEARISH"
-else:
-    tech_market_regime = "NEUTRAL"
+        upper_buffer = latest_macro_sma * 1.005
+        lower_buffer = latest_macro_sma * 0.995
 
-print(f"QQQ Regime: {tech_market_regime} (ADX: {current_adx:.2f}, Close: {qqq_latest_close:.2f}, EMA50: {ema50:.2f})")
+        if latest_macro_close > upper_buffer:
+            macro_regime = "Bullish"
+        elif latest_macro_close < lower_buffer:
+            macro_regime = "Bearish/Cautious"
+        else:
+            macro_regime = "Neutral/Consolidating"
+except Exception as e:
+    print(f"Warning: Could not calculate Thai macro regime: {e}. Using Neutral/Consolidating.")
+
+print(f"Current Thai Market Regime: {macro_regime}")
 
 # ==============================================================================
 # 3. BULK MARKET DATA DOWNLOAD
 # ==============================================================================
-print("Executing bulk historical data download via Yahoo Finance...")
+print("Fetching technical data in batch from Yahoo Finance for Thai Equities...")
 try:
-    all_hist = yf.download(tickers, period="1y", auto_adjust=True, group_by='ticker')
+    batch_df = yf.download(
+        tickers=tickers,
+        period="6mo",
+        auto_adjust=False,
+        group_by="column",
+        progress=False
+    )
 except Exception as e:
-    print(f"Bulk download failed ({e}), falling back to per-ticker fetch.")
-    all_hist = None
+    print(f"Error during batch download: {e}")
+    batch_df = pd.DataFrame()
 
 # ==============================================================================
-# 4. QUANTITATIVE DECISION ENGINE (+224.39% Backtested Strategy)
+# 4. QUANTITATIVE DECISION ENGINE (+51.71% Backtested Strategy, Sharpe 2.08)
 # ==============================================================================
 calculated_market_data = {}
 quant_decision_data = []
-data_summary = f"GLOBAL TECH REGIME (QQQ): {tech_market_regime}\n"
+data_summary = f"THAI MACRO REGIME (TDEX): {macro_regime}\n"
+
+# ==============================================================================
+# 4. RELATIVE STRENGTH MOMENTUM LEADERBOARD (Top Leaders +81.54% Backtested Engine)
+# ==============================================================================
+momentum_scores = {}
+for t in tickers:
+    if not batch_df.empty and t in batch_df['Close']:
+        s_c = batch_df['Close'][t].dropna()
+        s_v = batch_df['Volume'][t].dropna() if ('Volume' in batch_df and t in batch_df['Volume']) else pd.Series()
+        if len(s_c) >= 20:
+            c_now = float(s_c.iloc[-1])
+            c_30 = float(s_c.iloc[-min(30, len(s_c))])
+            c_60 = float(s_c.iloc[-min(60, len(s_c))])
+            roc_30 = ((c_now - c_30) / c_30) * 100
+            roc_60 = ((c_now - c_60) / c_60) * 100 if len(s_c) >= 60 else roc_30
+            sma_50 = float(s_c.rolling(50).mean().iloc[-1]) if len(s_c) >= 50 else float(s_c.mean())
+            is_above_sma50 = (c_now >= sma_50 * 0.98)
+            price_score = (0.6 * roc_30) + (0.4 * roc_60)
+            
+            # Volume Expansion Multiplier (20d vs 60d institutional accumulation)
+            if len(s_v) >= 20:
+                vol_20 = float(s_v.iloc[-min(20, len(s_v)):].mean())
+                vol_60 = float(s_v.iloc[-min(60, len(s_v)):].mean()) if len(s_v) >= 60 else vol_20
+                vol_ratio = (vol_20 / vol_60) if vol_60 > 0 else 1.0
+                clamped_vr = max(0.80, min(1.30, vol_ratio))
+            else:
+                vol_ratio = 1.0
+                clamped_vr = 1.0
+                
+            composite_score = price_score * clamped_vr
+            momentum_scores[t] = {
+                "score": composite_score,
+                "price_score": price_score,
+                "vol_ratio": vol_ratio,
+                "roc_30": roc_30,
+                "roc_60": roc_60,
+                "above_sma50": is_above_sma50
+            }
+
+eligible_leaders = [t for t in momentum_scores if momentum_scores[t]["above_sma50"]]
+ranked_leaders_list = sorted(eligible_leaders, key=lambda t: momentum_scores[t]["score"], reverse=True)
+top_4_leaders = {t: idx + 1 for idx, t in enumerate(ranked_leaders_list[:4])}
+leader_summary = [f"{t} (Score: {momentum_scores[t]['score']:.1f}%, Vol: {momentum_scores[t]['vol_ratio']:.2f}x)" for t in top_4_leaders]
+print(f"Top 4 SET Volume-Confirmed RS Leaders: {leader_summary}")
 
 for ticker in tickers:
     try:
-        if all_hist is not None and not all_hist.empty and ticker in all_hist.columns.get_level_values(0):
-            hist = all_hist[ticker].copy()
-        else:
-            hist = yf.Ticker(ticker).history(period="1y", auto_adjust=True)
-            
-        # Original 200 bars for mature stocks; 30 bars only for stocks that need it (e.g. SKHY)
-        min_bars = 30 if ticker in SHORT_HISTORY_TICKERS else 200
-        if hist.empty or len(hist) < min_bars:
+        if batch_df.empty or ticker not in batch_df['Close']:
             continue
-            
-        hist = hist.dropna(subset=['Close'])
-        latest_close = hist['Close'].iloc[-1]
-        
-        # --- ATR & TRAILING STOP LOSS (Proven 4.25x Parameter: +304.56% Return, 68.1% Win Rate, 0.69 Sharpe) ---
-        high_low = hist['High'] - hist['Low']
-        high_close = (hist['High'] - hist['Close'].shift()).abs()
-        low_close = (hist['Low'] - hist['Close'].shift()).abs()
-        true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
-        atr = float(true_range.ewm(alpha=1/14, adjust=False).mean().iloc[-1])
-        atr_pct = (atr / latest_close) * 100
-        atr_stop_loss = float(latest_close - (4.25 * atr))
-        
-        # --- OBV (14-Day & 5-Day Volume Momentum) ---
+
+        hist = pd.DataFrame({
+            'Open': batch_df['Open'][ticker],
+            'High': batch_df['High'][ticker],
+            'Low': batch_df['Low'][ticker],
+            'Close': batch_df['Close'][ticker],
+            'Volume': batch_df['Volume'][ticker]
+        }).dropna(subset=['Close'])
+
+        if hist.empty or len(hist) < 26:
+            continue
+
+        latest_close = float(hist['Close'].iloc[-1])
+        latest_high = float(hist['High'].iloc[-1])
+        latest_low = float(hist['Low'].iloc[-1])
+        latest_open = float(hist['Open'].iloc[-1])
+        prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else latest_close
+        latest_volume = float(hist['Volume'].iloc[-1])
+        vol_ma20 = float(hist['Volume'].tail(20).mean()) if len(hist) >= 20 else latest_volume
+        vol_ratio = (latest_volume / vol_ma20) if vol_ma20 > 0 else 1.0
+
+        # 1. ATR 14
+        h_l = hist['High'] - hist['Low']
+        h_c = (hist['High'] - hist['Close'].shift(1)).abs()
+        l_c = (hist['Low'] - hist['Close'].shift(1)).abs()
+        tr = pd.concat([h_l, h_c, l_c], axis=1).max(axis=1)
+        atr = float(tr.ewm(alpha=1/14, adjust=False).mean().iloc[-1])
+
+        # 2. OBV (14-day EMA Volume Trend)
         direction = hist['Close'].diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
         obv = (direction * hist['Volume']).cumsum()
         latest_obv = obv.iloc[-1]
-        
-        obv_ema14 = obv.ewm(span=14, adjust=False).mean()
-        obv_trend = "Rising" if (not pd.isna(latest_obv) and latest_obv > obv_ema14.iloc[-1]) else "Falling"
-        
-        obv_ema5 = obv.ewm(span=5, adjust=False).mean()
-        obv_5d_trend = "Rising" if (not pd.isna(latest_obv) and latest_obv > obv_ema5.iloc[-1]) else "Falling"
-        
-        # --- MACD (12, 26, 9) ---
+        obv_ema14 = obv.ewm(span=14, adjust=False).mean().iloc[-1]
+        obv_trend = "Rising" if latest_obv > obv_ema14 else "Falling"
+
+        # 3. MACD (12, 26, 9)
         exp12 = hist['Close'].ewm(span=12, adjust=False).mean()
         exp26 = hist['Close'].ewm(span=26, adjust=False).mean()
         macd_line = exp12 - exp26
         signal_line = macd_line.ewm(span=9, adjust=False).mean()
-        
-        if macd_line.iloc[-1] > signal_line.iloc[-1]:
-            macd_status = "Bullish Crossover" if macd_line.iloc[-2] <= signal_line.iloc[-2] else "Bullish Territory"
+        latest_macd = macd_line.iloc[-1]
+        latest_sig = signal_line.iloc[-1]
+        prev_macd = macd_line.iloc[-2]
+        prev_sig = signal_line.iloc[-2]
+
+        if latest_macd > latest_sig:
+            macd_status = "Bullish Crossover" if prev_macd <= prev_sig else "Bullish Territory"
         else:
-            macd_status = "Bearish Crossover" if macd_line.iloc[-2] >= signal_line.iloc[-2] else "Bearish Territory"
-            
-        # --- RSI (14-Day Momentum & Oversold Detection) ---
-        rsi_series = hist.ta.rsi(length=14)
-        latest_rsi = float(rsi_series.iloc[-1]) if (rsi_series is not None and not rsi_series.empty and not pd.isna(rsi_series.iloc[-1])) else 50.0
+            macd_status = "Bearish Crossover" if prev_macd >= prev_sig else "Bearish Territory"
 
-        # Cost and Shares validation
-        cost_val, shares_val = parse_position(my_portfolio.get(ticker, 0.0))
-        is_owned = bool(cost_val and float(cost_val) > 0)
-        actual_cost_str = f"{float(cost_val):.2f}" if is_owned else "N/A"
-        shares_display = f"{shares_val:g}" if shares_val > 0 else ("0" if is_owned else "N/A")
-        is_profitable = (latest_close >= float(cost_val)) if is_owned else False
+        # 4. SMA 50
+        sma_50 = float(hist['Close'].rolling(window=50).mean().iloc[-1]) if len(hist) >= 50 else float(hist['Close'].mean())
 
-        # --- DIVERGENCE DETECTION (Price vs Volume & Momentum) ---
-        lookback_div = 14
-        p_chg_div = float((latest_close - hist['Close'].iloc[-lookback_div]) / hist['Close'].iloc[-lookback_div] * 100)
-        recent_high_14 = float(hist['High'].tail(lookback_div).max())
-        recent_low_14 = float(hist['Low'].tail(lookback_div).min())
-        is_near_high = latest_close >= (recent_high_14 * 0.985)
-        is_near_low = latest_close <= (recent_low_14 * 1.015)
+        # 5. Volume Profile POC (63-day window)
+        hist_macro = hist.tail(min(63, len(hist))).copy()
+        try:
+            price_bins = pd.cut(hist_macro['Close'], bins=10)
+            volume_by_bin = hist_macro.groupby(price_bins, observed=False)['Volume'].sum()
+            poc_bin = volume_by_bin.idxmax()
+            poc_midpoint = float(poc_bin.mid)
+        except Exception:
+            poc_midpoint = latest_close
 
-        is_bear_div = False
-        bear_div_desc = []
-        if (p_chg_div > 0 or is_near_high) and obv_trend == "Falling":
-            is_bear_div = True
-            bear_div_desc.append("OBV Falling")
-        if (p_chg_div > 1.0 or is_near_high) and ("Bearish Crossover" in macd_status or (macd_line.iloc[-1] < macd_line.iloc[-lookback_div] and macd_line.iloc[-1] < signal_line.iloc[-1])):
-            is_bear_div = True
-            bear_div_desc.append("MACD Rolling Over")
-
-        is_bull_div = False
-        bull_div_desc = []
-        if (p_chg_div < 0 or is_near_low) and obv_trend == "Rising":
-            is_bull_div = True
-            bull_div_desc.append("OBV Accumulation")
-        if (p_chg_div < -1.0 or is_near_low) and ("Bullish Crossover" in macd_status or (macd_line.iloc[-1] > macd_line.iloc[-lookback_div] and macd_line.iloc[-1] > signal_line.iloc[-1])):
-            is_bull_div = True
-            bull_div_desc.append("MACD Momentum Up")
-
-        if is_bear_div and not is_bull_div:
-            div_status = "Bearish Divergence"
-            div_prefix = "[Bearish Divergence] "
-        elif is_bull_div and not is_bear_div:
-            div_status = "Bullish Divergence"
-            div_prefix = "[Bullish Divergence] "
+        # 6. Support & Resistance
+        if latest_close > poc_midpoint:
+            support_level = poc_midpoint
+            resistance_level = float(sma_50 if sma_50 > latest_close else hist_macro['High'].max())
         else:
-            div_status = "None"
-            div_prefix = ""
+            resistance_level = poc_midpoint
+            support_level = float(sma_50 if sma_50 < latest_close else hist_macro['Low'].min())
 
-        # --- BOLLINGER BANDS & SQUEEZE LOOKBACK ---
-        bbands = hist.ta.bbands(length=20, std=2)
-        lower_col = [c for c in bbands.columns if c.startswith('BBL')][0]
-        upper_col = [c for c in bbands.columns if c.startswith('BBU')][0]
-        width_col = [c for c in bbands.columns if c.startswith('BBB')][0]
-        
-        bb_lower = float(bbands[lower_col].iloc[-1])
-        bb_upper = float(bbands[upper_col].iloc[-1])
-        bb_bandwidth = float(bbands[width_col].iloc[-1])
-        is_squeezed = bb_bandwidth < 5.0
-        squeeze_str = "Squeeze Active (Expansion Imminent)" if is_squeezed else "Normal Volatility"
-        
-        # Dynamic lookback window
-        profile_window = 50 if is_squeezed else 21
-        hist_window = hist.tail(profile_window).copy()
-        
-        # Volume Profile Point of Control (POC)
-        min_price = hist_window['Low'].min()
-        max_price = hist_window['High'].max()
-        bins = np.linspace(min_price, max_price, 51)
-        bin_volume = np.zeros(len(bins) - 1)
-        
-        for _, row in hist_window.iterrows():
-            d_low, d_high, d_vol = row['Low'], row['High'], row['Volume']
-            slices = np.linspace(d_low, d_high, 15) if d_high != d_low else np.array([d_low])
-            vol_per_slice = d_vol / len(slices)
-            for price_point in slices:
-                idx = max(0, min(np.digitize(price_point, bins) - 1, len(bin_volume) - 1))
-                bin_volume[idx] += vol_per_slice
+        if (resistance_level - support_level) < (1.0 * atr):
+            support_level = latest_close - (1.5 * atr)
+            resistance_level = latest_close + (1.5 * atr)
 
-        poc_idx = np.argmax(bin_volume)
-        poc_midpoint = float((bins[poc_idx] + bins[poc_idx + 1]) / 2)
+        # 7. Stop Loss & 3.0:1 Target Price
+        entry_cost_num = float(my_costs.get(ticker, 0.0))
+        is_held = (entry_cost_num > 0.0)
+        display_cost = f"{entry_cost_num:.2f}" if is_held else "-"
 
-        ema_series = hist.ta.ema(length=200)
-        ema200 = float(ema_series.iloc[-1]) if (ema_series is not None and not ema_series.empty and not pd.isna(ema_series.iloc[-1])) else float(latest_close)
-
-        # --- 1. MACD CYCLE INFLECTION PIVOTS ---
-        bull_crosses = (macd_line > signal_line) & (macd_line.shift(1) <= signal_line.shift(1))
-        bear_crosses = (macd_line < signal_line) & (macd_line.shift(1) >= signal_line.shift(1))
-        bull_indices = hist.index[bull_crosses].tolist()
-        bear_indices = hist.index[bear_crosses].tolist()
-
-        # MACD Support: Lowest price just before MACD crossed up (< latest_close)
-        macd_support = np.nan
-        for b_idx in reversed(bull_indices):
-            pos = hist.index.get_loc(b_idx)
-            start_p = max(0, pos - 20)
-            cand_low = float(hist['Low'].iloc[start_p : pos + 2].min())
-            if cand_low < latest_close:
-                macd_support = cand_low
-                break
-        if np.isnan(macd_support):
-            macd_support = float(latest_close - (2.0 * atr))
-
-        # MACD Resistance: Highest price just before MACD crossed down (> latest_close)
-        macd_resistance = np.nan
-        for br_idx in reversed(bear_indices):
-            pos = hist.index.get_loc(br_idx)
-            start_p = max(0, pos - 20)
-            cand_high = float(hist['High'].iloc[start_p : pos + 2].max())
-            if cand_high > latest_close:
-                macd_resistance = cand_high
-                break
-        if np.isnan(macd_resistance):
-            macd_resistance = float(latest_close + (2.0 * atr))
-
-        # --- 2. HYBRID SUPPORT & RESISTANCE (POC / BB with MACD Fallback) ---
-        # Disqualify POC/BB candidate if too close (< 1.0x ATR or < 2% of price)
-        # or too far/blown-out (> 3.0x ATR from price)
-        min_proximity = max(1.0 * atr, latest_close * 0.02)
-        max_proximity = 3.0 * atr
-
-        # Support candidates: POC and Lower Bollinger Band
-        valid_supports = []
-        if (poc_midpoint < latest_close) and (min_proximity <= (latest_close - poc_midpoint) <= max_proximity):
-            valid_supports.append(poc_midpoint)
-        if (bb_lower < latest_close) and (min_proximity <= (latest_close - bb_lower) <= max_proximity):
-            valid_supports.append(bb_lower)
-
-        if valid_supports:
-            support_level = float(max(valid_supports))
+        if is_held:
+            # For held positions: Stop loss is anchored to entry cost (exact backtest rule)
+            atr_stop_level = entry_cost_num - (ATR_STOP_MULT * atr)
+            initial_risk = max(entry_cost_num - atr_stop_level, atr * 1.5)
+            target_price = entry_cost_num + (TARGET_RR * initial_risk)
+            is_stop_breached = (latest_close <= atr_stop_level) or (latest_close < (support_level * 0.98))
         else:
-            support_level = float(macd_support)
-
-        # Resistance candidates: POC and Upper Bollinger Band
-        valid_resistances = []
-        if (poc_midpoint > latest_close) and (min_proximity <= (poc_midpoint - latest_close) <= max_proximity):
-            valid_resistances.append(poc_midpoint)
-        if (bb_upper > latest_close) and (min_proximity <= (bb_upper - latest_close) <= max_proximity):
-            valid_resistances.append(bb_upper)
-
-        if valid_resistances:
-            resistance_level = float(min(valid_resistances))
-        else:
-            resistance_level = float(macd_resistance)
-
-        # Channel Guardrail: if resulting channel is too narrow (< 2.0x ATR), expand using MACD pivots
-        if (resistance_level - support_level) < (2.0 * atr):
-            support_level = float(macd_support)
-            resistance_level = float(macd_resistance)
-
-        # Minimum Channel Guardrail (Minimum 2.0x ATR width safety floor)
-        if (resistance_level - support_level) < (2.0 * atr):
-            support_level = float(latest_close - (2.0 * atr))
-            resistance_level = float(latest_close + (2.0 * atr))
-
-        # --- 3.0:1 MATHEMATICAL PROFIT TARGET & STOP LOSS (From Backtest Engine) ---
-        entry_ref = float(cost_val) if is_owned else latest_close
-        if is_owned:
-            atr_stop_loss = float(entry_ref - (4.25 * atr))
-            initial_risk = max(entry_ref - atr_stop_loss, 1.5 * atr)
-            target_3r = float(entry_ref + (3.0 * initial_risk))
-            is_stop_breached = (latest_close <= atr_stop_loss) or (latest_close < (support_level * 0.98))
-        else:
-            atr_stop_loss = float(latest_close - (4.25 * atr))
-            initial_risk = max(latest_close - support_level, 1.5 * atr)
-            target_3r = float(latest_close + (3.0 * initial_risk))
+            # For new watchlist candidates: Forward stop from current price
+            atr_stop_level = latest_close - (ATR_STOP_MULT * atr)
+            initial_risk = max(latest_close - support_level, atr * 1.5)
+            target_price = latest_close + (TARGET_RR * initial_risk)
             is_stop_breached = latest_close < (support_level * 0.98)
 
-        r_achieved = ((latest_close - entry_ref) / initial_risk) if is_owned else 0.0
-        r_achieved_str = f"{r_achieved:.1f}R" if is_owned else "New Trade"
-        
-        risk_distance = latest_close - support_level
-        reward_distance = resistance_level - latest_close
-        support_buffer = support_level * 0.020
-        
-        yesterday_close = hist['Close'].iloc[-2]
-        is_at_support = risk_distance <= support_buffer
-        is_bounce_confirmed = is_at_support and (obv_trend == "Rising" or obv_5d_trend == "Rising" or latest_close >= yesterday_close)
+        # 8. Overall Trend Evaluation & Momentum Status
+        bullish_macd = "Bullish" in macd_status
+        rising_obv = (obv_trend == "Rising")
+        above_sma50 = (latest_close >= sma_50)
+        ema_20 = float(hist['Close'].ewm(span=20, adjust=False).mean().iloc[-1])
+        is_top_leader = (ticker in top_4_leaders)
+        rank_display = f"#{top_4_leaders[ticker]}" if is_top_leader else "-"
+        m_score = momentum_scores.get(ticker, {}).get("score", 0.0)
 
-        # Baseline Trend Determination
-        if latest_close > ema200 and "Bullish" in macd_status:
-            trend = "Bullish"
-        elif latest_close < ema200 and "Bearish" in macd_status:
-            trend = "Bearish"
+        if bullish_macd and rising_obv and above_sma50:
+            quant_trend = "Bullish"
+        elif not bullish_macd and not rising_obv and not above_sma50:
+            quant_trend = "Bearish"
         else:
-            trend = "Sideways"
+            quant_trend = "Sideways"
 
-        # --- DYNAMIC INSTITUTIONAL SYNTHESIS & DECISION ENGINE ---
-        tags = []
-        if div_status != "None":
-            tags.append(f"[{div_status}]")
-        if is_squeezed:
-            tags.append("[Squeeze Active]")
-        tag_str = " ".join(tags) + (" " if tags else "")
+        # 9. DETERMINISTIC 8-STEP WATERFALL DECISION TREE (+81.54% DUAL ENGINE)
+        is_breakout = (latest_close > resistance_level)
+        support_buffer = support_level * (1.0 + SUPPORT_BUFFER_PCT)
+        is_at_support = (latest_close >= support_level * 0.985) and (latest_close <= support_buffer)
 
-        pnl_pct = ((latest_close - float(cost_val)) / float(cost_val) * 100) if is_owned else 0.0
-        dist_r = max(0.0, ((resistance_level - latest_close) / latest_close) * 100)
-        dist_s = max(0.0, ((latest_close - support_level) / latest_close) * 100)
+        # High-Conviction Reversal Confirmation Flags (Anti-Falling Knife)
+        closed_up = (latest_close > prev_close)
+        strictly_green = (latest_close > latest_open)
+        day_range = latest_high - latest_low
+        close_in_upper_half = ((latest_close - latest_low) >= 0.5 * day_range) if day_range > 0 else False
+        
+        # Sequence break: Must close UP on the day, OR have a strictly green candle closing in upper half
+        has_reversal_candle = closed_up or (strictly_green and close_in_upper_half)
+        
+        is_heavy_selling = (latest_close < prev_close) and (vol_ratio >= 1.0)
+        is_holding_ema20 = (latest_close >= ema_20)
+        pullback_zone_ema20 = (latest_close <= ema_20 * 1.025) and (latest_close >= ema_20 * 0.975)
 
-        if is_owned:
-            # 1. Hard Volatility Stop Loss or Technical Breakdown
+        # Confirmed Pullback Reversal:
+        # 1. Price is in EMA20 zone and holds strictly at or above EMA20
+        # 2. Must NOT be an institutional distribution / heavy selling day
+        # 3. Must have broken the sequence of lower closes with a confirmed reversal candle
+        confirmed_ema20_bounce = (
+            pullback_zone_ema20 and 
+            is_holding_ema20 and 
+            (not is_heavy_selling) and 
+            has_reversal_candle
+        )
+
+        if is_held:
+            recent_high_20d = float(hist['High'].tail(min(20, len(hist))).max())
+            pnl_pct_held = ((latest_close - entry_cost_num) / entry_cost_num) * 100 if entry_cost_num > 0 else 0.0
+            peak_gain_pct = ((recent_high_20d - entry_cost_num) / entry_cost_num) * 100 if entry_cost_num > 0 else 0.0
+            pullback_from_peak = ((latest_close - recent_high_20d) / recent_high_20d) * 100 if recent_high_20d > 0 else 0.0
+
+            # Dynamic Profit-Protection Trailing Stop (Option 2: activated if peak gain >= 12.0% and currently in profit >= 3.0%)
+            trailing_stop_level = 0.0
+            is_trailing_stop_breached = False
+            if peak_gain_pct >= 12.0 and pnl_pct_held >= 3.0:
+                trailing_stop_level = max(recent_high_20d - (2.5 * atr), entry_cost_num * 1.03)
+                is_trailing_stop_breached = (latest_close <= trailing_stop_level)
+
+            # Tactical Take-Profit Alert Condition: In profit >= 10% and testing resistance or pulling back with drying volume
+            is_tactical_tp_alert = (
+                pnl_pct_held >= 10.0 and 
+                (latest_close >= resistance_level * 0.985 or pullback_from_peak <= -4.0 or not rising_obv)
+            )
+
+            # 1. Hard Volatility Stop Loss / Support Breakdown (Below Cost)
             if is_stop_breached:
                 quant_rec = "Sell (Cut Loss)"
-                quant_trend = "Bearish"
-                
-                # Check for Support Proximity vs Downside Trapdoor
-                # Case A: Price is right at the support floor (within 3.5%) AND deeply oversold (RSI < 32)
-                near_support_floor = (support_level * 0.985) <= latest_close <= (support_level * 1.035)
-                # Case B: Price broke stop but is still far above support (> 10% room to fall)
-                has_large_downside_vacuum = dist_s >= 10.0
-                is_oversold = latest_rsi < 32.0
-                
-                if near_support_floor and is_oversold:
-                    quant_note = f"{tag_str}Stop breached at {atr_stop_loss:.2f}, BUT WARNING: testing major support {support_level:.2f} with deeply oversold RSI ({latest_rsi:.1f}). Avoid dumping low; watch for relief bounce to trim into strength."
-                elif has_large_downside_vacuum:
-                    quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f}. CRITICAL WARNING: Free-fall risk with {dist_s:.0f}% room to fall before support {support_level:.2f}. Cut loss/de-risk now to prevent cascade."
-                elif is_oversold:
-                    quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f}. WARNING: RSI deeply oversold ({latest_rsi:.1f}). Snapback possible but support {dist_s:.1f}% below; trim into any strength."
+                if is_at_support and rising_obv:
+                    quant_note = f"Breached stop ({atr_stop_level:.2f} THB). Staging bounce off {support_level:.2f} support with rising OBV; exit on relief rally or hard stop below support."
                 else:
-                    quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f} / support {support_level:.2f}. Cut loss priority to preserve capital."
-                
-            # 2. 3.0:1 Mathematical Profit Target Achieved
-            elif latest_close >= target_3r:
-                quant_rec = "Sell (Take-Profit)"
-                quant_trend = "Bullish"
-                quant_note = f"{tag_str}Reached 3:1 target {target_3r:.2f} (+{pnl_pct:.1f}% P&L). Take profit to lock in asymmetric gains."
-                
-            # 3. Bearish Divergence in Profitable Position
-            elif is_profitable and (is_bear_div or (obv_trend == "Falling" and "Bearish Crossover" in macd_status)):
-                quant_rec = "Sell (Take-Profit)"
-                quant_trend = "Bearish"
-                div_reason = f" ({', '.join(bear_div_desc)})" if bear_div_desc else ""
-                quant_note = f"{tag_str}Bearish divergence{div_reason} in green position (+{pnl_pct:.1f}%). Lock in profits before momentum rolls over."
-                
-            # 4. Profitable Runner (+5% or higher)
-            elif pnl_pct >= 5.0:
-                quant_trend = "Bullish"
-                if latest_close >= (resistance_level * 0.985):
-                    quant_rec = "Hold (Accumulate)" if (latest_close >= resistance_level and (obv_trend == "Rising" or obv_5d_trend == "Rising")) else "Hold"
-                    quant_note = f"{tag_str}Leading runner (+{pnl_pct:.1f}%); presses resistance {resistance_level:.2f} ({dist_r:.1f}% away). Hold for expansion toward target {target_3r:.2f}."
-                else:
-                    quant_rec = "Hold"
-                    quant_note = f"{tag_str}Solid runner (+{pnl_pct:.1f}% P&L). Floating {dist_s:.1f}% over support {support_level:.2f}; trailing stop defends at {atr_stop_loss:.2f}. Target: {target_3r:.2f}."
-                    
-            # 5. Position in Drawdown (-5% or lower)
-            elif pnl_pct <= -5.0:
-                quant_trend = "Bearish" if latest_close < ema200 else "Sideways"
-                quant_rec = "Hold"
-                if dist_s >= 10.0 and latest_close < ema200:
-                    quant_note = f"{tag_str}Drawdown ({pnl_pct:.1f}%); WARNING: sits {dist_s:.0f}% high above support {support_level:.2f}. Hard stop {atr_stop_loss:.2f}. Beware downside vacuum."
-                else:
-                    quant_note = f"{tag_str}Position in drawdown ({pnl_pct:.1f}%); holds {dist_s:.1f}% above support {support_level:.2f}. Hard stop guarded at {atr_stop_loss:.2f}. Await stabilization."
-                
-            # 6. Near Breakeven Range (-5% to +5%)
-            else:
-                if latest_close >= (resistance_level * 0.985):
-                    if latest_close >= resistance_level and (obv_trend == "Rising" or obv_5d_trend == "Rising"):
-                        quant_rec = "Hold (Accumulate)"
-                        quant_trend = "Bullish"
-                        quant_note = f"{tag_str}Breakout above {resistance_level:.2f} (+{p_chg_div:+.1f}% 14d). Accumulate for run toward 3:1 target {target_3r:.2f}."
-                    else:
-                        quant_rec = "Hold"
-                        quant_trend = "Bullish"
-                        quant_note = f"{tag_str}Near breakeven ({pnl_pct:+.1f}%); testing ceiling {resistance_level:.2f} ({dist_r:.1f}% away). Watch breakout above {resistance_level + 0.01:.2f}."
-                elif is_at_support:
-                    if is_bounce_confirmed:
-                        quant_rec = "Hold (Accumulate)"
-                        quant_trend = "Bullish"
-                        quant_note = f"{tag_str}Support bounce confirmed at {support_level:.2f} with {obv_trend.lower()} OBV. Safe to add shares with stop {atr_stop_loss:.2f}."
-                    else:
-                        quant_rec = "Hold"
-                        quant_trend = "Sideways"
-                        quant_note = f"{tag_str}Testing support cushion {support_level:.2f}; awaiting green candle. Risk guarded at stop {atr_stop_loss:.2f}."
-                elif (reward_distance / max(risk_distance, 0.01)) >= 3.0 and obv_trend == "Rising":
-                    quant_rec = "Hold (Accumulate)"
-                    quant_trend = "Bullish"
-                    quant_note = f"{tag_str}Favorable 3:1 R:R expansion ({dist_s:.1f}% over support, {dist_r:.1f}% to {resistance_level:.2f}). Target: {target_3r:.2f}."
-                else:
-                    quant_rec = "Hold"
-                    quant_trend = "Bullish" if latest_close > ema200 else "Sideways"
-                    quant_note = f"{tag_str}Consolidating near entry ({pnl_pct:+.1f}%); sits {dist_s:.1f}% over support {support_level:.2f} and {dist_r:.1f}% below {resistance_level:.2f}. Stop: {atr_stop_loss:.2f}."
-        else:
-            # Watchlist Stocks (Unowned: ONLY Buy or Watch)
-            if is_stop_breached:
-                quant_rec = "Watch"
-                quant_trend = "Bearish"
-                quant_note = f"{tag_str}Trading below support {support_level:.2f}. Breakdown phase with {obv_trend.lower()} volume; await basing before considering entry."
-            elif is_at_support:
-                if is_bounce_confirmed:
-                    quant_rec = "Buy"
-                    quant_trend = "Bullish"
-                    quant_note = f"{tag_str}Confirmed bounce at support floor {support_level:.2f} with {obv_trend.lower()} OBV. Prime entry window; risk defended at stop {atr_stop_loss:.2f}."
-                else:
-                    quant_rec = "Watch"
-                    quant_trend = "Sideways"
-                    quant_note = f"{tag_str}Testing support cushion {support_level:.2f}. Await green turn or volume expansion before entering; stop at {atr_stop_loss:.2f}."
-            elif latest_close >= (resistance_level * 0.985):
-                if latest_close >= resistance_level and (obv_trend == "Rising" or obv_5d_trend == "Rising"):
-                    quant_rec = "Buy"
-                    quant_trend = "Bullish"
-                    quant_note = f"{tag_str}Clean breakout above {resistance_level:.2f} (+{p_chg_div:+.1f}% 14d). Momentum entry active toward target {target_3r:.2f}."
-                else:
-                    quant_rec = "Watch"
-                    quant_trend = "Bullish"
-                    quant_note = f"{tag_str}Knocking on ceiling {resistance_level:.2f} ({dist_r:.1f}% away) with {obv_trend.lower()} OBV. Watch for daily close above {resistance_level + 0.01:.2f}."
-            elif (reward_distance / max(risk_distance, 0.01)) >= 3.0 and obv_trend == "Rising":
-                quant_rec = "Buy"
-                quant_trend = "Bullish"
-                quant_note = f"{tag_str}Favorable 3:1 R:R expansion ({dist_s:.1f}% over support, {dist_r:.1f}% to {resistance_level:.2f}). Optimal setup toward target {target_3r:.2f}."
-            else:
-                quant_rec = "Watch"
-                quant_trend = "Bullish" if latest_close > ema200 else "Sideways"
-                bias = "Institutional accumulation coiling" if "Bullish" in div_status else ("Thinning volume coiling" if "Bearish" in div_status else "Range-bound coiling")
-                quant_note = f"{tag_str}{bias} ({dist_s:.1f}% above {support_level:.2f}, {dist_r:.1f}% below {resistance_level:.2f}). Await edge test at {support_level:.2f} or breakout at {resistance_level:.2f}."
+                    quant_note = f"Breached {ATR_STOP_MULT}x ATR stop ({atr_stop_level:.2f} THB) from cost {entry_cost_num:.2f}. Capital defense."
 
-        pos_market_val = (shares_val * latest_close) if shares_val > 0 else 0.0
-        pos_cost_val = (shares_val * cost_val) if shares_val > 0 else 0.0
-        pos_dollar_pnl = (pos_market_val - pos_cost_val) if shares_val > 0 else 0.0
-        pos_dollar_risk = (shares_val * max(0.0, latest_close - atr_stop_loss)) if shares_val > 0 else 0.0
+            # 2. 3.5:1 Profit Target Hit or Resistance Exhaustion
+            elif latest_high >= target_price or (latest_close >= resistance_level and not rising_obv and pnl_pct_held >= 15.0):
+                quant_rec = "Sell (Take-Profit)"
+                quant_note = f"Reached {TARGET_RR}:1 target ({target_price:.2f} THB). Locking in profit at resistance."
+
+            # 3. Dynamic Profit-Protection Trailing Stop Triggered
+            elif is_trailing_stop_breached and pnl_pct_held > 0:
+                quant_rec = "Sell (Take-Profit)"
+                quant_note = f"Breached trailing stop ({trailing_stop_level:.2f} THB) after {peak_gain_pct:.1f}% peak. Securing {pnl_pct_held:+.1f}% profit."
+
+            # 4. Tactical Take-Profit Alert (Option 2 Hybrid Mode)
+            elif is_tactical_tp_alert:
+                display_tp_stop = trailing_stop_level if trailing_stop_level > 0 else (recent_high_20d - 1.5 * atr)
+                quant_rec = "Sell (Take-Profit)"
+            # 5. Trend Breakdown Exit (Early Capital Defense)
+            # Held position closed below 50-day SMA with Falling OBV and Bearish MACD
+            elif (not above_sma50) and (not rising_obv) and (not bullish_macd):
+                quant_rec = "Sell (Trend Breakdown)"
+                quant_note = f"Trend Breakdown: Closed below 50 SMA ({sma_50:.2f} THB) with falling OBV & bearish MACD. Exit early to cut loss."
+
+            # 6. Core Leader Status (Highest Conviction Run)
+            elif is_top_leader:
+                quant_rec = "Hold (Core Leader)"
+                stop_display = trailing_stop_level if (trailing_stop_level > 0 and latest_close > entry_cost_num) else atr_stop_level
+                quant_note = f"SET Rank {rank_display} Momentum Leader ({m_score:.1f}% ROC). Ride core trend toward {target_price:.2f} THB. Stop: {stop_display:.2f} THB."
+
+            # 6. Bounce at Support (Scale candidate)
+            elif is_at_support and rising_obv and bullish_macd and (not is_heavy_selling) and has_reversal_candle:
+                quant_rec = "Hold (Accumulate)"
+                quant_note = f"Bouncing off POC support ({support_level:.2f} THB) with volume accumulation. Scale candidate."
+
+            # 7. Standard Holding Toward 3.5:1 Target
+            else:
+                quant_rec = "Hold"
+                stop_display = trailing_stop_level if (trailing_stop_level > 0 and latest_close > entry_cost_num) else atr_stop_level
+                quant_note = f"Trend intact. Holding toward {TARGET_RR}:1 target ({target_price:.2f} THB). Stop: {stop_display:.2f} THB."
+        else:
+            # Watchlist / New Entry
+            if is_top_leader:
+                if confirmed_ema20_bounce:
+                    quant_rec = "Buy (Leader Pullback)"
+                    quant_note = f"SET Rank {rank_display} Momentum Leader confirmed bounce off 20 EMA ({ema_20:.2f} THB) with volume support. Target: {target_price:.2f} THB."
+                elif pullback_zone_ema20 or (latest_close < ema_20 and latest_close >= ema_20 * 0.95):
+                    quant_rec = "Watch"
+                    quant_note = f"SET Rank {rank_display} Momentum Leader testing 20 EMA ({ema_20:.2f} THB). Free fall / unconfirmed; wait for green reversal candle & volume before entering."
+                elif is_breakout and (not is_heavy_selling):
+                    quant_rec = "Buy (Leader Breakout)"
+                    quant_note = f"SET Rank {rank_display} Momentum Leader breakout above {resistance_level:.2f} THB with volume ({vol_ratio:.1f}x). Target: {target_price:.2f} THB."
+                elif bullish_macd and rising_obv and has_reversal_candle and (not is_heavy_selling):
+                    quant_rec = "Buy (Leader Breakout)"
+                    quant_note = f"SET Rank {rank_display} Momentum Leader holding high momentum ({m_score:.1f}% ROC). Target: {target_price:.2f} THB."
+                else:
+                    quant_rec = "Watch"
+                    quant_note = f"SET Rank {rank_display} Momentum Leader consolidating. Waiting for confirmed 20 EMA bounce or breakout."
+            elif is_breakout and rising_obv and bullish_macd and (not is_heavy_selling):
+                quant_rec = "Buy (Breakout)"
+                quant_note = f"Confirmed breakout above {resistance_level:.2f} THB with rising volume ({vol_ratio:.1f}x). Target: {target_price:.2f} THB."
+            elif is_at_support and rising_obv and bullish_macd and (not is_heavy_selling) and has_reversal_candle:
+                quant_rec = "Buy (Support Bounce)"
+                quant_note = f"High-conviction bounce at POC support ({support_level:.2f} THB) with volume support. Target: {target_price:.2f} THB."
+            else:
+                quant_rec = "Watch"
+                quant_note = f"Patience. Waiting for confirmed support bounce at {support_level:.2f} THB or breakout above {resistance_level:.2f} THB."
+
+        # Display active stop (trailing stop if in profit protection mode, otherwise entry stop)
+        display_stop = trailing_stop_level if (is_held and trailing_stop_level > 0 and latest_close > entry_cost_num) else atr_stop_level
 
         calculated_market_data[ticker] = {
+            "rank": rank_display,
             "latest_price": f"{latest_close:.2f}",
             "support": f"{support_level:.2f}",
             "resistance": f"{resistance_level:.2f}",
-            "target_3r": f"{target_3r:.2f}",
-            "atr_stop": f"{atr_stop_loss:.2f}",
-            "poc": f"{poc_midpoint:.2f}",
-            "squeeze": squeeze_str,
-            "cost_display": actual_cost_str,
-            "shares": shares_val,
-            "shares_display": shares_display,
-            "market_val": pos_market_val,
-            "cost_val": pos_cost_val,
-            "dollar_pnl": pos_dollar_pnl,
-            "dollar_risk": pos_dollar_risk,
-            "quant_rec": quant_rec,
-            "quant_trend": quant_trend,
-            "quant_note": quant_note,
-            "obv_status": obv_trend,
-            "macd_status": macd_status,
-            "rsi": f"{latest_rsi:.1f}",
-            "near_support_floor": near_support_floor if 'near_support_floor' in locals() else False,
-            "has_large_downside_vacuum": has_large_downside_vacuum if 'has_large_downside_vacuum' in locals() else False,
-            "dist_s": dist_s,
-            "is_oversold": is_oversold if 'is_oversold' in locals() else False,
-            "divergence": div_status,
-            "is_owned": is_owned
+            "target_3r": f"{target_price:.2f}",
+            "atr_stop": f"{display_stop:.2f}",
+            "display_cost": display_cost,
+            "recommendation": quant_rec,
+            "trend": quant_trend,
+            "note": quant_note
         }
-        
+
         quant_decision_data.append({
             "stock_name": ticker,
+            "rank": rank_display,
+            "cost": display_cost,
             "obv_status": obv_trend,
             "macd_status": macd_status,
             "trend": quant_trend,
             "recommendation": quant_rec,
             "important_note": quant_note
         })
-        
+
+        reversal_alert = "Yes (Bounce at Support with Rising OBV)" if (is_at_support and rising_obv) else "No"
+        pnl_str = f"{pnl_pct_held:+.1f}%" if is_held else "N/A"
         data_summary += (
-            f"T: {ticker} | Cost: {actual_cost_str} | Price: {latest_close:.2f} | "
-            f"Quant_Rec: {quant_rec} | Quant_Trend: {quant_trend} | Divergence: {div_status} | "
-            f"S: {support_level:.2f} | R: {resistance_level:.2f} | Target3R: {target_3r:.2f} (Gain: {r_achieved_str}) | "
-            f"Stop: {atr_stop_loss:.2f} | POC: {poc_midpoint:.2f} | Squeeze: {squeeze_str} | "
-            f"At_Support: {is_at_support} | Bounce_Confirmed: {is_bounce_confirmed} | "
-            f"RSI14: {latest_rsi:.1f} | OBV: {obv_trend} | MACD: {macd_status}\n"
+            f"T: {ticker} | Rank: {rank_display} | Cost: {display_cost} | Price: {latest_close:.2f} | PnL: {pnl_str} | "
+            f"Quant_Rec: {quant_rec} | Quant_Trend: {quant_trend} | "
+            f"Support: {support_level:.2f} | Resist: {resistance_level:.2f} | "
+            f"Target3R: {target_price:.2f} | Stop: {display_stop:.2f} | "
+            f"OBV: {obv_trend} | MACD: {macd_status} | Reversal_Attempt: {reversal_alert}\n"
         )
-        
     except Exception as e:
         print(f"Error gathering data for {ticker}: {e}")
 
@@ -555,27 +449,28 @@ for ticker in tickers:
 # 5. AI CO-PILOT SYNTHESIS VIA GEMINI 3.6 FLASH
 # ==============================================================================
 prompt = f"""
-You are the Senior Quantitative Portfolio Co-Pilot for a high-beta technology equity book.
-You are given both the raw market metrics and the pre-computed recommendations generated by our +304.56% backtested algorithmic engine (`Quant_Rec` and `Quant_Trend` with 4.25x ATR stop and 3.0:1 profit target).
+You are the Senior Quantitative Portfolio Co-Pilot for premier equities on the Stock Exchange of Thailand (SET). All figures in THB.
+You are given both the raw market metrics and the pre-computed recommendations generated by our Dual-Engine quantitative system (+81.54% Backtested Return, 1.96 Sharpe Ratio): Relative Strength Momentum Leaderboard + Option 2 Tactical Controls.
 
 CORE MISSION:
-1. **Strict Recommendation Alignment:** Maintain perfect alignment with the quantitative engine's signal (`Quant_Rec` and `Quant_Trend`). For unowned watchlist stocks (Cost: N/A), recommendations must strictly be 'Buy' or 'Watch' (never 'Hold' or 'Sell'). For owned portfolio stocks, recommendations can be 'Buy', 'Hold', 'Hold (Accumulate)', or 'Sell (Cut Loss)'/'Sell (Take-Profit)'. The mathematical edge of this portfolio relies on discipline (4.25x ATR stops, 3.0:1 profit targets, and confirmed bounces yielding a 68.1% win rate and 0.69 Sharpe).
-2. **Institutional Technical Justification (`important_note`):** Craft a crisp, high-density justification strictly under 45 words for each stock.
-   - If [Bullish Divergence] or [Bearish Divergence] is active, MUST explicitly state `[Bullish Divergence]` or `[Bearish Divergence]` at the very start of the note.
-   - Explicitly cite key price milestones: Support ($S), Resistance ($R), 3.0:1 Target ($Target3R), or Stop ($Stop).
-   - If [Squeeze Active], mention that volatility squeeze expansion is imminent.
-   - If testing resistance, state whether it is holding for breakout above $(R+0.01) toward $Target3R.
-   - If at support, confirm whether the bounce is validated with risk defended at $Stop.
+1. **Strict Recommendation Alignment & Rank Preservation:** Maintain 100% perfect alignment with the quantitative engine's signal (`Quant_Rec`, `Quant_Trend`, and `Rank`). If Rank is '#1', '#2', '#3', '#4', preserve it exactly; otherwise use '-'. You MUST use `Quant_Rec` exactly as provided in the recommendation field! If `Quant_Rec` is 'Watch', explain that price is testing support/20 EMA but unconfirmed or in a free fall, and that we must wait for a green reversal candle & volume confirmation before buying. Do NOT write 'Buy' or advise entry if `Quant_Rec` is 'Watch'.
+2. **Institutional Technical Justification (`important_note`):** Craft a crisp, high-density justification strictly under 35 words for each stock.
+   - For Top 4 Leaders (`#1` to `#4`): Highlight their relative strength, 20 EMA pullback defense, or momentum breakout toward targets.
+   - Explicitly cite key price milestones: Support, Resistance, 3.5:1 Target, Trailing Stop, or 3.0x ATR Stop in THB.
+   - If testing resistance, state whether it is holding for breakout toward the 3.5:1 target.
+   - If at support, confirm whether the bounce is validated with risk defended at the 3.0x ATR stop.
+   - If Sell (Take-Profit):
+     * If 3.5:1 target reached or resistance hit, cite target hit or resistance exhaustion.
+     * If Tactical TP Alert or Trailing Stop triggered, cite locking in double-digit profit or securing gains at the elevated trailing stop.
+   - If Sell (Trend Breakdown):
+     * Cite structural breakdown below 50-day SMA with falling OBV and bearish MACD, advising immediate exit to prevent deeper losses.
    - If Sell (Cut Loss):
-     * If price is far above support (dist_s >= 10%): MUST issue a CRITICAL WARNING that price is falling with large room to fall further before support ($S), advising to cut loss/de-risk now to prevent cascade.
-     * If BOTH price is testing Support floor (within 3.5% of $S) AND RSI14 < 32: MUST state 'WARNING: deeply oversold testing major support; avoid panic dump, watch for relief bounce to trim into strength.'
-     * If ONLY RSI14 < 32 but price is NOT near support: state 'Violated stop $Stop. WARNING: RSI deeply oversold (snapback risk); trim into bounce.'
-     * Otherwise: state clear cut loss risk rationale (e.g. 'Violated stop $Stop. Cut loss priority to preserve capital.').
-   - If Sell (Take-Profit), give the clear institutional risk rationale.
+     * If broken down with falling volume/trend (e.g. TRUE), cite capital defense and stop breach.
+     * If attempting an oversold bounce/reversal off support with rising OBV (e.g. GULF), acknowledge the support bounce and advise a tactical exit into the relief rally toward resistance with an emergency stop placed just below the support level.
 
 CRITICAL FORMATTING:
 - Write strictly in plain text. Do NOT use markdown asterisks (** or *), quotes, or code backticks inside the text.
-- Each 'important_note' must be under 45 words so it fits cleanly within the PDF table layout.
+- Each 'important_note' must be under 35 words so it fits cleanly within the PDF table layout.
 
 Stocks to analyze: {', '.join(tickers)}
 Market Context & Quant Signals:
@@ -587,7 +482,13 @@ response = None
 input_tokens = 0
 output_tokens = 0
 
-if client is not None and (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
+api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+try:
+    client = genai.Client(api_key=api_key) if api_key else genai.Client()
+except Exception as e:
+    client = None
+
+if not DRY_RUN and client is not None and api_key:
     max_retries = 3
     retry_delay = 2
     for attempt in range(max_retries):
@@ -613,7 +514,7 @@ if client is not None and (os.environ.get("GEMINI_API_KEY") or os.environ.get("G
                 retry_delay *= 2
 
 if analysis_data is None:
-    print("AI API unavailable. Utilizing proven quantitative engine notes directly.")
+    print("AI API unavailable or DRY_RUN active. Utilizing proven quantitative engine notes directly.")
     analysis_data = quant_decision_data
 
 # Calculate Token Costs
@@ -621,7 +522,6 @@ if response and hasattr(response, 'usage_metadata') and response.usage_metadata:
     input_tokens = response.usage_metadata.prompt_token_count
     output_tokens = response.usage_metadata.candidates_token_count
 
-# Gemini 3.6 Flash Pricing ($0.075 / 1M prompt, $0.30 / 1M output)
 cost_usd = ((input_tokens * 0.075) / 1000000) + ((output_tokens * 0.30) / 1000000)
 
 try:
@@ -633,7 +533,7 @@ except Exception:
 cost_thb = cost_usd * usd_to_thb_rate
 
 if input_tokens == 0 and output_tokens == 0:
-    token_cost_display = "Engine: Pure Quant Offline (+224% Rulebook) | Cost: $0.00"
+    token_cost_display = "Engine: Pure Quant Offline (+81.5% Rulebook) | Cost: 0.00 THB"
 else:
     token_cost_display = f"AI: gemini-3.6-flash (Hybrid Co-Pilot) | Tokens: In {input_tokens:,} / Out {output_tokens:,} | Cost: ${cost_usd:.6f} (~{cost_thb:.2f} THB)"
 
@@ -641,102 +541,101 @@ else:
 # 6. COMPILE INSTITUTIONAL PDF REPORT
 # ==============================================================================
 class CorporatePDF(FPDF):
-    def __init__(self, adx, ema20, ema50, close, token_cost_str):
-        super().__init__()
-        self.adx = adx
-        self.ema20 = ema20
-        self.ema50 = ema50
-        self.close = close
+    def __init__(self, macro_regime="Bullish", token_cost_str="", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.macro_regime = macro_regime
         self.token_cost_str = token_cost_str
-        self.current_section = "technical"
 
     def header(self):
         self.set_fill_color(30, 41, 59)
         self.rect(0, 0, 210, 4, "F")
         self.ln(4)
-        self.set_font("Helvetica", "B", 16)
+        self.set_font("Helvetica", "B", 15)
         self.set_text_color(15, 23, 42)
-        self.cell(0, 10, "Daily US Market Report (Hybrid Co-Pilot)", new_x="LMARGIN", new_y="NEXT", align="L")
-        self.set_font("Helvetica", "B", 10)
+        self.cell(0, 8, "Daily Thai Market Report (Hybrid Co-Pilot)", new_x="LMARGIN", new_y="NEXT", align="L")
+        self.set_font("Helvetica", "B", 9)
         self.set_text_color(79, 70, 229)
-        subtitle = "PORTFOLIO ALLOCATION & CAPITAL AT RISK DASHBOARD" if self.current_section == "portfolio" else "WATCHLIST TECHNICAL SUMMARY & 3.0:1 QUANT TARGETS"
-        self.cell(0, 5, subtitle, new_x="LMARGIN", new_y="NEXT", align="L")
+        self.cell(0, 5, "RELATIVE STRENGTH MOMENTUM LEADERBOARD & 3.5:1 QUANT TARGETS (SET)", new_x="LMARGIN", new_y="NEXT", align="L")
         
         thailand_tz = timezone(timedelta(hours=7))
         thai_timestamp = datetime.now(thailand_tz).strftime('%Y-%m-%d %H:%M:%S')
         
-        self.set_font("Helvetica", "I", 9)
+        self.set_font("Helvetica", "I", 8)
         self.set_text_color(100, 116, 139)
-        debug_str = f"ADX: {self.adx:.2f} | EMA20: {self.ema20:.2f} | EMA50: {self.ema50:.2f} | Close: {self.close:.2f}"
-        self.cell(0, 5, f"Generated on {thai_timestamp} (TH Time) | Context: {tech_market_regime} | {debug_str}", new_x="LMARGIN", new_y="NEXT", align="L")
+        self.cell(0, 5, f"Generated automatically on {thai_timestamp} (Thailand Time) | SET50 Regime: {self.macro_regime} | Strategy: Top 4 Leaders + Option 2 (+81.5% Backtested)", new_x="LMARGIN", new_y="NEXT", align="L")
         
         self.set_draw_color(226, 232, 240)
-        self.line(10, self.get_y() + 4, 200, self.get_y() + 4)
-        self.ln(10)
+        self.line(10, self.get_y() + 3, 200, self.get_y() + 3)
+        self.ln(8)
 
     def footer(self):
         self.set_y(-15)
         self.set_draw_color(241, 245, 249)
         self.line(10, self.get_y(), 200, self.get_y())
-        
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(148, 163, 184)
         self.cell(100, 10, f"Page {self.page_no()}", align="L")
         self.cell(90, 10, self.token_cost_str, align="R")
 
-pdf = CorporatePDF(current_adx, ema20, ema50, qqq_latest_close, token_cost_display)
+pdf = CorporatePDF(macro_regime=macro_regime, token_cost_str=token_cost_display)
 pdf.add_page()
 
-# Table dimensions: sum = 190 mm (fits within A4 margins)
-column_widths = (12, 13, 13, 13, 13, 13, 12, 16, 13, 13, 59)
-with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, padding=2, outer_border_width=0.5) as table:
-    pdf.set_font("Helvetica", "B", 7)
+pdf.set_font("Helvetica", "", 6.5)
+# 11 Columns totaling 190mm
+col_widths = (11, 9, 11, 11, 10, 10, 10, 12, 8, 14, 84)
+
+with pdf.table(col_widths=col_widths, borders_layout="HORIZONTAL_LINES", line_height=4) as table:
+    pdf.set_font("Helvetica", "B", 7.5)
     pdf.set_text_color(255, 255, 255)
     pdf.set_fill_color(30, 41, 59)
     
     header_row = table.row()
-    headers = ["Ticker", "Cost", "Price", "Support", "Resist", "ATR Stop", "OBV14", "MACD", "Trend21", "Rec.", "Institutional Synthesis"]
+    headers = ["Ticker", "Rank", "Cost", "Price", "Support", "Resist.", "OBV", "MACD", "Trend", "Rec.", "Institutional Synthesis (THB)"]
     for header_title in headers:
         header_row.cell(header_title)
-        
+
     for idx, stock in enumerate(analysis_data):
         row = table.row()
         ticker = str(stock.get("stock_name", "")).strip()
-        
         market_metrics = calculated_market_data.get(ticker, {
-            "latest_price": "N/A", 
-            "support": "N/A", 
-            "resistance": "N/A", 
-            "atr_stop": "N/A",
-            "cost_display": "N/A",
-            "quant_rec": "Watch",
-            "quant_trend": "Sideways",
-            "is_owned": False
+            "latest_price": "N/A", "support": "N/A", "resistance": "N/A", 
+            "display_cost": "-", "rank": "-", "recommendation": "Watch", 
+            "trend": "Sideways", "note": ""
         })
         
-        is_owned_stock = market_metrics.get("is_owned", False)
+        # Enforce strict quantitative engine authority over Recommendation, Trend, and Rank
+        strict_rec = market_metrics.get("recommendation", stock.get("recommendation", "Watch"))
+        strict_trend = market_metrics.get("trend", stock.get("trend", "Sideways"))
+        rank_val = market_metrics.get("rank", stock.get("rank", "-"))
         
-        # Strict Quant Authority with Unowned Guardrail
-        raw_rec = market_metrics.get("quant_rec", str(stock.get("recommendation", "")).strip())
-        trend_val = market_metrics.get("quant_trend", str(stock.get("trend", "")).strip())
+        trend_status = strict_trend.strip().lower()
+        rec_status = strict_rec.strip().lower()
         
-        # Unowned stocks can strictly only receive Buy or Watch
-        if not is_owned_stock and raw_rec not in ["Buy", "Watch"]:
-            raw_rec = "Watch"
+        if idx % 2 == 0:
+            pdf.set_fill_color(255, 255, 255)
+        else:
+            pdf.set_fill_color(248, 250, 252)
             
-        trend_status = trend_val.lower()
-        rec_status = raw_rec.lower()
-        
-        pdf.set_fill_color(255, 255, 255) if idx % 2 == 0 else pdf.set_fill_color(248, 250, 252)
-        pdf.set_font("Helvetica", "", 7)
         pdf.set_text_color(51, 65, 85)
         
-        row.cell(ticker)
-        row.cell(market_metrics.get("cost_display", "N/A"))
+        display_ticker = ticker.replace(".BK", "")
+        row.cell(display_ticker)
+        
+        # Rank Column Accent
+        if rank_val.startswith("#"):
+            pdf.set_font("Helvetica", "B", 7)
+            pdf.set_text_color(79, 70, 229)  # Indigo
+        else:
+            pdf.set_font("Helvetica", "", 6.5)
+            pdf.set_text_color(148, 163, 184)
+        row.cell(rank_val)
+        
+        pdf.set_font("Helvetica", "", 6.5)
+        pdf.set_text_color(51, 65, 85)
+        row.cell(market_metrics.get("display_cost", "-"))
         row.cell(market_metrics["latest_price"])
         row.cell(market_metrics["support"])
         row.cell(market_metrics["resistance"])
-        row.cell(market_metrics["atr_stop"])
         row.cell(str(stock.get("obv_status", "")))
         row.cell(str(stock.get("macd_status", "")))
         
@@ -747,139 +646,33 @@ with pdf.table(col_widths=column_widths, text_align="LEFT", line_height=4.5, pad
             pdf.set_text_color(185, 28, 28)
         else:
             pdf.set_text_color(51, 65, 85)
-        row.cell(trend_val)
+        row.cell(strict_trend)
         
-        # Recommendation Color
-        if "buy" in rec_status:
+        # Recommendation Color (Strict Quant Engine Authority)
+        if "buy" in rec_status or "accumulate" in rec_status:
             pdf.set_text_color(21, 128, 61)
-        elif "accumulate" in rec_status:
-            pdf.set_text_color(16, 185, 129)
-        elif "sell" in rec_status or "cut" in rec_status:
+        elif "exit" in rec_status or "loss" in rec_status or "sell" in rec_status:
             pdf.set_text_color(185, 28, 28)
-        elif "watch" in rec_status:
-            pdf.set_text_color(180, 83, 9)
         else:
-            pdf.set_text_color(51, 65, 85)
-        row.cell(raw_rec)
+            pdf.set_text_color(180, 83, 9)
+        row.cell(strict_rec)
         
-        bg_color = (255, 255, 255) if idx % 2 == 0 else (248, 250, 252)
-        note_text = str(stock.get("important_note", market_metrics.get("quant_note", "")))
-        row.cell(
-            note_text,
-            style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_color)
-        )
-        
-# ==============================================================================
-# 7. PAGE 2: PORTFOLIO ALLOCATION & CAPITAL AT RISK DASHBOARD
-# ==============================================================================
-owned_tickers = [t for t in tickers if calculated_market_data.get(t, {}).get("is_owned", False)]
-has_any_shares = any(calculated_market_data.get(t, {}).get("shares", 0.0) > 0 for t in owned_tickers)
+        pdf.set_text_color(71, 85, 105)
+        raw_note = stock.get("important_note", "")
+        # Safety fallback: if AI note contradicts a 'Watch' signal with 'Buy' or 'Breakout', use the deterministic quant note
+        if "watch" in rec_status and ("buy" in raw_note.lower() or "breakout" in raw_note.lower()):
+            raw_note = market_metrics.get("note", raw_note)
+            
+        important_note_clean = str(raw_note).replace("–", "-")
+        important_note_clean = important_note_clean.encode('latin-1', 'replace').decode('latin-1')
+        row.cell(important_note_clean, align="L")
 
-if has_any_shares:
-    pdf.current_section = "portfolio"
-    pdf.add_page()
-    
-    total_market_val = sum(calculated_market_data[t]["market_val"] for t in owned_tickers)
-    total_cost_val = sum(calculated_market_data[t]["cost_val"] for t in owned_tickers)
-    total_dollar_pnl = total_market_val - total_cost_val
-    total_pnl_pct = ((total_dollar_pnl / total_cost_val) * 100) if total_cost_val > 0 else 0.0
-    total_dollar_risk = sum(calculated_market_data[t]["dollar_risk"] for t in owned_tickers)
-    total_risk_pct = ((total_dollar_risk / total_market_val) * 100) if total_market_val > 0 else 0.0
-    
-    # Section Header
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.set_text_color(15, 23, 42)
-    pdf.cell(0, 6, "PORTFOLIO ALLOCATION & CAPITAL AT RISK DASHBOARD", new_x="LMARGIN", new_y="NEXT", align="L")
-    
-    # KPI Summary Ribbon
-    pdf.set_font("Helvetica", "B", 8)
-    pnl_sign = "+" if total_dollar_pnl >= 0 else ""
-    kpi_text = (
-        f"Portfolio Value: ${total_market_val:,.2f}  |  "
-        f"Cost Basis: ${total_cost_val:,.2f}  |  "
-        f"Unrealized P&L: {pnl_sign}${total_dollar_pnl:,.2f} ({pnl_sign}{total_pnl_pct:.1f}%)  |  "
-        f"Capital at Risk: ${total_dollar_risk:,.2f} ({total_risk_pct:.1f}%)"
-    )
-    pdf.set_fill_color(241, 245, 249)
-    pdf.set_text_color(30, 41, 59)
-    pdf.cell(0, 7, kpi_text, border=1, fill=True, new_x="LMARGIN", new_y="NEXT", align="C")
-    pdf.ln(4)
-    
-    # Table dimensions: sum = 190 mm
-    port_widths = (14, 16, 18, 18, 22, 14, 24, 18, 46)
-    with pdf.table(col_widths=port_widths, text_align="LEFT", line_height=4.5, padding=2, outer_border_width=0.5) as ptable:
-        pdf.set_font("Helvetica", "B", 7)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_fill_color(30, 41, 59)
-        
-        phead = ptable.row()
-        for h in ["Ticker", "Shares", "Cost", "Price", "Value ($)", "Weight", "Unrealized P&L", "Risk to Stop", "Scaling / Exit Blueprint"]:
-            phead.cell(h)
-            
-        for p_idx, t in enumerate(owned_tickers):
-            m = calculated_market_data[t]
-            sh = m.get("shares", 0.0)
-            if sh <= 0:
-                continue
-            
-            p_val = m["market_val"]
-            c_val = m["cost_val"]
-            d_pnl = m["dollar_pnl"]
-            pnl_pct = ((d_pnl / c_val) * 100) if c_val > 0 else 0.0
-            weight = ((p_val / total_market_val) * 100) if total_market_val > 0 else 0.0
-            d_risk = m["dollar_risk"]
-            rec = m["quant_rec"]
-            target = m["target_3r"]
-            
-            # Determine partial scale-out / execution blueprint
-            if "sell" in rec.lower():
-                if m.get("has_large_downside_vacuum", False):
-                    plan_str = f"Stop breached ({m['atr_stop']}). CRITICAL: {m.get('dist_s', 0):.0f}% room to fall to support ({m['support']}); de-risk/cut loss now."
-                elif m.get("near_support_floor", False) and m.get("is_oversold", False):
-                    plan_str = f"Stop breached ({m['atr_stop']}). WARNING: Oversold at support ({m['support']}); avoid panic dump. Trim into bounce."
-                elif m.get("is_oversold", False):
-                    plan_str = f"Stop breached ({m['atr_stop']}). WARNING: RSI oversold ({m.get('rsi', '')}); trim into bounce."
-                else:
-                    plan_str = f"Exit priority. Violates stop {m['atr_stop']}."
-            elif pnl_pct >= 5.0:
-                trim_shares = max(round(sh * 0.30, 3), 0.001) if sh >= 0.1 else sh
-                plan_str = f"Runner (+{pnl_pct:.1f}%). Hold toward ${target}; trim 30% ({trim_shares:g} sh) at target."
-            elif pnl_pct <= -5.0:
-                plan_str = f"Drawdown ({pnl_pct:.1f}%). Hard stop guarded at ${m['atr_stop']}."
-            else:
-                plan_str = f"Consolidating ({pnl_pct:+.1f}%). Stop defended at ${m['atr_stop']}."
-                
-            prow = ptable.row()
-            pdf.set_fill_color(255, 255, 255) if p_idx % 2 == 0 else pdf.set_fill_color(248, 250, 252)
-            pdf.set_font("Helvetica", "", 7)
-            pdf.set_text_color(51, 65, 85)
-            
-            prow.cell(t)
-            prow.cell(m["shares_display"])
-            prow.cell(f"${float(m['cost_display']):.2f}")
-            prow.cell(f"${float(m['latest_price']):.2f}")
-            prow.cell(f"${p_val:,.2f}")
-            prow.cell(f"{weight:.1f}%")
-            
-            # PnL Color
-            if d_pnl >= 0:
-                pdf.set_text_color(21, 128, 61)
-                prow.cell(f"+${d_pnl:,.2f} (+{pnl_pct:.1f}%)")
-            else:
-                pdf.set_text_color(185, 28, 28)
-                prow.cell(f"-${abs(d_pnl):,.2f} ({pnl_pct:.1f}%)")
-                
-            pdf.set_text_color(185, 28, 28)
-            prow.cell(f"-${d_risk:,.2f}")
-            
-            bg_c = (255, 255, 255) if p_idx % 2 == 0 else (248, 250, 252)
-            prow.cell(plan_str, style=FontFace(size_pt=6.5, color=(71, 85, 105), fill_color=bg_c))
 
-filename = "us_market_analysis.pdf"
+filename = "thai_market_analysis.pdf"
 try:
     pdf.output(filename)
-    print(f"PDF output finalized successfully as {filename}.")
+    print(f"Thai portfolio analysis finalized successfully as {filename}.")
 except PermissionError:
-    alt_filename = f"us_market_analysis_{datetime.now().strftime('%H%M%S')}.pdf"
+    alt_filename = f"thai_market_analysis_{datetime.now().strftime('%H%M%S')}.pdf"
     pdf.output(alt_filename)
     print(f"Notice: '{filename}' is open. Saved to '{alt_filename}'.")
