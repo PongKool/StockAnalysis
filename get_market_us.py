@@ -51,7 +51,7 @@ my_portfolio = {
     "DELL": {"cost": 0, "shares": 0.0}, 
     "TSM":  {"cost": 432.91, "shares": 2.31}, 
     "SNPS": {"cost": 0, "shares": 0.0}, 
-    "ASML": {"cost": 1828.09, "shares": 1.91},
+    "ASML": {"cost": 0, "shares": 0.0},
     "VST":  {"cost": 145.50, "shares": 20.58},
     "MA":   {"cost": 585.81, "shares": 4.26},
     "DIS":  {"cost": 0, "shares": 0.0}    
@@ -177,6 +177,10 @@ for ticker in tickers:
         else:
             macd_status = "Bearish Crossover" if macd_line.iloc[-2] >= signal_line.iloc[-2] else "Bearish Territory"
             
+        # --- RSI (14-Day Momentum & Oversold Detection) ---
+        rsi_series = hist.ta.rsi(length=14)
+        latest_rsi = float(rsi_series.iloc[-1]) if (rsi_series is not None and not rsi_series.empty and not pd.isna(rsi_series.iloc[-1])) else 50.0
+
         # Cost and Shares validation
         cost_val, shares_val = parse_position(my_portfolio.get(ticker, 0.0))
         is_owned = bool(cost_val and float(cost_val) > 0)
@@ -375,7 +379,17 @@ for ticker in tickers:
             if is_stop_breached:
                 quant_rec = "Sell (Cut Loss)"
                 quant_trend = "Bearish"
-                quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f} / support {support_level:.2f}. Cut loss priority to preserve capital."
+                
+                # Check for Oversold Bounce Warning near Support Floor
+                # (Price within 3.5% above support or within 1.5% below support AND RSI < 32)
+                near_support_floor = (support_level * 0.985) <= latest_close <= (support_level * 1.035)
+                is_oversold = latest_rsi < 32.0
+                if near_support_floor and is_oversold:
+                    quant_note = f"{tag_str}Stop breached at {atr_stop_loss:.2f}, BUT WARNING: testing major support {support_level:.2f} with deeply oversold RSI ({latest_rsi:.1f}). Avoid dumping low; watch for relief bounce to trim into strength."
+                elif is_oversold:
+                    quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f}. WARNING: RSI deeply oversold ({latest_rsi:.1f}). High snapback risk; trim into relief rally rather than panic-selling."
+                else:
+                    quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f} / support {support_level:.2f}. Cut loss priority to preserve capital."
                 
             # 2. 3.0:1 Mathematical Profit Target Achieved
             elif latest_close >= target_3r:
@@ -493,6 +507,9 @@ for ticker in tickers:
             "quant_note": quant_note,
             "obv_status": obv_trend,
             "macd_status": macd_status,
+            "rsi": f"{latest_rsi:.1f}",
+            "near_support_floor": near_support_floor if 'near_support_floor' in locals() else False,
+            "is_oversold": is_oversold if 'is_oversold' in locals() else False,
             "divergence": div_status,
             "is_owned": is_owned
         }
@@ -512,7 +529,7 @@ for ticker in tickers:
             f"S: {support_level:.2f} | R: {resistance_level:.2f} | Target3R: {target_3r:.2f} (Gain: {r_achieved_str}) | "
             f"Stop: {atr_stop_loss:.2f} | POC: {poc_midpoint:.2f} | Squeeze: {squeeze_str} | "
             f"At_Support: {is_at_support} | Bounce_Confirmed: {is_bounce_confirmed} | "
-            f"OBV: {obv_trend} | MACD: {macd_status}\n"
+            f"RSI14: {latest_rsi:.1f} | OBV: {obv_trend} | MACD: {macd_status}\n"
         )
         
     except Exception as e:
@@ -533,7 +550,8 @@ CORE MISSION:
    - If [Squeeze Active], mention that volatility squeeze expansion is imminent.
    - If testing resistance, state whether it is holding for breakout above $(R+0.01) toward $Target3R.
    - If at support, confirm whether the bounce is validated with risk defended at $Stop.
-   - If Sell (Take-Profit) or Sell (Cut Loss), give the clear institutional risk rationale.
+   - If Sell (Cut Loss), check if price is testing Support floor or RSI14 < 32 (deeply oversold). If so, MUST include a WARNING in the note (e.g. 'WARNING: deeply oversold near support; avoid panic-selling, watch for relief bounce to trim into strength'). Otherwise, state the cut loss risk rationale.
+   - If Sell (Take-Profit), give the clear institutional risk rationale.
 
 CRITICAL FORMATTING:
 - Write strictly in plain text. Do NOT use markdown asterisks (** or *), quotes, or code backticks inside the text.
@@ -795,7 +813,10 @@ if has_any_shares:
             
             # Determine partial scale-out / execution blueprint
             if "sell" in rec.lower():
-                plan_str = f"Exit priority. Violates stop {m['atr_stop']}."
+                if m.get("is_oversold", False) or m.get("near_support_floor", False):
+                    plan_str = f"Stop breached ({m['atr_stop']}). WARNING: Oversold near support ({m['support']}); avoid panic dump. Trim into bounce."
+                else:
+                    plan_str = f"Exit priority. Violates stop {m['atr_stop']}."
             elif pnl_pct >= 5.0:
                 trim_shares = max(round(sh * 0.30, 3), 0.001) if sh >= 0.1 else sh
                 plan_str = f"Runner (+{pnl_pct:.1f}%). Hold toward ${target}; trim 30% ({trim_shares:g} sh) at target."
