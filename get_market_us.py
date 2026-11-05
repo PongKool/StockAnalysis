@@ -38,24 +38,28 @@ my_portfolio = {
     "AMZN": {"cost": 0, "shares": 0.0}, 
     "META": {"cost": 0, "shares": 0.0}, 
     "COST": {"cost": 0, "shares": 0.0},
-    "AMAT": {"cost": 425.25, "shares": 2.35},
+    "AMAT": {"cost": 0, "shares": 0},
     "NVDA": {"cost": 227.81, "shares": 15.34}, 
-    "AVGO": {"cost": 343.33, "shares": 5.82}, 
+    "AVGO": {"cost": 0, "shares": 0}, 
     "MSFT": {"cost": 0, "shares": 0.0}, 
     "ZS":   {"cost": 243.94, "shares": 8.19}, 
     "GOOG": {"cost": 0, "shares": 0.0}, 
-    "SNDK": {"cost": 1336.52, "shares": 1.49}, 
+    "SNDK": {"cost": 0, "shares": 0}, 
     "ARCC": {"cost": 18.66, "shares": 133.80}, 
     "LLY":  {"cost": 1193.15, "shares": 1.67}, 
     "GEV":  {"cost": 958.98, "shares": 3.64}, 
     "DELL": {"cost": 0, "shares": 0.0}, 
-    "TSM":  {"cost": 432.91, "shares": 2.31}, 
+    "TSM":  {"cost": 0, "shares": 0}, 
     "SNPS": {"cost": 0, "shares": 0.0}, 
-    "ASML": {"cost": 0, "shares": 0.0},
-    "VST":  {"cost": 145.50, "shares": 20.58},
+    "ASML": {"cost": 0, "shares": 0},
+    "VST":  {"cost": 0, "shares": 0},
     "MA":   {"cost": 585.81, "shares": 4.26},
-    "DIS":  {"cost": 0, "shares": 0.0}    
+    "DIS":  {"cost": 0, "shares": 0.0},
+    "SKHY": {"cost": 143.78, "shares": 13.89}    
 }
+
+# Tickers with short trading history (e.g. recent IPOs/ADRs like SKHY) that need a 30-bar minimum instead of original 200 bars
+SHORT_HISTORY_TICKERS = {"SKHY"}
 
 # Backward compatibility alias
 my_costs = {k: parse_position(v)[0] for k, v in my_portfolio.items()}
@@ -140,7 +144,9 @@ for ticker in tickers:
         else:
             hist = yf.Ticker(ticker).history(period="1y", auto_adjust=True)
             
-        if hist.empty or len(hist) < 200:
+        # Original 200 bars for mature stocks; 30 bars only for stocks that need it (e.g. SKHY)
+        min_bars = 30 if ticker in SHORT_HISTORY_TICKERS else 200
+        if hist.empty or len(hist) < min_bars:
             continue
             
         hist = hist.dropna(subset=['Close'])
@@ -380,14 +386,19 @@ for ticker in tickers:
                 quant_rec = "Sell (Cut Loss)"
                 quant_trend = "Bearish"
                 
-                # Check for Oversold Bounce Warning near Support Floor
-                # (Price within 3.5% above support or within 1.5% below support AND RSI < 32)
+                # Check for Support Proximity vs Downside Trapdoor
+                # Case A: Price is right at the support floor (within 3.5%) AND deeply oversold (RSI < 32)
                 near_support_floor = (support_level * 0.985) <= latest_close <= (support_level * 1.035)
+                # Case B: Price broke stop but is still far above support (> 10% room to fall)
+                has_large_downside_vacuum = dist_s >= 10.0
                 is_oversold = latest_rsi < 32.0
+                
                 if near_support_floor and is_oversold:
                     quant_note = f"{tag_str}Stop breached at {atr_stop_loss:.2f}, BUT WARNING: testing major support {support_level:.2f} with deeply oversold RSI ({latest_rsi:.1f}). Avoid dumping low; watch for relief bounce to trim into strength."
+                elif has_large_downside_vacuum:
+                    quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f}. CRITICAL WARNING: Free-fall risk with {dist_s:.0f}% room to fall before support {support_level:.2f}. Cut loss/de-risk now to prevent cascade."
                 elif is_oversold:
-                    quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f}. WARNING: RSI deeply oversold ({latest_rsi:.1f}). High snapback risk; trim into relief rally rather than panic-selling."
+                    quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f}. WARNING: RSI deeply oversold ({latest_rsi:.1f}). Snapback possible but support {dist_s:.1f}% below; trim into any strength."
                 else:
                     quant_note = f"{tag_str}Violated stop {atr_stop_loss:.2f} / support {support_level:.2f}. Cut loss priority to preserve capital."
                 
@@ -418,7 +429,10 @@ for ticker in tickers:
             elif pnl_pct <= -5.0:
                 quant_trend = "Bearish" if latest_close < ema200 else "Sideways"
                 quant_rec = "Hold"
-                quant_note = f"{tag_str}Position in drawdown ({pnl_pct:.1f}%); holds {dist_s:.1f}% above support {support_level:.2f}. Hard stop guarded at {atr_stop_loss:.2f}. Await stabilization."
+                if dist_s >= 10.0 and latest_close < ema200:
+                    quant_note = f"{tag_str}Drawdown ({pnl_pct:.1f}%); WARNING: sits {dist_s:.0f}% high above support {support_level:.2f}. Hard stop {atr_stop_loss:.2f}. Beware downside vacuum."
+                else:
+                    quant_note = f"{tag_str}Position in drawdown ({pnl_pct:.1f}%); holds {dist_s:.1f}% above support {support_level:.2f}. Hard stop guarded at {atr_stop_loss:.2f}. Await stabilization."
                 
             # 6. Near Breakeven Range (-5% to +5%)
             else:
@@ -509,6 +523,8 @@ for ticker in tickers:
             "macd_status": macd_status,
             "rsi": f"{latest_rsi:.1f}",
             "near_support_floor": near_support_floor if 'near_support_floor' in locals() else False,
+            "has_large_downside_vacuum": has_large_downside_vacuum if 'has_large_downside_vacuum' in locals() else False,
+            "dist_s": dist_s,
             "is_oversold": is_oversold if 'is_oversold' in locals() else False,
             "divergence": div_status,
             "is_owned": is_owned
@@ -550,7 +566,11 @@ CORE MISSION:
    - If [Squeeze Active], mention that volatility squeeze expansion is imminent.
    - If testing resistance, state whether it is holding for breakout above $(R+0.01) toward $Target3R.
    - If at support, confirm whether the bounce is validated with risk defended at $Stop.
-   - If Sell (Cut Loss), check if price is testing Support floor or RSI14 < 32 (deeply oversold). If so, MUST include a WARNING in the note (e.g. 'WARNING: deeply oversold near support; avoid panic-selling, watch for relief bounce to trim into strength'). Otherwise, state the cut loss risk rationale.
+   - If Sell (Cut Loss):
+     * If price is far above support (dist_s >= 10%): MUST issue a CRITICAL WARNING that price is falling with large room to fall further before support ($S), advising to cut loss/de-risk now to prevent cascade.
+     * If BOTH price is testing Support floor (within 3.5% of $S) AND RSI14 < 32: MUST state 'WARNING: deeply oversold testing major support; avoid panic dump, watch for relief bounce to trim into strength.'
+     * If ONLY RSI14 < 32 but price is NOT near support: state 'Violated stop $Stop. WARNING: RSI deeply oversold (snapback risk); trim into bounce.'
+     * Otherwise: state clear cut loss risk rationale (e.g. 'Violated stop $Stop. Cut loss priority to preserve capital.').
    - If Sell (Take-Profit), give the clear institutional risk rationale.
 
 CRITICAL FORMATTING:
@@ -813,8 +833,12 @@ if has_any_shares:
             
             # Determine partial scale-out / execution blueprint
             if "sell" in rec.lower():
-                if m.get("is_oversold", False) or m.get("near_support_floor", False):
-                    plan_str = f"Stop breached ({m['atr_stop']}). WARNING: Oversold near support ({m['support']}); avoid panic dump. Trim into bounce."
+                if m.get("has_large_downside_vacuum", False):
+                    plan_str = f"Stop breached ({m['atr_stop']}). CRITICAL: {m.get('dist_s', 0):.0f}% room to fall to support ({m['support']}); de-risk/cut loss now."
+                elif m.get("near_support_floor", False) and m.get("is_oversold", False):
+                    plan_str = f"Stop breached ({m['atr_stop']}). WARNING: Oversold at support ({m['support']}); avoid panic dump. Trim into bounce."
+                elif m.get("is_oversold", False):
+                    plan_str = f"Stop breached ({m['atr_stop']}). WARNING: RSI oversold ({m.get('rsi', '')}); trim into bounce."
                 else:
                     plan_str = f"Exit priority. Violates stop {m['atr_stop']}."
             elif pnl_pct >= 5.0:
